@@ -1,0 +1,14 @@
+[package]
+name = "oxdz"
+version = "0.1.0"
+authors = ["Claudio Matsuoka <cmatsuoka@gmail.com>"]
+
+[[bin]]
+name = "oxdz"
+path = "src/bin/oxdz.rs"
+doc = false
+
+[dependencies]
+
+[profile.release]
+lto = true
