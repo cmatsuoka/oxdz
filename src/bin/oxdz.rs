@@ -1,8 +1,9 @@
 extern crate oxdz;
 
-use oxdz::mixer;
-use oxdz::module::sample::Sample;
+use oxdz::format;
 
 fn main() {
-    let sample = Sample::new();
+    for f in format::list() {
+        println!("format: {}", f.name());
+    }
 }
