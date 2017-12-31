@@ -1,6 +1,6 @@
 use std::slice;
-use super::Sample;
-use super::super::*;
+use module::sample::Sample;
+use ::*;
 
 #[derive(Debug)]
 pub struct Instrument {

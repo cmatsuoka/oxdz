@@ -1,5 +1,6 @@
-use super::module::sample::{Sample, SampleType};
+use module::sample::{Sample, SampleType};
 use mixer::interpolator::{AnyInterpolator, Interpolate};
+use ::*;
 
 mod interpolator;
 
@@ -9,7 +10,7 @@ pub struct Mixer<'a> {
     rate   : f64,
     mute   : bool,
     voices : Vec<Voice>,
-    buffer : [i32; super::MAX_FRAMESIZE],
+    buffer : [i32; MAX_FRAMESIZE],
     samples: &'a Vec<Sample>,
     interp : interpolator::AnyInterpolator,
 }

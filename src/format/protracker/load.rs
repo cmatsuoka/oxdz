@@ -1,7 +1,7 @@
 use byteorder::{ByteOrder, BigEndian};
-use super::super::module::{Module, Sample, Instrument};
-use super::super::Error;
-use super::ModuleFormat;
+use Error;
+use format::ModuleFormat;
+use module::{Module, Sample, Instrument};
 
 pub struct Mod {
     name: &'static str,

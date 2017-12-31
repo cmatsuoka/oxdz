@@ -1,5 +1,5 @@
-use super::module::Module;
-use super::Error;
+use Error;
+use module::Module;
 
 mod protracker;
 

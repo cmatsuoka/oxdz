@@ -3,8 +3,8 @@ pub mod sample;
 
 pub use self::sample::Sample;
 pub use self::instrument::Instrument;
-use super::format;
-use super::Error;
+use Error;
+use format;
 
 #[derive(Debug)]
 pub struct Module {
