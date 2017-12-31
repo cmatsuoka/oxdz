@@ -8,7 +8,7 @@ pub enum SampleType {
 }
 
 #[derive(Debug)]
-pub struct Sample<'a> {
+pub struct Sample {
     pub sample_type : SampleType,
     pub length      : u32,
     pub loop_begin  : u32,
@@ -23,11 +23,11 @@ pub struct Sample<'a> {
     pub guard_size  : u32,
     pub rate        : f64,
     pub name        : String,
-    data            : &'a [u8],
+    data            : Vec<u8>,
 }
 
-impl<'a> Sample<'a> {
-    pub fn new() -> Sample<'a> {
+impl Sample {
+    pub fn new() -> Sample {
         Sample {
             sample_type : SampleType::Empty,
             length      : 0,
@@ -43,7 +43,7 @@ impl<'a> Sample<'a> {
             guard_size  : 0,
             rate        : 8000_f64,
             name        : "".to_owned(),
-            data        : &[],
+            data        : Vec::new(),
         }
     }
 

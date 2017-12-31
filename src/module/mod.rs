@@ -1,31 +1,24 @@
+pub mod instrument;
 pub mod sample;
 
-use self::sample::Sample;
+pub use self::sample::Sample;
+pub use self::instrument::Instrument;
 use super::format;
 use super::Error;
 
 #[derive(Debug)]
-pub struct Module<'a> {
-    pub title : String,
-    pub sample: Vec<Sample<'a>>,
+pub struct Module {
+    pub title     : String,
+    pub instrument: Vec<Instrument>,
+    pub sample    : Vec<Sample>,
 }
 
-impl<'a> Module<'a> {
+impl Module {
     pub fn new() -> Self {
         Module {
-            title : "".to_owned(),
-            sample: Vec::new(),
+            title     : "".to_owned(),
+            instrument: Vec::new(),
+            sample    : Vec::new(),
         }
-    }
-
-    pub fn from_buffer(b: &[u8]) -> Result<Self, Error> {
-        let mut m = Self::new();
-
-        for f in format::list() {
-            let module = try!(f.load(b));
-            println!("module: {}", module.title);
-        }
-
-        Ok(m)
     }
 }

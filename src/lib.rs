@@ -14,6 +14,8 @@ pub const MIN_BPM : i32 = 20;
 // frame rate = (50 * bpm / 125) Hz
 // frame size = (sampling rate * channels * size) / frame rate
 pub const MAX_FRAMESIZE: usize = (5 * MAX_RATE * 2 / MIN_BPM) as usize;
+pub const MAX_KEYS: usize = 128;
+
 
 #[derive(Debug)]
 pub enum Error {

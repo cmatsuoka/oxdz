@@ -21,5 +21,9 @@ fn run() -> Result<(), Box<Error>> {
     let module = try!(format::load_module(&mmap[..]));
     println!("Title: {}", module.title);
 
+    for ins in module.instrument {
+        println!("{:3}: {}", ins.num, ins.name);
+    }
+
     Ok(())
 }

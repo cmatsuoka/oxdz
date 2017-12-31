@@ -10,7 +10,7 @@ pub struct Mixer<'a> {
     mute   : bool,
     voices : Vec<Voice>,
     buffer : [i32; super::MAX_FRAMESIZE],
-    samples: &'a Vec<Sample<'a>>,
+    samples: &'a Vec<Sample>,
     interp : interpolator::AnyInterpolator,
 }
 

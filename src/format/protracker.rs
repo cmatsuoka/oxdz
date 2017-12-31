@@ -1,5 +1,5 @@
 use byteorder::{ByteOrder, BigEndian};
-use super::super::module::Module;
+use super::super::module::{Module, Sample, Instrument};
 use super::super::Error;
 use super::ModuleFormat;
 
@@ -21,6 +21,20 @@ struct ModEvent {
 impl Mod {
     pub fn new() -> Self {
         Mod{name: "Protracker MOD"}
+    }
+
+    fn load_instrument(&self, b: &[u8], mut m: Module, i: usize) -> Result<Module, Error> {
+        let mut ins = Instrument::new();
+        let mut smp = Sample::new();
+
+        let ofs = 20 + i * 30;
+        ins.num = i + 1;
+        ins.name = String::from_utf8_lossy(&b[ofs..ofs+22]).to_string();
+
+        m.instrument.push(ins);
+        m.sample.push(smp);
+
+        Ok(m)
     }
 }
 
@@ -44,6 +58,12 @@ impl ModuleFormat for Mod {
     fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
         let mut m = Module::new();
         m.title = String::from_utf8_lossy(&b[..20]).to_string();
+
+        for i in 0..31 {
+            m = try!(self.load_instrument(b, m, i));
+        }
+
         Ok(m)
     }
+
 }
