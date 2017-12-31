@@ -4,9 +4,10 @@ use self::sample::Sample;
 use super::format;
 use super::Error;
 
+#[derive(Debug)]
 pub struct Module<'a> {
-    title : String,
-    sample: Vec<Sample<'a>>,
+    pub title : String,
+    pub sample: Vec<Sample<'a>>,
 }
 
 impl<'a> Module<'a> {
@@ -21,7 +22,7 @@ impl<'a> Module<'a> {
         let mut m = Self::new();
 
         for f in format::list() {
-            let module = try!((*f).load(b));
+            let module = try!(f.load(b));
             println!("module: {}", module.title);
         }
 

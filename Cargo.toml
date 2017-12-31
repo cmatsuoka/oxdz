@@ -9,6 +9,8 @@ path = "src/bin/oxdz.rs"
 doc = false
 
 [dependencies]
+memmap = "0.6"
+byteorder = "1.2"
 
 [profile.release]
 lto = true

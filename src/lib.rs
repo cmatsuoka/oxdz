@@ -1,3 +1,5 @@
+extern crate byteorder;
+
 pub mod format;
 pub mod mixer;
 pub mod module;
