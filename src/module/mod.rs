@@ -3,6 +3,7 @@ pub mod sample;
 
 pub use self::sample::Sample;
 pub use self::instrument::Instrument;
+
 use Error;
 use format;
 

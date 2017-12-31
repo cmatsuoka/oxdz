@@ -1,4 +1,3 @@
-use std::slice;
 use module::sample::Sample;
 use ::*;
 

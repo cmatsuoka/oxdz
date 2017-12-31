@@ -11,9 +11,9 @@ pub enum SampleType {
 pub struct Sample {
     pub sample_type : SampleType,
     pub length      : u32,
-    pub loop_begin  : u32,
+    pub loop_start  : u32,
     pub loop_end    : u32,
-    pub sloop_begin : u32,
+    pub sloop_start : u32,
     pub sloop_end   : u32,
     pub has_loop    : bool,
     pub has_sloop   : bool,
@@ -31,9 +31,9 @@ impl Sample {
         Sample {
             sample_type : SampleType::Empty,
             length      : 0,
-            loop_begin  : 0,
+            loop_start  : 0,
             loop_end    : 0,
-            sloop_begin : 0,
+            sloop_start : 0,
             sloop_end   : 0,
             has_loop    : false,
             has_sloop   : false,

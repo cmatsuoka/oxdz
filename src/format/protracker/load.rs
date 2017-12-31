@@ -1,7 +1,7 @@
-use byteorder::{ByteOrder, BigEndian};
 use Error;
 use format::ModuleFormat;
 use module::{Module, Sample, Instrument};
+use util::BinaryRead;
 
 pub struct Mod {
     name: &'static str,
@@ -27,9 +27,16 @@ impl Mod {
         let mut ins = Instrument::new();
         let mut smp = Sample::new();
 
-        let ofs = 20 + i * 30;
+        let mut ofs = 20 + i * 30;
         ins.num = i + 1;
-        ins.name = String::from_utf8_lossy(&b[ofs..ofs+22]).to_string();
+        ins.name = b.read_string(ofs, 22);
+
+        ofs += 31 * 30;
+        smp.length = b.read16b(ofs) as u32 * 2;
+        smp.rate = 8287.0;
+        ins.volume = b[ofs+5] as usize;
+        smp.loop_start = b.read16b(ofs + 6) as u32 * 2;
+        smp.loop_end = smp.loop_start + b.read16b(ofs + 8) as u32 * 2;
 
         m.instrument.push(ins);
         m.sample.push(smp);
@@ -48,7 +55,7 @@ impl ModuleFormat for Mod {
             return Err(Error::Format("file too short"));
         }
 
-        if BigEndian::read_u32(&b[1080..1084]) == 0x4d2e4b2e {
+        if b.read32b(1080) == 0x4d2e4b2e {
             Ok(())
         } else {
             Err(Error::Format("bad magic"))
@@ -57,7 +64,7 @@ impl ModuleFormat for Mod {
 
     fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
         let mut m = Module::new();
-        m.title = String::from_utf8_lossy(&b[..20]).to_string();
+        m.title = b.read_string(0, 20);
 
         for i in 0..31 {
             m = try!(self.load_instrument(b, m, i));
