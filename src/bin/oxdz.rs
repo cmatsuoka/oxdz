@@ -21,8 +21,16 @@ fn run() -> Result<(), Box<Error>> {
     let module = try!(format::load_module(&mmap[..]));
     println!("Title: {}", module.title);
 
+    println!("Instruments:");
     for ins in module.instrument {
         println!("{:3}: {}", ins.num, ins.name);
+    }
+
+    println!("Samples:");
+    for smp in module.sample {
+        println!("{:3}: {:30} {:5} {:5} {:5} {}",
+            smp.num, smp.name, smp.size, smp.loop_start, smp.loop_end,
+            if smp.has_loop { 'L' } else { ' ' });
     }
 
     Ok(())

@@ -29,14 +29,17 @@ impl Mod {
 
         let mut ofs = 20 + i * 30;
         ins.num = i + 1;
+        smp.num = i + 1;
         ins.name = b.read_string(ofs, 22);
+        smp.name = ins.name.to_owned();
 
-        ofs += 31 * 30;
-        smp.length = b.read16b(ofs) as u32 * 2;
+        smp.size = b.read16b(ofs + 22) as u32 * 2;
         smp.rate = 8287.0;
-        ins.volume = b[ofs+5] as usize;
-        smp.loop_start = b.read16b(ofs + 6) as u32 * 2;
-        smp.loop_end = smp.loop_start + b.read16b(ofs + 8) as u32 * 2;
+        ins.volume = b[ofs + 25] as usize;
+        smp.loop_start = b.read16b(ofs + 26) as u32 * 2;
+        let loop_size = b.read16b(ofs + 28);
+        smp.loop_end = smp.loop_start + loop_size as u32 * 2;
+        smp.has_loop = loop_size > 1 && smp.loop_end >= 4;
 
         m.instrument.push(ins);
         m.sample.push(smp);

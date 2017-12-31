@@ -10,7 +10,8 @@ pub enum SampleType {
 #[derive(Debug)]
 pub struct Sample {
     pub sample_type : SampleType,
-    pub length      : u32,
+    pub num         : usize,
+    pub size        : u32,
     pub loop_start  : u32,
     pub loop_end    : u32,
     pub sloop_start : u32,
@@ -30,7 +31,8 @@ impl Sample {
     pub fn new() -> Sample {
         Sample {
             sample_type : SampleType::Empty,
-            length      : 0,
+            num         : 0,
+            size        : 0,
             loop_start  : 0,
             loop_end    : 0,
             sloop_start : 0,
@@ -49,7 +51,7 @@ impl Sample {
 
     pub fn data<T>(&self) -> &[T] {
         unsafe {
-            slice::from_raw_parts(self.data.as_ptr() as *const T, self.length as usize)
+            slice::from_raw_parts(self.data.as_ptr() as *const T, self.size as usize)
         }
     }
 }

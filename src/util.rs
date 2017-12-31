@@ -8,7 +8,7 @@ pub trait BinaryRead {
 
 impl<'a> BinaryRead for &'a [u8] {
     fn read_string(&self, ofs: usize, size: usize) -> String {
-        String::from_utf8_lossy(&self[ofs..ofs+size]).to_string()
+        String::from_utf8_lossy(&self[ofs..ofs+size]).to_string().replace("\x00", " ")
     }
 
     fn read32b(&self, ofs: usize) -> u32 {
