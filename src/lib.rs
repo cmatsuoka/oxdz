@@ -22,6 +22,7 @@ pub const MAX_KEYS: usize = 128;
 #[derive(Debug)]
 pub enum Error {
     Format(&'static str),
+    Load(&'static str),
     Io(io::Error),
 }
 
@@ -29,6 +30,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Format(descr) => write!(f, "{}", descr),
+            Error::Load(descr)   => write!(f, "{}", descr),
             Error::Io(ref err)   => write!(f, "{}", err),
         }
     }
@@ -38,6 +40,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Format(_)   => "Unsupported module format",
+            Error::Load(_)     => "Can't load module data",
             Error::Io(ref err) => err.description(),
         }
     }
