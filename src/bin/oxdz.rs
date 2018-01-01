@@ -47,7 +47,7 @@ fn show_pattern(module: &module::Module, num: usize) {
     for r in 0..module.patterns.rows(num) {
         print!("{:3}: ", r);
         for c in 0..module.chn {
-            //print!("{}  ", module.patterns.event(num, r, c)
+            print!("{}  ", module.patterns.event(num, r, c))
         }
         println!();
     }

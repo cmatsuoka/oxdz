@@ -1,7 +1,7 @@
 use std::cmp::max;
 use Error;
 use format::ModuleFormat;
-use module::{Module, Sample, Instrument, Orders, Patterns};
+use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use util::{BinaryRead, period_to_note};
 
 pub struct Mod {
@@ -133,6 +133,20 @@ impl Patterns for ModPatterns {
         } else {
             64
         }
+    }
+
+    fn event(&self, num: usize, row: usize, chn: usize) -> Event {
+        let ofs = num * 256 + row * 4 + chn;
+        let mut e = Event::new();
+        if ofs >= self.data.len() {
+            return e
+        }
+        let raw = &self.data[ofs];
+        e.note = raw.note;
+        e.ins  = raw.ins;
+        e.fxt  = raw.fxt;
+        e.fxp  = raw.fxp;
+        e
     }
 }
 

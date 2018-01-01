@@ -1,8 +1,10 @@
 pub mod instrument;
 pub mod sample;
+pub mod event;
 
 pub use self::sample::Sample;
 pub use self::instrument::Instrument;
+pub use self::event::Event;
 
 use std::fmt;
 
@@ -28,6 +30,7 @@ impl fmt::Debug for Orders {
 pub trait Patterns {
     fn num(&self) -> usize;
     fn rows(&self, pat: usize) -> usize;
+    fn event(&self, num: usize, row: usize, chn: usize) -> Event;
 }
 
 impl fmt::Debug for Patterns {
@@ -78,5 +81,6 @@ struct EmptyPatterns;
 
 impl Patterns for EmptyPatterns {
     fn num(&self) -> usize { 0 }
-    fn rows(&self, pat: usize) -> usize { 0 }
+    fn rows(&self, _pat: usize) -> usize { 0 }
+    fn event(&self, _num: usize, _row: usize, _chn: usize) -> Event { Event::new() }
 }
