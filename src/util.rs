@@ -1,12 +1,13 @@
 use byteorder::{ByteOrder, BigEndian};
 use Error;
+use ::*;
 
 pub trait BinaryRead {
     fn read_string(&self, ofs: usize, size: usize) -> Result<String, Error>;
     fn read32b(&self, ofs: usize) -> Result<u32, Error>;
     fn read16b(&self, ofs: usize) -> Result<u16, Error>;
     fn read8(&self, ofs: usize) -> Result<u8, Error>;
-    fn slice(&self, start: usize, end: usize) -> Result<&[u8], Error>;
+    fn slice(&self, start: usize, size: usize) -> Result<&[u8], Error>;
 }
 
 impl<'a> BinaryRead for &'a [u8] {
@@ -30,9 +31,9 @@ impl<'a> BinaryRead for &'a [u8] {
         Ok(self[ofs])
     }
 
-    fn slice(&self, start: usize, end: usize) -> Result<&[u8], Error> {
-        try!(check_buffer_size(&self, end + 1));
-        Ok(&self[start..end])
+    fn slice(&self, start: usize, size: usize) -> Result<&[u8], Error> {
+        try!(check_buffer_size(&self, start + size));
+        Ok(&self[start..start + size])
     }
 }
 
@@ -41,4 +42,12 @@ fn check_buffer_size(b: &[u8], size: usize) -> Result<(), Error> {
         return Err(Error::Load("short read"))
     }
     Ok(())
+}
+
+pub fn period_to_note(period: u32) -> usize {
+    if period == 0 {
+        return 0
+    }
+
+    (12.0_f64 * (PERIOD_BASE / period as f64).log(2.0) + 1.0).round() as usize
 }

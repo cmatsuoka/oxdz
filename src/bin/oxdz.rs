@@ -4,7 +4,7 @@ extern crate oxdz;
 use std::error::Error;
 use std::fs::File;
 use memmap::Mmap;
-use oxdz::format;
+use oxdz::{format, module};
 
 fn main() {
 
@@ -22,19 +22,33 @@ fn run() -> Result<(), Box<Error>> {
     println!("Title: {}", module.title);
 
     println!("Instruments:");
-    for ins in module.instrument {
+    for ins in &module.instrument {
         println!("{:3}: {}", ins.num, ins.name);
     }
 
     println!("Samples:");
-    for smp in module.sample {
+    for smp in &module.sample {
         println!("{:3}: {:30} {:5} {:5} {:5} {}",
             smp.num, smp.name, smp.size, smp.loop_start, smp.loop_end,
             if smp.has_loop { 'L' } else { ' ' });
     }
 
-    println!("Length: {}", module.orders.len());
+    println!("Length: {}", module.orders.num());
+    println!("Patterns: {}", module.patterns.num());
     println!("Position: {} ({})", module.orders.current(), module.orders.pattern());
 
+    show_pattern(&module, 0);
+
     Ok(())
+}
+
+fn show_pattern(module: &module::Module, num: usize) {
+    println!("Pattern {}:", num);
+    for r in 0..module.patterns.rows(num) {
+        print!("{:3}: ", r);
+        for c in 0..module.chn {
+            //print!("{}  ", module.patterns.event(num, r, c)
+        }
+        println!();
+    }
 }

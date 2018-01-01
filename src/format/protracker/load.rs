@@ -1,21 +1,11 @@
+use std::cmp::max;
 use Error;
 use format::ModuleFormat;
-use module::{Module, Sample, Instrument, Order};
-use util::BinaryRead;
+use module::{Module, Sample, Instrument, Orders, Patterns};
+use util::{BinaryRead, period_to_note};
 
 pub struct Mod {
     name: &'static str,
-}
-
-struct ModPattern<'a> {
-    pub event: &'a [ModEvent; 64 * 4],    
-}
-
-struct ModEvent {
-    pub note: u8,
-    pub ins : u8,
-    pub fxp : u8,
-    pub fxt : u8,
 }
 
 impl Mod {
@@ -68,6 +58,7 @@ impl ModuleFormat for Mod {
     fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
         let mut m = Module::new();
         m.title = b.read_string(0, 20)?;
+        m.chn = 4;
 
         for i in 0..31 {
             m = try!(self.load_instrument(b, m, i));
@@ -75,13 +66,76 @@ impl ModuleFormat for Mod {
 
         let len = b.read8(950)? as usize;
         let rst = b.read8(951)?;
+        let ord = ModOrders::from_slice(rst, b.slice(952, len)?);
+        let pat = ord.patterns();
+        m.orders = Box::new(ord);
 
-        m.orders = Box::new(ModOrders::new(rst, b.slice(952, 952+len)?));
+        let p = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
+        m.patterns = Box::new(p);
 
         Ok(m)
     }
 
 }
+
+struct ModEvent {
+    note: u8,
+    ins : u8,
+    fxt : u8,
+    fxp : u8,
+}
+
+impl ModEvent {
+    fn from_slice(b: &[u8]) -> Self {
+        ModEvent {
+            note: period_to_note((((b[0] & 0x0f) as u32) << 8) | b[1] as u32) as u8,
+            ins : (b[0] & 0xf0) | ((b[2] & 0xf0) >> 4),
+            fxt : b[2] & 0x0f,
+            fxp : b[3],
+        }
+    }
+}
+
+struct ModPatterns {
+    num : usize,
+    data: Vec<ModEvent>,
+}
+
+impl ModPatterns {
+    fn from_slice(num: usize, b: &[u8]) -> Result<Self, Error> {
+        let mut pat = ModPatterns{
+            num,
+            data: Vec::new(),
+        };
+
+        for p in 0..num {
+            for r in 0..64 {
+                for c in 0..4 {
+                    let ofs = p * 1024 + r * 16 + c * 4;
+                    let e = ModEvent::from_slice(b.slice(ofs, 4)?);
+                    pat.data.push(e);
+                }
+            }
+        }
+
+        Ok(pat)
+    }
+}
+
+impl Patterns for ModPatterns {
+    fn num(&self) -> usize {
+        self.num 
+    }
+
+    fn rows(&self, pat: usize) -> usize{
+        if pat >= self.num() {
+            0
+        } else {
+            64
+        }
+    }
+}
+
 
 struct ModOrders {
     song  : usize,
@@ -91,7 +145,7 @@ struct ModOrders {
 }
 
 impl ModOrders {
-    pub fn new(r: u8, o: &[u8]) -> Self {
+    fn from_slice(r: u8, o: &[u8]) -> Self {
         
         let mut r = r as usize;
 
@@ -106,10 +160,16 @@ impl ModOrders {
             orders: o.to_vec(),
         }
     }
+
+    fn patterns(&self) -> usize {
+        let mut num = 0;
+        self.orders.iter().for_each(|x| num = max(*x as usize, num));
+        num 
+    }
 }
 
-impl Order for ModOrders {
-    fn len(&self) -> usize {
+impl Orders for ModOrders {
+    fn num(&self) -> usize {
         self.orders.len()
     }
 
@@ -133,7 +193,7 @@ impl Order for ModOrders {
     }
 
     fn next(&mut self) -> usize {
-        if self.pos < self.len() - 1 {
+        if self.pos < self.num() - 1 {
             self.pos += 1;
         }
         self.pos

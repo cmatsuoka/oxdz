@@ -1,4 +1,3 @@
-use module::sample::Sample;
 use ::*;
 
 #[derive(Debug)]
