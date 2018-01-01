@@ -1,6 +1,6 @@
 use Error;
 use format::ModuleFormat;
-use module::{Module, Sample, Instrument};
+use module::{Module, Sample, Instrument, Order};
 use util::BinaryRead;
 
 pub struct Mod {
@@ -73,7 +73,84 @@ impl ModuleFormat for Mod {
             m = try!(self.load_instrument(b, m, i));
         }
 
+        let len = b.read8(950)? as usize;
+        let rst = b.read8(951)?;
+
+        m.orders = Box::new(ModOrders::new(rst, b.slice(952, 952+len)?));
+
         Ok(m)
     }
 
+}
+
+struct ModOrders {
+    song  : usize,
+    pos   : usize,
+    rstpos: usize,
+    orders: Vec<u8>,
+}
+
+impl ModOrders {
+    pub fn new(r: u8, o: &[u8]) -> Self {
+        
+        let mut r = r as usize;
+
+        if r >= o.len() {
+            r = 0;
+        }
+
+        ModOrders {
+            song  : 0,
+            pos   : 0,
+            rstpos: r,
+            orders: o.to_vec(),
+        }
+    }
+}
+
+impl Order for ModOrders {
+    fn len(&self) -> usize {
+        self.orders.len()
+    }
+
+    fn restart(&mut self) -> usize {
+        let p = self.rstpos;
+        self.set(p)
+    }
+
+    fn current(&self) -> usize {
+        self.pos
+    }
+
+    fn pattern(&self) -> usize {
+        let p = self.pos;
+        self.orders[p] as usize
+    }
+
+    fn set(&mut self, p: usize) -> usize {
+        self.pos = p;
+        self.pos
+    }
+
+    fn next(&mut self) -> usize {
+        if self.pos < self.len() - 1 {
+            self.pos += 1;
+        }
+        self.pos
+    }
+
+    fn prev(&mut self) -> usize {
+        if self.pos > 0 {
+            self.pos -= 1;
+        }
+        self.pos
+    }
+
+    fn current_song(&self) -> usize {
+        0
+    }
+
+    fn set_song(&mut self, _: usize) -> usize {
+        0
+    }
 }

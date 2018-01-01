@@ -6,6 +6,7 @@ pub trait BinaryRead {
     fn read32b(&self, ofs: usize) -> Result<u32, Error>;
     fn read16b(&self, ofs: usize) -> Result<u16, Error>;
     fn read8(&self, ofs: usize) -> Result<u8, Error>;
+    fn slice(&self, start: usize, end: usize) -> Result<&[u8], Error>;
 }
 
 impl<'a> BinaryRead for &'a [u8] {
@@ -27,6 +28,11 @@ impl<'a> BinaryRead for &'a [u8] {
     fn read8(&self, ofs: usize) -> Result<u8, Error> {
         try!(check_buffer_size(&self, ofs + 1));
         Ok(self[ofs])
+    }
+
+    fn slice(&self, start: usize, end: usize) -> Result<&[u8], Error> {
+        try!(check_buffer_size(&self, end + 1));
+        Ok(&self[start..end])
     }
 }
 

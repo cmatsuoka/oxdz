@@ -33,5 +33,8 @@ fn run() -> Result<(), Box<Error>> {
             if smp.has_loop { 'L' } else { ' ' });
     }
 
+    println!("Length: {}", module.orders.len());
+    println!("Position: {} ({})", module.orders.current(), module.orders.pattern());
+
     Ok(())
 }
