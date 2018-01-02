@@ -4,6 +4,7 @@ use format::ModuleFormat;
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use util::{BinaryRead, period_to_note};
 
+/// Protracker module loader
 pub struct Mod {
     name: &'static str,
 }
@@ -36,6 +37,15 @@ impl Mod {
 
         Ok(m)
     }
+
+    fn load_sample(&self, b: &[u8], mut m: Module, i: usize) -> Result<Module, Error> {
+        if i >= m.sample.len() {
+            return Err(Error::Load("invalid sample number"))
+        }
+        m.sample[i].store(b);
+
+        Ok(m)
+    }
 }
 
 impl ModuleFormat for Mod {
@@ -60,22 +70,32 @@ impl ModuleFormat for Mod {
         m.title = b.read_string(0, 20)?;
         m.chn = 4;
 
+        // Load instruments
         for i in 0..31 {
             m = try!(self.load_instrument(b, m, i));
         }
 
+        // Load orders
         let len = b.read8(950)? as usize;
         let rst = b.read8(951)?;
         let ord = ModOrders::from_slice(rst, b.slice(952, len)?);
         let pat = ord.patterns();
         m.orders = Box::new(ord);
 
+        // Load patterns
         let p = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
         m.patterns = Box::new(p);
 
+        // Load samples (sample size is set when loading instruments)
+        let mut ofs = 1084 + 1024*pat;
+        for i in 0..31 {
+            let size = m.sample[i].size as usize;
+            m = try!(self.load_sample(b.slice(ofs, size)?, m, i));
+            ofs += size;
+        }
+
         Ok(m)
     }
-
 }
 
 struct ModEvent {

@@ -49,6 +49,10 @@ impl Sample {
         }
     }
 
+    pub fn store(&mut self, b: &[u8]) {
+        self.data = b.to_vec()
+    }
+
     pub fn data<T>(&self) -> &[T] {
         unsafe {
             slice::from_raw_parts(self.data.as_ptr() as *const T, self.size as usize)
