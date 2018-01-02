@@ -4,7 +4,7 @@ extern crate oxdz;
 use std::error::Error;
 use std::fs::File;
 use memmap::Mmap;
-use oxdz::{format, module};
+use oxdz::{format, module, player};
 
 fn main() {
 
@@ -33,9 +33,11 @@ fn run() -> Result<(), Box<Error>> {
             if smp.has_loop { 'L' } else { ' ' });
     }
 
+    let player = player::Player::with_module(&module);
+
     println!("Length: {}", module.orders.num());
     println!("Patterns: {}", module.patterns.num());
-    println!("Position: {} ({})", module.orders.current(), module.orders.pattern());
+    println!("Position: {} ({})", player.position(), module.orders.pattern(&player));
 
     show_pattern(&module, 0);
 

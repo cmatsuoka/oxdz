@@ -2,6 +2,7 @@ use std::cmp::max;
 use Error;
 use format::ModuleFormat;
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
+use player::Player;
 use util::{BinaryRead, period_to_note};
 
 /// Protracker module loader
@@ -172,10 +173,9 @@ impl Patterns for ModPatterns {
 
 
 struct ModOrders {
-    song  : usize,
-    pos   : usize,
     rstpos: usize,
     orders: Vec<u8>,
+    songs : Vec<u8>,  // vector of song entry points
 }
 
 impl ModOrders {
@@ -188,10 +188,9 @@ impl ModOrders {
         }
 
         ModOrders {
-            song  : 0,
-            pos   : 0,
             rstpos: r,
             orders: o.to_vec(),
+            songs : Vec::new(),
         }
     }
 
@@ -208,43 +207,51 @@ impl Orders for ModOrders {
     }
 
     fn restart(&mut self) -> usize {
-        let p = self.rstpos;
-        self.set(p)
+        self.rstpos
     }
 
-    fn current(&self) -> usize {
-        self.pos
+    fn pattern(&self, player: &Player) -> usize {
+        let pos = player.position();
+        self.orders[pos] as usize
     }
 
-    fn pattern(&self) -> usize {
-        let p = self.pos;
-        self.orders[p] as usize
-    }
-
-    fn set(&mut self, p: usize) -> usize {
-        self.pos = p;
-        self.pos
-    }
-
-    fn next(&mut self) -> usize {
-        if self.pos < self.num() - 1 {
-            self.pos += 1;
+    fn next(&self, player: &mut Player) -> usize {
+        let mut pos = player.position();
+        if pos < self.num() - 1 {
+            pos += 1;
         }
-        self.pos
+        player.set_position(pos);
+        pos
     }
 
-    fn prev(&mut self) -> usize {
-        if self.pos > 0 {
-            self.pos -= 1;
+    fn prev(&self, player: &mut Player) -> usize {
+        let mut pos = player.position();
+        if pos > 0 {
+            pos -= 1;
         }
-        self.pos
+        player.set_position(pos);
+        pos
     }
 
-    fn current_song(&self) -> usize {
-        0
+    fn num_songs(&self) -> usize {
+        self.songs.len()
     }
 
-    fn set_song(&mut self, _: usize) -> usize {
-        0
+    fn next_song(&self, player: &mut Player) -> usize {
+        let mut song = player.song();
+        if song < self.num_songs() - 1 {
+            song += 1;
+        }
+        player.set_song(song);
+        song
+    }
+
+    fn prev_song(&self, player: &mut Player) -> usize {
+        let mut song = player.song();
+        if song > 0 {
+            song -= 1;
+        }
+        player.set_song(song);
+        song
     }
 }

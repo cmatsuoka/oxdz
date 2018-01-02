@@ -7,17 +7,17 @@ pub use self::instrument::Instrument;
 pub use self::event::Event;
 
 use std::fmt;
+use player::Player;
 
 pub trait Orders {
     fn num(&self) -> usize;
     fn restart(&mut self) -> usize;
-    fn current(&self) -> usize;
-    fn pattern(&self) -> usize;
-    fn set(&mut self, usize) -> usize;
-    fn next(&mut self) -> usize;
-    fn prev(&mut self) -> usize;
-    fn current_song(&self) -> usize;
-    fn set_song(&mut self, usize) -> usize;
+    fn pattern(&self, &Player) -> usize;
+    fn next(&self, &mut Player) -> usize;
+    fn prev(&self, &mut Player) -> usize;
+    fn num_songs(&self) -> usize;
+    fn next_song(&self, &mut Player) -> usize;
+    fn prev_song(&self, &mut Player) -> usize;
 }
 
 impl fmt::Debug for Orders {
@@ -68,13 +68,12 @@ struct EmptyOrders;
 impl Orders for EmptyOrders {
     fn num(&self) -> usize { 0 }
     fn restart(&mut self) -> usize { 0 }
-    fn current(&self) -> usize { 0 }
-    fn pattern(&self) -> usize { 0 }
-    fn set(&mut self, _: usize) -> usize { 0 }
-    fn next(&mut self) -> usize { 0 }
-    fn prev(&mut self) -> usize { 0 }
-    fn current_song(&self) -> usize { 0 }
-    fn set_song(&mut self, _: usize) -> usize { 0 }
+    fn pattern(&self, _player: &Player) -> usize { 0 }
+    fn next(&self, _player: &mut Player) -> usize { 0 }
+    fn prev(&self, _player: &mut Player) -> usize { 0 }
+    fn num_songs(&self) -> usize { 0 }
+    fn next_song(&self, _player: &mut Player) -> usize { 0 }
+    fn prev_song(&self, _player: &mut Player) -> usize { 0 }
 }
 
 struct EmptyPatterns;

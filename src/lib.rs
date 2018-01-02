@@ -5,6 +5,7 @@ mod util;
 pub mod format;
 pub mod mixer;
 pub mod module;
+pub mod player;
 
 use std::error;
 use std::fmt;
