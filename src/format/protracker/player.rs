@@ -1,5 +1,6 @@
-use player::Player;
 use module::{Module, PlayFrame};
+use player::Player;
+use super::ModPatterns;
 
 pub struct ModPlayer {
     name: &'static str,
@@ -19,5 +20,6 @@ impl PlayFrame for ModPlayer {
     }
 
     fn play(&self, player: &Player, module: &Module) {
+        let pat = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
     }
 }

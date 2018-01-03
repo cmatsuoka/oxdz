@@ -6,12 +6,13 @@ pub use self::sample::Sample;
 pub use self::instrument::Instrument;
 pub use self::event::Event;
 
+use std::any::Any;
 use std::fmt;
 use player::Player;
 
 pub trait Orders {
-    fn num(&self) -> usize;
-    fn restart(&mut self) -> usize;
+    fn num(&self, usize) -> usize;
+    fn restart_position(&mut self) -> usize;
     fn pattern(&self, &Player) -> usize;
     fn next(&self, &mut Player) -> usize;
     fn prev(&self, &mut Player) -> usize;
@@ -22,13 +23,15 @@ pub trait Orders {
 
 impl fmt::Debug for Orders {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "length: {}", self.num())
+        write!(f, "length: {}", self.num(0))  // FIXME: how to deal with other songs?
     }
 }
 
 
-pub trait Patterns {
+pub trait Patterns: Any {
+    fn as_any(&self) -> &Any;
     fn num(&self) -> usize;
+    fn len(&self, usize) -> usize;
     fn rows(&self, pat: usize) -> usize;
     fn event(&self, num: usize, row: usize, chn: usize) -> Event;
 }
@@ -84,8 +87,8 @@ impl Module {
 struct EmptyOrders;
 
 impl Orders for EmptyOrders {
-    fn num(&self) -> usize { 0 }
-    fn restart(&mut self) -> usize { 0 }
+    fn num(&self, _song: usize) -> usize { 0 }
+    fn restart_position(&mut self) -> usize { 0 }
     fn pattern(&self, _player: &Player) -> usize { 0 }
     fn next(&self, _player: &mut Player) -> usize { 0 }
     fn prev(&self, _player: &mut Player) -> usize { 0 }
@@ -97,7 +100,9 @@ impl Orders for EmptyOrders {
 struct EmptyPatterns;
 
 impl Patterns for EmptyPatterns {
+    fn as_any(&self) -> &Any { self }
     fn num(&self) -> usize { 0 }
+    fn len(&self, _pat: usize) -> usize { 0 }
     fn rows(&self, _pat: usize) -> usize { 0 }
     fn event(&self, _num: usize, _row: usize, _chn: usize) -> Event { Event::new() }
 }

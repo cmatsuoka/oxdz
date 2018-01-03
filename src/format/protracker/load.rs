@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cmp::max;
 use Error;
 use format::ModuleFormat;
@@ -122,7 +123,7 @@ impl ModEvent {
     }
 }
 
-struct ModPatterns {
+pub struct ModPatterns {
     num : usize,
     data: Vec<ModEvent>,
 }
@@ -149,11 +150,23 @@ impl ModPatterns {
 }
 
 impl Patterns for ModPatterns {
+    fn as_any(&self) -> &Any {
+        self
+    }
+
     fn num(&self) -> usize {
         self.num 
     }
 
-    fn rows(&self, pat: usize) -> usize{
+    fn len(&self, pat: usize) -> usize {
+        if pat >= self.num {
+            0
+        } else {
+            64
+        }
+    }
+
+    fn rows(&self, pat: usize) -> usize {
         if pat >= self.num() {
             0
         } else {
@@ -207,11 +220,11 @@ impl ModOrders {
 }
 
 impl Orders for ModOrders {
-    fn num(&self) -> usize {
+    fn num(&self, song: usize) -> usize {
         self.orders.len()
     }
 
-    fn restart(&mut self) -> usize {
+    fn restart_position(&mut self) -> usize {
         self.rstpos
     }
 
@@ -222,7 +235,7 @@ impl Orders for ModOrders {
 
     fn next(&self, player: &mut Player) -> usize {
         let mut pos = player.position();
-        if pos < self.num() - 1 {
+        if pos < self.num(player.song()) - 1 {
             pos += 1;
         }
         player.set_position(pos);

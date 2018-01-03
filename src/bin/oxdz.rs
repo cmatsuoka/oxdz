@@ -35,7 +35,7 @@ fn run() -> Result<(), Box<Error>> {
 
     let player = player::Player::with_module(&module);
 
-    println!("Length: {}", module.orders.num());
+    println!("Length: {}", module.orders.num(0));
     println!("Patterns: {}", module.patterns.num());
     println!("Position: {} ({})", player.position(), module.orders.pattern(&player));
 

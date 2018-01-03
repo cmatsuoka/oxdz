@@ -6,6 +6,7 @@ pub struct Player<'a> {
     row   : usize,
     frame : usize,
     song  : usize,
+    speed : usize,
     module: &'a Module,
 }
 
@@ -16,23 +17,50 @@ impl<'a> Player<'a> {
             row  : 0,
             frame: 0,
             song : 0,
+            speed: 6,  // FIXME: module initial speed
             module,
         }
     }
 
-    pub fn reset(&mut self) -> &Self {
+    pub fn restart(&mut self) -> &Self {
         self.pos = 0;
         self.row = 0;
         self.song = 0;
         self.frame = 0;
+        self.speed = 6; // FIXME: module initial speed
         self
     }
 
-    pub fn play_frame(&mut self, frame: usize) -> &Self {
+    pub fn play_frame(&mut self) -> &Self {
         for chn in 0..self.module.chn {
             self.module.playframe.play(&self, &self.module)
         }
+
         self
+    }
+
+    fn next_frame(&mut self) {
+        self.frame += 1;
+        if self.frame >= self.speed {
+            self.next_row();
+        }
+    }
+
+    fn next_row(&mut self) {
+        self.frame = 0;
+        self.row += 1;
+        if self.row > self.module.patterns.len(self.module.orders.pattern(&self)) {
+            self.next_pattern();
+        }
+    }
+
+    fn next_pattern(&mut self) {
+        self.row = 0;  // FIXME: pattern break row
+        self.pos += 1;
+        if self.pos > self.module.orders.num(self.song) {
+            // FIXME: add loop control
+            self.restart();
+        }
     }
 
     pub fn position(&self) -> usize {
