@@ -17,7 +17,7 @@ impl<'a> Player<'a> {
             row  : 0,
             frame: 0,
             song : 0,
-            speed: 6,  // FIXME: module initial speed
+            speed: module.speed,
             module,
         }
     }
@@ -27,7 +27,7 @@ impl<'a> Player<'a> {
         self.row = 0;
         self.song = 0;
         self.frame = 0;
-        self.speed = 6; // FIXME: module initial speed
+        self.speed = self.module.speed;
         self
     }
 

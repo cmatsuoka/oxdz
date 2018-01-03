@@ -57,8 +57,9 @@ impl fmt::Debug for PlayFrame {
 
 #[derive(Debug)]
 pub struct Module {
-    pub title     : String,
-    pub chn       : usize,
+    pub title     : String,           // module title
+    pub chn       : usize,            // number of channels
+    pub speed     : usize,            // initial speed (frames per row)
     pub instrument: Vec<Instrument>,
     pub sample    : Vec<Sample>,
     pub orders    : Box<Orders>,
@@ -71,6 +72,7 @@ impl Module {
         Module {
             title     : "".to_owned(),
             chn       : 0,
+            speed     : 6,
             instrument: Vec::new(),
             sample    : Vec::new(),
             orders    : Box::new(EmptyOrders),

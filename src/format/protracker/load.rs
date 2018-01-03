@@ -72,6 +72,7 @@ impl ModuleFormat for Mod {
         let mut m = Module::new();
         m.title = b.read_string(0, 20)?;
         m.chn = 4;
+        m.speed = 6;
 
         // Load instruments
         for i in 0..31 {
