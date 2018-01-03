@@ -32,9 +32,8 @@ impl<'a> Player<'a> {
     }
 
     pub fn play_frame(&mut self) -> &Self {
-        for chn in 0..self.module.chn {
-            self.module.playframe.play(&self, &self.module)
-        }
+        self.module.playframe.play(&self, &self.module);
+        self.next_frame();
 
         self
     }

@@ -1,11 +1,12 @@
 use std::any::Any;
 use std::cmp::max;
+use std::fmt;
 use Error;
 use format::ModuleFormat;
 use format::protracker::ModPlayer;
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use player::Player;
-use util::{BinaryRead, period_to_note};
+use util::{NOTES, BinaryRead, period_to_note};
 
 /// Protracker module loader
 pub struct Mod {
@@ -106,7 +107,7 @@ impl ModuleFormat for Mod {
     }
 }
 
-struct ModEvent {
+pub struct ModEvent {
     note: u8,
     ins : u8,
     fxt : u8,
@@ -123,6 +124,25 @@ impl ModEvent {
         }
     }
 }
+
+impl fmt::Display for ModEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let note = if self.note == 0 {
+            "---".to_owned()
+        } else {
+            format!("{}{}", NOTES[self.note as usize % 12], self.note / 12)
+        };
+
+        let ins = if self.ins == 0 {
+            "--".to_owned()
+        } else {
+            format!("{:02x}", self.ins)
+        };
+
+        write!(f, "{} {} {:02X}{:02X}", note, ins, self.fxt, self.fxp)
+    }
+}
+
 
 pub struct ModPatterns {
     num : usize,
@@ -147,6 +167,10 @@ impl ModPatterns {
         }
 
         Ok(pat)
+    }
+
+    pub fn event(&self, pat: usize, row: usize, chn: usize) -> &ModEvent {
+        &self.data[pat * 256 + row * 4 + chn]
     }
 }
 

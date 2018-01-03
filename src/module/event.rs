@@ -1,8 +1,5 @@
 use fmt;
-
-const NOTES: &'static [&'static str] = &[
-    "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#", "A ", "A#", "B "
-];
+use util::NOTES;
 
 #[derive(Debug)]
 pub struct Event {
