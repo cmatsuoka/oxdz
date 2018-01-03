@@ -1,6 +1,7 @@
 use std::cmp::max;
 use Error;
 use format::ModuleFormat;
+use format::protracker::ModPlayer;
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use player::Player;
 use util::{BinaryRead, period_to_note};
@@ -19,7 +20,7 @@ impl Mod {
         let mut ins = Instrument::new();
         let mut smp = Sample::new();
 
-        let mut ofs = 20 + i * 30;
+        let ofs = 20 + i * 30;
         ins.num = i + 1;
         smp.num = i + 1;
         ins.name = b.read_string(ofs, 22)?;
@@ -94,6 +95,10 @@ impl ModuleFormat for Mod {
             m = try!(self.load_sample(b.slice(ofs, size)?, m, i));
             ofs += size;
         }
+
+        // Set frame player
+        let player = ModPlayer::new();
+        m.playframe = Box::new(player);
 
         Ok(m)
     }

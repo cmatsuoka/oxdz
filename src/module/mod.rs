@@ -40,6 +40,18 @@ impl fmt::Debug for Patterns {
 }
 
 
+pub trait PlayFrame {
+    fn name(&self) -> &'static str;
+    fn play(&self, &Player, &Module);
+}
+
+impl fmt::Debug for PlayFrame {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "player: {}", self.name())
+    }
+}
+
+
 #[derive(Debug)]
 pub struct Module {
     pub title     : String,
@@ -48,6 +60,7 @@ pub struct Module {
     pub sample    : Vec<Sample>,
     pub orders    : Box<Orders>,
     pub patterns  : Box<Patterns>,
+    pub playframe : Box<PlayFrame>,
 }
 
 impl Module {
@@ -59,7 +72,12 @@ impl Module {
             sample    : Vec::new(),
             orders    : Box::new(EmptyOrders),
             patterns  : Box::new(EmptyPatterns),
+            playframe : Box::new(EmptyPlay),
         }
+    }
+
+    pub fn play_frame(&self, player: &Player) {
+        self.playframe.play(player, &self)
     }
 }
 
@@ -83,3 +101,12 @@ impl Patterns for EmptyPatterns {
     fn rows(&self, _pat: usize) -> usize { 0 }
     fn event(&self, _num: usize, _row: usize, _chn: usize) -> Event { Event::new() }
 }
+
+struct EmptyPlay;
+
+impl PlayFrame for EmptyPlay {
+    fn name(&self) -> &'static str { "" }
+    fn play(&self, _player: &Player, _module: &Module) { }
+}
+
+
