@@ -1,5 +1,11 @@
+mod virt;
+
+pub use player::virt::Virtual;
+pub use mixer::Mixer;
 use module::Module;
 use ::*;
+
+
 
 pub struct Player<'a> {
     pos   : usize,
@@ -8,10 +14,15 @@ pub struct Player<'a> {
     song  : usize,
     speed : usize,
     module: &'a Module,
+
+    virt  : Virtual,
 }
 
 impl<'a> Player<'a> {
-    pub fn with_module(module: &'a Module) -> Self {
+    pub fn new(module: &'a Module) -> Self {
+        let mixer = Mixer::new(module.chn);
+        let virt = Virtual::new(mixer);
+
         Player {
             pos  : 0,
             row  : 0,
@@ -19,6 +30,8 @@ impl<'a> Player<'a> {
             song : 0,
             speed: module.speed,
             module,
+
+            virt,
         }
     }
 
@@ -32,7 +45,7 @@ impl<'a> Player<'a> {
     }
 
     pub fn play_frame(&mut self) -> &Self {
-        self.module.playframe.play(&self, &self.module);
+        self.module.player.play(&self, &self.module);
         self.next_frame();
 
         self

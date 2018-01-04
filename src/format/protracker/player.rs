@@ -1,4 +1,4 @@
-use module::{Module, PlayFrame};
+use module::{Module, FormatPlayer};
 use player::Player;
 use super::ModPatterns;
 
@@ -25,7 +25,7 @@ impl ModPlayer {
     }
 }
 
-impl PlayFrame for ModPlayer {
+impl FormatPlayer for ModPlayer {
     fn name(&self) -> &'static str {
         self.name
     }

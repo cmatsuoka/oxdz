@@ -5,22 +5,58 @@ use ::*;
 mod interpolator;
 
 
-pub struct Mixer<'a> {
+pub struct Mixer {
 
-    rate   : f64,
-    mute   : bool,
-    voices : Vec<Voice>,
-    buffer : [i32; MAX_FRAMESIZE],
-    samples: &'a Vec<Sample>,
-    interp : interpolator::AnyInterpolator,
+    pub rate  : usize,
+    mute      : bool,
+    voices    : Vec<Voice>,
+    buffer    : [i32; MAX_FRAMESIZE],
+    pub interp: interpolator::AnyInterpolator,
 }
 
 
-impl<'a> Mixer<'a> {
+impl Mixer {
 
-    fn mix(&self) {
+    pub fn new(num: usize) -> Self {
+        Mixer {
+            rate  : 44100,
+            mute  : false,
+            voices: vec![Voice::new(); num],
+            buffer: [0; MAX_FRAMESIZE],
+            interp: AnyInterpolator::Linear(interpolator::Linear),
+        }
+    }
+
+    pub fn voice_root(&self, voice: usize) -> Option<usize> {
+        if voice >= self.voices.len() {
+            None
+        } else {
+            self.voices[voice].root
+        }
+    }
+
+    pub fn voice_chn(&self, voice: usize) -> Option<usize> {
+        if voice >= self.voices.len() {
+            None
+        } else {
+            self.voices[voice].chn
+        }
+    }
+
+    pub fn reset_voice(&self, voice: usize) {
+    }
+
+    pub fn set_volume(&self, voice: usize, vol: usize) {
+ 
+    }
+
+    pub fn set_pan(&self, voice: usize, pan: isize) {
+ 
+    }
+
+    fn mix(&self, samples: &Vec<Sample>) {
         for v in &self.voices {
-            let sample = &self.samples[v.smp];
+            let sample = &samples[v.smp];
             match sample.sample_type {
                 SampleType::Empty    => {},
                 SampleType::Sample8  => self.mix_data::<i8>(&v, &sample.data::<i8>()),
@@ -47,17 +83,24 @@ impl<'a> Mixer<'a> {
 
 
 
+#[derive(Clone, Default)]
 struct Voice {
 
-    num    : u8,
-    root   : u8,
+    num    : usize,
+    root   : Option<usize>,
+    chn    : Option<usize>,
     pos    : f64,
     period : f64,
-    note   : u8,
-    pan    : i8,
-    vol    : u8,
+    note   : usize,
+    pan    : isize,
+    vol    : usize,
     ins    : usize,
     smp    : usize,
 }
 
-
+impl Voice {
+    pub fn new() -> Self {
+        let v: Voice = Default::default();
+        v
+    }
+}

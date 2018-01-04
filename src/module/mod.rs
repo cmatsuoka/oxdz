@@ -10,6 +10,8 @@ use std::any::Any;
 use std::fmt;
 use player::Player;
 
+// Orders
+
 pub trait Orders {
     fn num(&self, usize) -> usize;
     fn restart_position(&mut self) -> usize;
@@ -28,6 +30,8 @@ impl fmt::Debug for Orders {
 }
 
 
+// Patterns
+
 pub trait Patterns: Any {
     fn as_any(&self) -> &Any;
     fn num(&self) -> usize;
@@ -43,28 +47,32 @@ impl fmt::Debug for Patterns {
 }
 
 
-pub trait PlayFrame {
+// Frame player
+
+pub trait FormatPlayer {
     fn name(&self) -> &'static str;
     fn play(&self, &Player, &Module);
 }
 
-impl fmt::Debug for PlayFrame {
+impl fmt::Debug for FormatPlayer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "player: {}", self.name())
     }
 }
 
 
+// Module
+
 #[derive(Debug)]
 pub struct Module {
-    pub title     : String,           // module title
-    pub chn       : usize,            // number of channels
-    pub speed     : usize,            // initial speed (frames per row)
+    pub title     : String,             // module title
+    pub chn       : usize,              // number of channels
+    pub speed     : usize,              // initial speed (frames per row)
     pub instrument: Vec<Instrument>,
     pub sample    : Vec<Sample>,
     pub orders    : Box<Orders>,
     pub patterns  : Box<Patterns>,
-    pub playframe : Box<PlayFrame>,
+    pub player    : Box<FormatPlayer>,  // Format-specific frame player
 }
 
 impl Module {
@@ -77,12 +85,12 @@ impl Module {
             sample    : Vec::new(),
             orders    : Box::new(EmptyOrders),
             patterns  : Box::new(EmptyPatterns),
-            playframe : Box::new(EmptyPlay),
+            player    : Box::new(EmptyPlayer),
         }
     }
 
     pub fn play_frame(&self, player: &Player) {
-        self.playframe.play(player, &self)
+        self.player.play(player, &self)
     }
 }
 
@@ -109,11 +117,9 @@ impl Patterns for EmptyPatterns {
     fn event(&self, _num: usize, _row: usize, _chn: usize) -> Event { Event::new() }
 }
 
-struct EmptyPlay;
+struct EmptyPlayer;
 
-impl PlayFrame for EmptyPlay {
+impl FormatPlayer for EmptyPlayer {
     fn name(&self) -> &'static str { "" }
     fn play(&self, _player: &Player, _module: &Module) { }
 }
-
-

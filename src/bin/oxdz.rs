@@ -33,7 +33,7 @@ fn run() -> Result<(), Box<Error>> {
             if smp.has_loop { 'L' } else { ' ' });
     }
 
-    let mut player = player::Player::with_module(&module);
+    let mut player = player::Player::new(&module);
 
     println!("Length: {}", module.orders.num(0));
     println!("Patterns: {}", module.patterns.num());
