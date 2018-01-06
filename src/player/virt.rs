@@ -28,14 +28,6 @@ pub struct Virtual<'a> {
     mixer        : Mixer<'a>,
 }
 
-    macro_rules! channel_to_voice {
-        ( $a: expr, $b: expr ) => {
-            match $a.channel_to_voice($b) {
-                Some(v) => v,
-                None    => return,
-            }
-        }
-    }
 
 impl<'a> Virtual<'a> {
     pub fn new(mixer: Mixer<'a>, chn: usize, has_virt: bool) -> Self {
@@ -120,7 +112,7 @@ impl<'a> Virtual<'a> {
     }
 
     pub fn set_volume(&mut self, chn: usize, mut vol: usize) {
-        let voice = channel_to_voice!(self, chn);
+        let voice = try_option!(self.channel_to_voice(chn));
 
         match self.mixer.voice_root(voice) {
             Some(v) => if self.channel_mute[v] { vol = 0 },
@@ -136,17 +128,17 @@ impl<'a> Virtual<'a> {
     }
 
     pub fn set_pan(&mut self, chn: usize, pan: isize) {
-        let voice = channel_to_voice!(self, chn);
+        let voice = try_option!(self.channel_to_voice(chn));
         self.mixer.set_pan(voice, pan);
     }
 
     pub fn set_period(&mut self, chn: usize, period: f64) {
-        let voice = channel_to_voice!(self, chn);
+        let voice = try_option!(self.channel_to_voice(chn));
         self.mixer.set_period(voice, period);
     }
 
     pub fn set_voicepos(&mut self, chn: usize, pos: f64) {
-        let voice = channel_to_voice!(self, chn);
+        let voice = try_option!(self.channel_to_voice(chn));
         self.mixer.set_voicepos(voice, pos, true);
     }
 }

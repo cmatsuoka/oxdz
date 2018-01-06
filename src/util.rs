@@ -6,6 +6,16 @@ pub const NOTES: &'static [&'static str] = &[
     "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#", "A ", "A#", "B "
 ];
 
+#[macro_export]
+macro_rules! try_option {
+    ( $a: expr ) => {
+        match $a {
+            Some(v) => v,
+            None    => return,
+        }
+    }
+}
+
 pub trait BinaryRead {
     fn read_string(&self, ofs: usize, size: usize) -> Result<String, Error>;
     fn read32b(&self, ofs: usize) -> Result<u32, Error>;

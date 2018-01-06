@@ -28,12 +28,12 @@ impl Mod {
         ins.name = b.read_string(ofs, 22)?;
         smp.name = ins.name.to_owned();
 
-        smp.size = b.read16b(ofs + 22)? as u32 * 2;
+        smp.size = b.read16b(ofs + 22)? as usize * 2;
         smp.rate = 8287.0;
         ins.volume = b.read8(ofs + 25)? as usize;
-        smp.loop_start = b.read16b(ofs + 26)? as u32 * 2;
+        smp.loop_start = b.read16b(ofs + 26)? as usize * 2;
         let loop_size = b.read16b(ofs + 28)?;
-        smp.loop_end = smp.loop_start + loop_size as u32 * 2;
+        smp.loop_end = smp.loop_start + loop_size as usize * 2;
         smp.has_loop = loop_size > 1 && smp.loop_end >= 4;
 
         m.instrument.push(ins);

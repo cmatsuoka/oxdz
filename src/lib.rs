@@ -1,5 +1,6 @@
 extern crate byteorder;
 
+#[macro_use]
 mod util;
 
 pub mod format;
