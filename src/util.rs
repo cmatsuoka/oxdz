@@ -55,3 +55,8 @@ pub fn period_to_note(period: u32) -> usize {
 
     (12.0_f64 * (PERIOD_BASE / period as f64).log(2.0) + 1.0).round() as usize
 }
+
+pub fn note_to_period_mix(note: usize, bend: usize) -> f64 {
+    let d = note as f64 + bend as f64 / 12800.0;
+    PERIOD_BASE / 2.0_f64.powf(d / 12.0)
+}

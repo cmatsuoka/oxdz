@@ -15,13 +15,13 @@ pub struct Player<'a> {
     speed : usize,
     module: &'a Module,
 
-    virt  : Virtual,
+    virt  : Virtual<'a>,
 }
 
 impl<'a> Player<'a> {
     pub fn new(module: &'a Module) -> Self {
-        let mixer = Mixer::new(module.chn);
-        let virt = Virtual::new(mixer);
+        let mixer = Mixer::new(module.chn, &module.sample);
+        let virt = Virtual::new(mixer, module.chn, false);
 
         Player {
             pos  : 0,

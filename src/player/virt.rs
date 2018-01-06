@@ -1,32 +1,62 @@
 use mixer::Mixer;
+use ::*;
 
 
+#[derive(Clone)]
 struct VirtChannel {
     count: usize,
     map  : Option<usize>,
 }
 
-
-pub struct Virtual {
-    num_tracks   : usize,             // number of tracks
-    virt_channels: usize,             // number of virtual channels
-    virt_used    : usize,             // number of voices currently in use
-    virt_limit   : usize,             // number of sound card voices
-    virt_channel : Vec<VirtChannel>,
-
-    mixer        : Mixer,
+impl VirtChannel {
+    pub fn new() -> Self {
+        VirtChannel {
+            count: 0,
+            map  : None,
+        }
+    }
 }
 
-impl Virtual {
-    pub fn new(mixer: Mixer) -> Self {
-        Virtual {
-            num_tracks   : 0,
-            virt_channels: 0,
-            virt_used    : 0,
-            virt_limit   : 0,
-            virt_channel : Vec::new(),
-            mixer,
+
+pub struct Virtual<'a> {
+    num_tracks   : usize,              // number of tracks
+    virt_numch   : usize,              // number of virtual channels
+    virt_used    : usize,              // number of voices currently in use
+    virt_channel : Vec<VirtChannel>,
+    channel_mute : [bool; MAX_CHANNELS],
+
+    mixer        : Mixer<'a>,
+}
+
+    macro_rules! channel_to_voice {
+        ( $a: expr, $b: expr ) => {
+            match $a.channel_to_voice($b) {
+                Some(v) => v,
+                None    => return,
+            }
         }
+    }
+
+impl<'a> Virtual<'a> {
+    pub fn new(mixer: Mixer<'a>, chn: usize, has_virt: bool) -> Self {
+
+        let num = mixer.num_voices();
+
+        let mut v = Virtual {
+            num_tracks  : chn,
+            virt_numch  : chn,
+            virt_used   : 0,
+            virt_channel: Vec::new(),
+            channel_mute: [false; MAX_CHANNELS],
+            mixer,
+        };
+
+        if has_virt {
+            v.virt_numch = num;
+        }
+        v.virt_channel = vec![VirtChannel::new(); v.virt_numch];
+        v.mixer.create_voices(chn);
+        v
     }
 
     pub fn root(&self, chn: usize) -> Option<usize> {
@@ -39,10 +69,6 @@ impl Virtual {
     }
 
     pub fn reset_voice(&mut self, voice: usize, mute: bool) {
-        if voice >= self.virt_limit {
-            return
-        }
-
         if mute {
             self.mixer.set_volume(voice, 0)
         }
@@ -56,21 +82,50 @@ impl Virtual {
         self.mixer.reset_voice(voice);
     }
 
-    pub fn channel_to_voice(&self, chn: usize) -> Option<usize> {
-        if chn >= self.virt_channels {
+    pub fn alloc_voice(&mut self, chn: usize) {
+        // Locate free voice
+        let num = match self.mixer.find_free_voice() {
+            Some(v) => v,
+            None    => self.free_voice(),
+        };
+
+        self.virt_channel[chn].count += 1;
+        self.virt_used += 1;
+        self.mixer.set_voice(num, chn);
+        self.virt_channel[chn].map = Some(num);
+
+
+    }
+
+    pub fn free_voice(&mut self) -> usize {
+
+        // Find background voice with lowest volume
+        let num = self.mixer.find_lowest_voice(self.num_tracks);
+
+        let root = self.mixer.voice_root(num).unwrap();
+        let chn = self.mixer.voice_chn(num).unwrap();
+        self.virt_channel[chn].map = None;
+        self.virt_channel[root].count -= 1;
+        self.virt_used -= 1;
+
+        num
+    }
+
+    fn channel_to_voice(&self, chn: usize) -> Option<usize> {
+        if chn >= self.virt_numch {
             None
         } else {
             self.virt_channel[chn].map
         }
     }
 
-    pub fn set_volume(&mut self, chn: usize, vol: usize) {
-        let voice = match self.channel_to_voice(chn) {
-            Some(v) => v,
-            None    => return,
-        };
+    pub fn set_volume(&mut self, chn: usize, mut vol: usize) {
+        let voice = channel_to_voice!(self, chn);
 
-        /* TODO: check if root is muted */
+        match self.mixer.voice_root(voice) {
+            Some(v) => if self.channel_mute[v] { vol = 0 },
+            None    => vol = 0,
+        }
 
         self.mixer.set_volume(voice, vol);
 
@@ -80,13 +135,19 @@ impl Virtual {
         }
     }
 
-    pub fn set_pan(&self, chn: usize, pan: isize) {
-        let voice = match self.channel_to_voice(chn) {
-            Some(v) => v,
-            None    => return,
-        };
-
+    pub fn set_pan(&mut self, chn: usize, pan: isize) {
+        let voice = channel_to_voice!(self, chn);
         self.mixer.set_pan(voice, pan);
+    }
+
+    pub fn set_period(&mut self, chn: usize, period: f64) {
+        let voice = channel_to_voice!(self, chn);
+        self.mixer.set_period(voice, period);
+    }
+
+    pub fn set_voicepos(&mut self, chn: usize, pos: f64) {
+        let voice = channel_to_voice!(self, chn);
+        self.mixer.set_voicepos(voice, pos, true);
     }
 }
 
