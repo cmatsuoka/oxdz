@@ -3,10 +3,10 @@ use std::cmp::max;
 use std::fmt;
 use Error;
 use format::ModuleFormat;
-use format::protracker::ModPlayer;
+use format::protracker::{ModPlayer, ModInstrument, ModEvent};
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use player::Player;
-use util::{NOTES, BinaryRead, period_to_note};
+use util::BinaryRead;
 
 /// Protracker module loader
 pub struct Mod {
@@ -36,6 +36,11 @@ impl Mod {
         smp.loop_end = smp.loop_start + loop_size as usize * 2;
         smp.has_loop = loop_size > 1 && smp.loop_end >= 4;
 
+        let mut sub = ModInstrument::new();
+        sub.finetune = b.read8i(ofs + 24)? as isize * 16;
+        sub.smp_num = i;
+
+        ins.subins.push(Box::new(sub));
         m.instrument.push(ins);
         m.sample.push(smp);
 
@@ -104,42 +109,6 @@ impl ModuleFormat for Mod {
         m.player = Box::new(player);
 
         Ok(m)
-    }
-}
-
-pub struct ModEvent {
-    note: u8,
-    ins : u8,
-    fxt : u8,
-    fxp : u8,
-}
-
-impl ModEvent {
-    fn from_slice(b: &[u8]) -> Self {
-        ModEvent {
-            note: period_to_note((((b[0] & 0x0f) as u32) << 8) | b[1] as u32) as u8,
-            ins : (b[0] & 0xf0) | ((b[2] & 0xf0) >> 4),
-            fxt : b[2] & 0x0f,
-            fxp : b[3],
-        }
-    }
-}
-
-impl fmt::Display for ModEvent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let note = if self.note == 0 {
-            "---".to_owned()
-        } else {
-            format!("{}{}", NOTES[self.note as usize % 12], self.note / 12)
-        };
-
-        let ins = if self.ins == 0 {
-            "--".to_owned()
-        } else {
-            format!("{:02x}", self.ins)
-        };
-
-        write!(f, "{} {} {:02X}{:02X}", note, ins, self.fxt, self.fxp)
     }
 }
 

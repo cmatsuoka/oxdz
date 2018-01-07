@@ -146,7 +146,7 @@ impl<'a> Mixer<'a> {
         // FIXME: Workaround for crash on notes that are too high
         //        see 6nations.it (+114 transposition on instrument 16)
         //
-        if (note > 149) {
+        if note > 149 {
             note = 149;
         }
         self.voices[voice].note = note;
