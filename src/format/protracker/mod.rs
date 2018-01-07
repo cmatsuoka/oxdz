@@ -4,6 +4,7 @@ pub mod player;
 pub use self::load::*;
 pub use self::player::*;
 
+use std::any::Any;
 use std::fmt;
 use module::SubInstrument;
 use util::{NOTES, period_to_note};
@@ -25,6 +26,10 @@ impl ModInstrument {
 }
 
 impl SubInstrument for ModInstrument {
+    fn as_any(&self) -> &Any {
+        self
+    }
+
     fn sample_num(&self) -> usize {
         self.smp_num
     }

@@ -54,7 +54,7 @@ impl<'a> Player<'a> {
     }
 
     pub fn play_frame(&mut self) -> &Self {
-        self.format_player.play(&mut self.data, &self.module);
+        self.format_player.play(&mut self.data, &self.module, &mut self.virt);
         self.next_frame();
         self
     }

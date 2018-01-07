@@ -1,5 +1,6 @@
 use module::{Module, FormatPlayer};
 use player::PlayerData;
+use player::Virtual;
 use super::ModPatterns;
 
 const FX_TONEPORTA: u8 = 0x03;
@@ -17,7 +18,7 @@ impl ModPlayer {
         }
     }
 
-    fn play_event(&mut self, data: &mut PlayerData, chn: usize, module: &Module, pats: &ModPatterns) {
+    fn play_event(&mut self, data: &mut PlayerData, chn: usize, module: &Module, pats: &ModPatterns, virt: &mut Virtual) {
 
         let (pos, row, frame) = (data.pos, data.row, data.frame);
         let pat = module.orders.pattern(data);
@@ -42,6 +43,11 @@ impl ModPlayer {
             if event.has_note() {
                 if event.fxt != FX_TONEPORTA {
                     xc.key = event.note - 1;
+                    if xc.ins > 0 {
+                        if module.sample[xc.ins as usize].size > 0 {
+                            virt.set_patch(chn, xc.ins as usize, xc.ins as usize, xc.key as usize);
+                        }
+                    }
                 }
             }
         } else {
@@ -56,11 +62,11 @@ impl FormatPlayer for ModPlayer {
         self.name
     }
 
-    fn play(&mut self, mut data: &mut PlayerData, module: &Module) {
+    fn play(&mut self, mut data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
         let pats = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
 
         for chn in 0..module.chn {
-            self.play_event(&mut data, chn, &module, &pats)
+            self.play_event(&mut data, chn, &module, &pats, &mut virt)
         }
     }
 }

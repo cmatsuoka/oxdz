@@ -74,7 +74,7 @@ impl<'a> Virtual<'a> {
         self.mixer.reset_voice(voice);
     }
 
-    pub fn alloc_voice(&mut self, chn: usize) {
+    pub fn alloc_voice(&mut self, chn: usize) -> usize {
         // Locate free voice
         let num = match self.mixer.find_free_voice() {
             Some(v) => v,
@@ -86,7 +86,7 @@ impl<'a> Virtual<'a> {
         self.mixer.set_voice(num, chn);
         self.virt_channel[chn].map = Some(num);
 
-
+        num
     }
 
     pub fn free_voice(&mut self) -> usize {
@@ -140,6 +140,17 @@ impl<'a> Virtual<'a> {
     pub fn set_voicepos(&mut self, chn: usize, pos: f64) {
         let voice = try_option!(self.channel_to_voice(chn));
         self.mixer.set_voicepos(voice, pos, true);
+    }
+
+    pub fn set_patch(&mut self, chn: usize, ins: usize, smp: usize, note: usize) {
+
+        let voice = match self.channel_to_voice(chn) {
+            Some(v) => v,  // TODO: act stuff
+            None    => self.alloc_voice(chn),
+        };
+
+        self.mixer.set_patch(voice, ins, smp, true);
+        self.mixer.set_note(voice, note);
     }
 }
 

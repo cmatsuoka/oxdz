@@ -9,7 +9,7 @@ pub use self::event::Event;
 
 use std::any::Any;
 use std::fmt;
-use player::PlayerData;
+use player::{PlayerData, Virtual};
 
 // Handle
 pub struct Format {
@@ -68,7 +68,7 @@ impl fmt::Debug for Patterns {
 
 pub trait FormatPlayer {
     fn name(&self) -> &'static str;
-    fn play(&mut self, &mut PlayerData, &Module);
+    fn play(&mut self, &mut PlayerData, &Module, &mut Virtual);
 }
 
 impl fmt::Debug for FormatPlayer {

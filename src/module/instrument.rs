@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fmt::Debug;
 use ::*;
 
@@ -50,5 +51,6 @@ impl Instrument {
 
 
 pub trait SubInstrument: Debug {
+    fn as_any(&self) -> &Any;
     fn sample_num(&self) -> usize;
 }

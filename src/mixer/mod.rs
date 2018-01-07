@@ -177,7 +177,7 @@ impl<'a> Mixer<'a> {
         self.voices[voice].period = period;
     }
 
-    pub fn set_patch(&mut self, voice: usize, smp: usize, ac: bool) {
+    pub fn set_patch(&mut self, voice: usize, ins: usize, smp: usize, ac: bool) {
         if voice < self.voices.len() {
             return
         }
@@ -185,6 +185,7 @@ impl<'a> Mixer<'a> {
         self.set_voicepos(voice, 0.0, ac);
 
         let v = &mut self.voices[voice];
+        v.ins = ins;
         v.smp = smp;
         v.vol = 0;
         v.pan = 0; 
