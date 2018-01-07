@@ -10,9 +10,9 @@ pub trait ModuleFormat {
 }
 
 pub fn list() -> Vec<Box<ModuleFormat>> {
-    let mut v: Vec<Box<ModuleFormat>> = Vec::new();
-    v.push(Box::new(protracker::Mod::new()));
-    v
+    vec![
+        Box::new(protracker::Mod::new())
+    ]
 }
 
 pub fn load_module(b: &[u8]) -> Result<Module, Error> {

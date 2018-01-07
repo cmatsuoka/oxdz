@@ -105,7 +105,7 @@ impl ModuleFormat for Mod {
         }
 
         // Set frame player
-        let player = ModPlayer::new();
+        let player = ModPlayer::new(&m);
         m.player = Box::new(player);
 
         Ok(m)

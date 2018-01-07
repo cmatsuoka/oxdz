@@ -47,9 +47,9 @@ impl<'a> Player<'a> {
     pub fn play_frame(&mut self) -> &Self {
         self.module.player.play(&self, &self.module);
         self.next_frame();
-
         self
     }
+
 
     fn next_frame(&mut self) {
         self.frame += 1;

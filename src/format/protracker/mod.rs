@@ -48,6 +48,18 @@ impl ModEvent {
             fxp : b[3],
         }
     }
+
+    fn has_note(&self) -> bool {
+        self.note != 0x00
+    }
+
+    fn has_ins(&self) -> bool {
+        self.ins != 0x00
+    }
+
+    fn has_fxt(&self) -> bool {
+        self.fxt != 0x00
+    }
 }
 
 impl fmt::Display for ModEvent {
