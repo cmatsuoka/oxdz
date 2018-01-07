@@ -1,11 +1,10 @@
 use std::any::Any;
 use std::cmp::max;
-use std::fmt;
 use Error;
 use format::ModuleFormat;
 use format::protracker::{ModPlayer, ModInstrument, ModEvent};
-use module::{Module, Sample, Instrument, Orders, Patterns, Event};
-use player::Player;
+use module::{Format, Module, Sample, Instrument, Orders, Patterns, Event};
+use player::PlayerData;
 use util::BinaryRead;
 
 /// Protracker module loader
@@ -74,7 +73,7 @@ impl ModuleFormat for Mod {
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8]) -> Result<Format, Error> {
         let mut m = Module::new();
         m.title = b.read_string(0, 20)?;
         m.chn = 4;
@@ -106,9 +105,8 @@ impl ModuleFormat for Mod {
 
         // Set frame player
         let player = ModPlayer::new(&m);
-        m.player = Box::new(player);
 
-        Ok(m)
+        Ok(Format::from(m, Box::new(player)))
     }
 }
 
@@ -222,48 +220,39 @@ impl Orders for ModOrders {
         self.rstpos
     }
 
-    fn pattern(&self, player: &Player) -> usize {
-        let pos = player.position();
-        self.orders[pos] as usize
+    fn pattern(&self, data: &PlayerData) -> usize {
+        self.orders[data.pos] as usize
     }
 
-    fn next(&self, player: &mut Player) -> usize {
-        let mut pos = player.position();
-        if pos < self.num(player.song()) - 1 {
-            pos += 1;
+    fn next(&self, data: &mut PlayerData) -> usize {
+        if data.pos < self.num(data.song) - 1 {
+            data.pos += 1;
         }
-        player.set_position(pos);
-        pos
+        data.pos
     }
 
-    fn prev(&self, player: &mut Player) -> usize {
-        let mut pos = player.position();
-        if pos > 0 {
-            pos -= 1;
+    fn prev(&self, data: &mut PlayerData) -> usize {
+        if data.pos > 0 {
+            data.pos -= 1;
         }
-        player.set_position(pos);
-        pos
+        data.pos
     }
 
     fn num_songs(&self) -> usize {
         self.songs.len()
     }
 
-    fn next_song(&self, player: &mut Player) -> usize {
-        let mut song = player.song();
-        if song < self.num_songs() - 1 {
-            song += 1;
+    fn next_song(&self, data: &mut PlayerData) -> usize {
+        if data.song < self.num_songs() - 1 {
+            data.song += 1;
         }
-        player.set_song(song);
-        song
+        data.song
     }
 
-    fn prev_song(&self, player: &mut Player) -> usize {
-        let mut song = player.song();
-        if song > 0 {
-            song -= 1;
+    fn prev_song(&self, data: &mut PlayerData) -> usize {
+        if data.song > 0 {
+            data.song -= 1;
         }
-        player.set_song(song);
-        song
+        data.song
     }
 }

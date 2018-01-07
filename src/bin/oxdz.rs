@@ -18,7 +18,8 @@ fn run() -> Result<(), Box<Error>> {
     let file = try!(File::open("space_debris.mod"));
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
-    let module = try!(format::load_module(&mmap[..]));
+    let format = try!(format::load_module(&mmap[..]));
+    let module = format.module;
     println!("Title: {}", module.title);
 
     println!("Instruments:");
@@ -33,11 +34,11 @@ fn run() -> Result<(), Box<Error>> {
             if smp.has_loop { 'L' } else { ' ' });
     }
 
-    let mut player = player::Player::new(&module);
+    let mut player = player::Player::new(&module, format.player);
 
     println!("Length: {}", module.orders.num(0));
     println!("Patterns: {}", module.patterns.num());
-    println!("Position: {} ({})", player.position(), module.orders.pattern(&player));
+    println!("Position: {} ({})", player.position(), module.orders.pattern(&player.data));
 
     show_pattern(&module, 0);
 

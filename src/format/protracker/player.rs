@@ -1,5 +1,5 @@
 use module::{Module, FormatPlayer};
-use player::Player;
+use player::PlayerData;
 use super::ModPatterns;
 
 const FX_TONEPORTA: u8 = 0x03;
@@ -17,11 +17,11 @@ impl ModPlayer {
         }
     }
 
-    fn play_event(&self, player: &Player, chn: usize, module: &Module, pats: &ModPatterns) {
+    fn play_event(&mut self, data: &mut PlayerData, chn: usize, module: &Module, pats: &ModPatterns) {
 
-        let (pos, row, frame) = (player.position(), player.row(), player.frame());
-        let pat = module.orders.pattern(player);
-        let xc = &self.state[chn];
+        let (pos, row, frame) = (data.pos, data.row, data.frame);
+        let pat = module.orders.pattern(data);
+        let xc = &mut self.state[chn];
 
         let event = pats.event(pos, row, chn);
 
@@ -33,7 +33,7 @@ impl ModPlayer {
             return;
         }
 
-        if player.frame() == 0 {
+        if data.frame == 0 {
             if event.has_ins() {
                 if event.fxt != FX_TONEPORTA {
                     xc.ins = event.ins - 1;
@@ -56,11 +56,11 @@ impl FormatPlayer for ModPlayer {
         self.name
     }
 
-    fn play(&self, player: &Player, module: &Module) {
+    fn play(&mut self, mut data: &mut PlayerData, module: &Module) {
         let pats = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
 
         for chn in 0..module.chn {
-            self.play_event(&player, chn, &module, &pats)
+            self.play_event(&mut data, chn, &module, &pats)
         }
     }
 }

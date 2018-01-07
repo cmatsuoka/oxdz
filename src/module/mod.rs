@@ -9,19 +9,35 @@ pub use self::event::Event;
 
 use std::any::Any;
 use std::fmt;
-use player::Player;
+use player::PlayerData;
+
+// Handle
+pub struct Format {
+    pub module: Module,
+    pub player: Box<FormatPlayer>,
+}
+
+impl Format {
+    pub fn from(module: Module, player: Box<FormatPlayer>) -> Self {
+        Format {
+            module,
+            player, 
+        }
+    }
+}
+
 
 // Orders
 
 pub trait Orders {
     fn num(&self, usize) -> usize;
     fn restart_position(&mut self) -> usize;
-    fn pattern(&self, &Player) -> usize;
-    fn next(&self, &mut Player) -> usize;
-    fn prev(&self, &mut Player) -> usize;
+    fn pattern(&self, &PlayerData) -> usize;
+    fn next(&self, &mut PlayerData) -> usize;
+    fn prev(&self, &mut PlayerData) -> usize;
     fn num_songs(&self) -> usize;
-    fn next_song(&self, &mut Player) -> usize;
-    fn prev_song(&self, &mut Player) -> usize;
+    fn next_song(&self, &mut PlayerData) -> usize;
+    fn prev_song(&self, &mut PlayerData) -> usize;
 }
 
 impl fmt::Debug for Orders {
@@ -52,7 +68,7 @@ impl fmt::Debug for Patterns {
 
 pub trait FormatPlayer {
     fn name(&self) -> &'static str;
-    fn play(&self, &Player, &Module);
+    fn play(&mut self, &mut PlayerData, &Module);
 }
 
 impl fmt::Debug for FormatPlayer {
@@ -73,7 +89,6 @@ pub struct Module {
     pub sample    : Vec<Sample>,
     pub orders    : Box<Orders>,
     pub patterns  : Box<Patterns>,
-    pub player    : Box<FormatPlayer>,  // Format-specific frame player
 }
 
 impl Module {
@@ -86,12 +101,7 @@ impl Module {
             sample    : Vec::new(),
             orders    : Box::new(EmptyOrders),
             patterns  : Box::new(EmptyPatterns),
-            player    : Box::new(EmptyPlayer),
         }
-    }
-
-    pub fn play_frame(&self, player: &Player) {
-        self.player.play(player, &self)
     }
 }
 
@@ -100,12 +110,12 @@ struct EmptyOrders;
 impl Orders for EmptyOrders {
     fn num(&self, _song: usize) -> usize { 0 }
     fn restart_position(&mut self) -> usize { 0 }
-    fn pattern(&self, _player: &Player) -> usize { 0 }
-    fn next(&self, _player: &mut Player) -> usize { 0 }
-    fn prev(&self, _player: &mut Player) -> usize { 0 }
+    fn pattern(&self, _data: &PlayerData) -> usize { 0 }
+    fn next(&self, _data: &mut PlayerData) -> usize { 0 }
+    fn prev(&self, _data: &mut PlayerData) -> usize { 0 }
     fn num_songs(&self) -> usize { 0 }
-    fn next_song(&self, _player: &mut Player) -> usize { 0 }
-    fn prev_song(&self, _player: &mut Player) -> usize { 0 }
+    fn next_song(&self, _data: &mut PlayerData) -> usize { 0 }
+    fn prev_song(&self, _data: &mut PlayerData) -> usize { 0 }
 }
 
 struct EmptyPatterns;
@@ -116,11 +126,4 @@ impl Patterns for EmptyPatterns {
     fn len(&self, _pat: usize) -> usize { 0 }
     fn rows(&self, _pat: usize) -> usize { 0 }
     fn event(&self, _num: usize, _row: usize, _chn: usize) -> Event { Event::new() }
-}
-
-struct EmptyPlayer;
-
-impl FormatPlayer for EmptyPlayer {
-    fn name(&self) -> &'static str { "" }
-    fn play(&self, _player: &Player, _module: &Module) { }
 }
