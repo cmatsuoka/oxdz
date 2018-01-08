@@ -11,21 +11,6 @@ use std::any::Any;
 use std::fmt;
 use player::{PlayerData, Virtual};
 
-// Handle
-pub struct Format {
-    pub module: Module,
-    pub player: Box<FormatPlayer>,
-}
-
-impl Format {
-    pub fn from(module: Module, player: Box<FormatPlayer>) -> Self {
-        Format {
-            module,
-            player, 
-        }
-    }
-}
-
 
 // Orders
 

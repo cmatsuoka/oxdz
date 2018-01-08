@@ -3,7 +3,7 @@ use std::cmp::max;
 use Error;
 use format::ModuleFormat;
 use format::protracker::{ModPlayer, ModInstrument, ModEvent};
-use module::{Format, Module, Sample, Instrument, Orders, Patterns, Event};
+use module::{Module, Sample, Instrument, Orders, Patterns, Event, FormatPlayer};
 use player::PlayerData;
 use util::BinaryRead;
 
@@ -73,7 +73,7 @@ impl ModuleFormat for Mod {
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8]) -> Result<Format, Error> {
+    fn load(self: Box<Self>, b: &[u8]) -> Result<(Module, Box<FormatPlayer>), Error> {
         let mut m = Module::new();
         m.title = b.read_string(0, 20)?;
         m.chn = 4;
@@ -106,7 +106,7 @@ impl ModuleFormat for Mod {
         // Set frame player
         let player = ModPlayer::new(&m);
 
-        Ok(Format::from(m, Box::new(player)))
+        Ok((m, Box::new(player)))
     }
 }
 

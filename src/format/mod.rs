@@ -1,12 +1,12 @@
 use Error;
-use module::Format;
+use module::{Module, FormatPlayer};
 
 mod protracker;
 
 pub trait ModuleFormat {
     fn name(&self) -> &'static str;
     fn probe(&self, &[u8]) -> Result<(), Error>;
-    fn load(self: Box<Self>, &[u8]) -> Result<Format, Error>;
+    fn load(self: Box<Self>, &[u8]) -> Result<(Module, Box<FormatPlayer>), Error>;
 }
 
 pub fn list() -> Vec<Box<ModuleFormat>> {
@@ -15,7 +15,7 @@ pub fn list() -> Vec<Box<ModuleFormat>> {
     ]
 }
 
-pub fn load_module(b: &[u8]) -> Result<Format, Error> {
+pub fn load(b: &[u8]) -> Result<(Module, Box<FormatPlayer>), Error> {
 
     for f in list() {
         println!("Probing format: {}", f.name());
