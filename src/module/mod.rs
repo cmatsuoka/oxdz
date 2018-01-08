@@ -9,7 +9,7 @@ pub use self::event::Event;
 
 use std::any::Any;
 use std::fmt;
-use player::{PlayerData, Virtual};
+use player::PlayerData;
 
 
 // Orders
@@ -45,20 +45,6 @@ pub trait Patterns: Any {
 impl fmt::Debug for Patterns {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "length: {}", self.num())
-    }
-}
-
-
-// Frame player
-
-pub trait FormatPlayer {
-    fn name(&self) -> &'static str;
-    fn play(&mut self, &mut PlayerData, &Module, &mut Virtual);
-}
-
-impl fmt::Debug for FormatPlayer {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "player: {}", self.name())
     }
 }
 

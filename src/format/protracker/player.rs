@@ -1,6 +1,6 @@
-use module::{Module, FormatPlayer};
-use player::PlayerData;
-use player::Virtual;
+use module::Module;
+use format::FormatPlayer;
+use player::{PlayerData, Virtual};
 use super::ModPatterns;
 
 const FX_TONEPORTA: u8 = 0x03;

@@ -2,7 +2,8 @@ mod virt;
 
 pub use player::virt::Virtual;
 pub use mixer::Mixer;
-use module::{Module, FormatPlayer};
+use format::FormatPlayer;
+use module::Module;
 
 
 pub struct PlayerData {

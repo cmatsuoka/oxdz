@@ -1,9 +1,9 @@
 use std::any::Any;
 use std::cmp::max;
 use Error;
-use format::ModuleFormat;
+use format::{ModuleFormat, FormatPlayer};
 use format::protracker::{ModPlayer, ModInstrument, ModEvent};
-use module::{Module, Sample, Instrument, Orders, Patterns, Event, FormatPlayer};
+use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use player::PlayerData;
 use util::BinaryRead;
 
