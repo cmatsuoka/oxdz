@@ -4,7 +4,7 @@ extern crate oxdz;
 use std::error::Error;
 use std::fs::File;
 use memmap::Mmap;
-use oxdz::{format, module, player};
+use oxdz::{format, module, player, FrameInfo};
 
 fn main() {
 
@@ -41,10 +41,12 @@ fn run() -> Result<(), Box<Error>> {
 
     show_pattern(&module, 0);
 
-    player.play_frame();
-    player.play_frame();
-    player.play_frame();
-    player.play_frame();
+    let mut info = FrameInfo::new();
+
+    for _ in 0..16 {
+        info = player.play_frame().info(info);
+        info.buffer();
+    }
 
     Ok(())
 }

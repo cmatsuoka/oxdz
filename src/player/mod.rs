@@ -57,7 +57,15 @@ impl<'a> Player<'a> {
     pub fn play_frame(&mut self) -> &Self {
         self.format_player.play(&mut self.data, &self.module, &mut self.virt);
         self.next_frame();
+
+        self.virt.mix();
+
         self
+    }
+
+    pub fn info(&self, mut info: FrameInfo) -> FrameInfo {
+        info.pos = self.data.pos;
+        info
     }
 
     fn next_frame(&mut self) {
@@ -119,5 +127,21 @@ impl<'a> Player<'a> {
         self.data.song = song;
         //self.data.pos = 0; FIXME: songs may start at pos != 0
         self
+    }
+}
+
+
+pub struct FrameInfo {
+    pos: usize,
+}
+
+impl FrameInfo {
+    pub fn new() -> Self {
+        FrameInfo {
+            pos: 0,
+        }
+    }
+
+    pub fn buffer(&self) {
     }
 }

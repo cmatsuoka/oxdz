@@ -152,5 +152,9 @@ impl<'a> Virtual<'a> {
         self.mixer.set_patch(voice, ins, smp, true);
         self.mixer.set_note(voice, note);
     }
+
+    pub fn mix(&self) {
+        self.mixer.mix()
+    }
 }
 

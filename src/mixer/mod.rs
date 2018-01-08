@@ -197,7 +197,7 @@ impl<'a> Mixer<'a> {
 
     }
 
-    fn mix(&self) {
+    pub fn mix(&self) {
         for v in &self.voices {
             let sample = &self.sample[v.smp];
             match sample.sample_type {
