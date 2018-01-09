@@ -12,6 +12,7 @@ pub struct PlayerData {
     pub frame: usize,
     pub song : usize,
     pub speed: usize,
+    pub bpm  : usize,
 }
 
 impl PlayerData {
@@ -22,6 +23,7 @@ impl PlayerData {
             frame: 0,
             song : 0,
             speed: module.speed,
+            bpm  : 125,
         }
     }
 }
@@ -58,13 +60,14 @@ impl<'a> Player<'a> {
         self.format_player.play(&mut self.data, &self.module, &mut self.virt);
         self.next_frame();
 
-        self.virt.mix();
+        self.virt.mix(self.data.bpm);
 
         self
     }
 
     pub fn info(&self, mut info: FrameInfo) -> FrameInfo {
         info.pos = self.data.pos;
+        //info.buffer = self.virt.buffer();
         info
     }
 
@@ -132,13 +135,13 @@ impl<'a> Player<'a> {
 
 
 pub struct FrameInfo {
-    pos: usize,
+    pos   : usize,
 }
 
 impl FrameInfo {
     pub fn new() -> Self {
         FrameInfo {
-            pos: 0,
+            pos   : 0,
         }
     }
 

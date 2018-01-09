@@ -5,15 +5,18 @@ use ::*;
 
 mod interpolator;
 
+const C4_PERIOD: f64 = 428.0;
+
 
 pub struct Mixer<'a> {
 
-    pub rate    : usize,
-    mute        : bool,
-    voices      : Vec<Voice>,
-    buffer      : [i32; MAX_FRAMESIZE],
-    pub interp  : interpolator::AnyInterpolator,
-    sample      : &'a Vec<Sample>,
+    pub rate  : usize,
+    mute      : bool,
+    voices    : Vec<Voice>,
+    buf32     : [i32; MAX_FRAMESIZE],
+    buffer    : [i16; MAX_FRAMESIZE],
+    pub interp: interpolator::AnyInterpolator,
+    sample    : &'a Vec<Sample>,
 }
 
 
@@ -24,6 +27,7 @@ impl<'a> Mixer<'a> {
             rate  : 44100,
             mute  : false,
             voices: Vec::new(),
+            buf32 : [0; MAX_FRAMESIZE],
             buffer: [0; MAX_FRAMESIZE],
             interp: AnyInterpolator::Linear(interpolator::Linear),
             sample,
@@ -197,30 +201,41 @@ impl<'a> Mixer<'a> {
 
     }
 
-    pub fn mix(&self) {
+    pub fn mix(&self, bpm: usize) {
+
+        let framesize = self.rate * PAL_RATE / bpm / 100;
+
         for v in &self.voices {
             let sample = &self.sample[v.smp];
+            let step = C4_PERIOD * sample.rate / self.rate as f64 / v.period;
+
             match sample.sample_type {
                 SampleType::Empty    => {},
-                SampleType::Sample8  => self.mix_data::<i8>(&v, &sample.data::<i8>()),
-                SampleType::Sample16 => self.mix_data::<i16>(&v, &sample.data::<i16>()),
+                SampleType::Sample8  => self.mix_data::<i8>(&v, framesize, &sample.data::<i8>()),
+                SampleType::Sample16 => self.mix_data::<i16>(&v, framesize, &sample.data::<i16>()),
             };
         }
     }
 
-    fn mix_data<T>(&self, v: &Voice, data: &[T])
+    fn mix_data<T>(&self, v: &Voice, framesize: usize, data: &[T])
     where interpolator::NearestNeighbor: interpolator::Interpolate<T>,
           interpolator::Linear: interpolator::Interpolate<T>
     {
-        let p = v.pos as usize;
-        let i = &data[p-1..p+2];
+        for n in 0..framesize {
+            let p = v.pos as usize;
+            let i = &data[p-1..p+2];
 
-        let smp = match &self.interp {
-            &AnyInterpolator::NearestNeighbor(ref int) => int.get_sample(i, 0),
-            &AnyInterpolator::Linear(ref int)          => int.get_sample(i, 0),
-        };
+            let smp = match &self.interp {
+                &AnyInterpolator::NearestNeighbor(ref int) => int.get_sample(i, 0),
+                &AnyInterpolator::Linear(ref int)          => int.get_sample(i, 0),
+            };
 
-        println!("sample value is {}", smp);
+            println!("sample value is {}", smp);
+        }
+    }
+
+    pub fn buffer(&self) -> &[u8] {
+        &[0; 1]
     }
 }
 

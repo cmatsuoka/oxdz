@@ -153,8 +153,12 @@ impl<'a> Virtual<'a> {
         self.mixer.set_note(voice, note);
     }
 
-    pub fn mix(&self) {
-        self.mixer.mix()
+    pub fn mix(&self, bpm: usize) {
+        self.mixer.mix(bpm)
+    }
+
+    pub fn buffer(&self) -> &[u8] {
+        self.mixer.buffer()
     }
 }
 
