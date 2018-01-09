@@ -1,5 +1,8 @@
 use std::slice;
 
+pub const GUARD_SIZE: usize = 4;
+
+
 #[derive(Debug)]
 pub enum SampleType {
     Sample8,
@@ -45,12 +48,13 @@ impl Sample {
             guard_size  : 0,
             rate        : 8000_f64,
             name        : "".to_owned(),
-            data        : Vec::new(),
+            data        : vec![0; GUARD_SIZE],
         }
     }
 
     pub fn store(&mut self, b: &[u8]) {
-        self.data = b.to_vec()
+        self.data.extend(b);
+        self.data.extend([0; GUARD_SIZE].iter());  // add guard bytes
     }
 
     pub fn data<T>(&self) -> &[T] {
