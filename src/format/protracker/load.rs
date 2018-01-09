@@ -17,7 +17,7 @@ impl Mod {
         Mod{name: "Protracker MOD"}
     }
 
-    fn load_instrument(&self, b: &[u8], mut m: Module, i: usize) -> Result<Module, Error> {
+    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(Instrument, Sample), Error> {
         let mut ins = Instrument::new();
         let mut smp = Sample::new();
 
@@ -40,19 +40,15 @@ impl Mod {
         sub.smp_num = i;
 
         ins.subins.push(Box::new(sub));
-        m.instrument.push(ins);
-        m.sample.push(smp);
-
-        Ok(m)
+        Ok((ins, smp))
     }
 
-    fn load_sample(&self, b: &[u8], mut m: Module, i: usize) -> Result<Module, Error> {
-        if i >= m.sample.len() {
+    fn load_sample(&self, b: &[u8], mut smp_list: Vec<Sample>, i: usize) -> Result<Vec<Sample>, Error> {
+        if i >= smp_list.len() {
             return Err(Error::Load("invalid sample number"))
         }
-        m.sample[i].store(b);
-
-        Ok(m)
+        smp_list[i].store(b);
+        Ok(smp_list)
     }
 }
 
@@ -74,14 +70,16 @@ impl ModuleFormat for Mod {
     }
 
     fn load(self: Box<Self>, b: &[u8]) -> Result<(Module, Box<FormatPlayer>), Error> {
-        let mut m = Module::new();
-        m.title = b.read_string(0, 20)?;
-        m.chn = 4;
-        m.speed = 6;
+        let title = b.read_string(0, 20)?;
+
+        let mut ins_list = Vec::<Instrument>::new();
+        let mut smp_list = Vec::<Sample>::new();
 
         // Load instruments
         for i in 0..31 {
-            m = try!(self.load_instrument(b, m, i));
+            let (ins, smp) = try!(self.load_instrument(b, i));
+            ins_list.push(ins);
+            smp_list.push(smp);
         }
 
         // Load orders
@@ -89,19 +87,27 @@ impl ModuleFormat for Mod {
         let rst = b.read8(951)?;
         let ord = ModOrders::from_slice(rst, b.slice(952, len)?);
         let pat = ord.patterns();
-        m.orders = Box::new(ord);
 
         // Load patterns
-        let p = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
-        m.patterns = Box::new(p);
+        let patterns = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
 
         // Load samples (sample size is set when loading instruments)
         let mut ofs = 1084 + 1024*pat;
         for i in 0..31 {
-            let size = m.sample[i].size as usize;
-            m = try!(self.load_sample(b.slice(ofs, size)?, m, i));
+            let size = smp_list[i].size as usize;
+            smp_list = try!(self.load_sample(b.slice(ofs, size)?, smp_list, i));
             ofs += size;
         }
+
+        let m = Module {
+            title     : title,
+            chn       : 4,
+            speed     : 6,
+            instrument: ins_list,
+            sample    : smp_list,
+            orders    : Box::new(ord),
+            patterns  : Box::new(patterns),
+        };
 
         // Set frame player
         let player = ModPlayer::new(&m);
