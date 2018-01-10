@@ -53,15 +53,13 @@ impl<'a> Player<'a> {
         self.data.song = 0;
         self.data.frame = 0;
         self.data.speed = self.module.speed;
+        self.format_player.reset();
         self
     }
 
     pub fn play_frame(&mut self) -> &Self {
         self.format_player.play(&mut self.data, &self.module, &mut self.virt);
-        self.next_frame();
-
         self.virt.mix(self.data.bpm);
-
         self
     }
 
@@ -75,6 +73,7 @@ impl<'a> Player<'a> {
         self
     }
 
+/*
     fn next_frame(&mut self) {
         self.data.frame += 1;
         if self.data.frame >= self.data.speed {
@@ -98,7 +97,7 @@ impl<'a> Player<'a> {
             self.restart();
         }
     }
-
+*/
     pub fn position(&self) -> usize {
         self.data.pos
     }

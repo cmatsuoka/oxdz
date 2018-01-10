@@ -19,6 +19,7 @@ pub trait ModuleFormat {
 pub trait FormatPlayer {
     fn name(&self) -> &'static str;
     fn play(&mut self, &mut PlayerData, &Module, &mut Virtual);
+    fn reset(&mut self);
 }
 
 impl fmt::Debug for FormatPlayer {
@@ -46,6 +47,4 @@ pub fn load(b: &[u8]) -> Result<(Module, Box<FormatPlayer>), Error> {
 
     Err(Error::Format("unsupported module format"))
 }
-
-
 
