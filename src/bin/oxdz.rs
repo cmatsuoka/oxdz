@@ -41,11 +41,13 @@ fn run() -> Result<(), Box<Error>> {
 
     show_pattern(&module, 0);
 
-    let mut info = FrameInfo::new();
+    let mut frame_info = FrameInfo::new();
 
     for _ in 0..16 {
-        info = player.play_frame().info(info);
-        info.buffer();
+        let buffer = player.play_frame().info(&mut frame_info).buffer();
+        println!("info pos:{} row:{} frame:{} speed:{} bpm:{}",
+		frame_info.pos, frame_info.row, frame_info.frame, frame_info.speed, frame_info.bpm);
+        println!("buffer len: {}", buffer.len());
     }
 
     Ok(())

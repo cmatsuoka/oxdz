@@ -13,6 +13,7 @@ pub struct Mixer<'a> {
     pub rate  : usize,
     mute      : bool,
     voices    : Vec<Voice>,
+    framesize : usize,
     buf32     : [i32; MAX_FRAMESIZE],
     buffer    : [i16; MAX_FRAMESIZE],
     pub interp: interpolator::AnyInterpolator,
@@ -24,12 +25,13 @@ impl<'a> Mixer<'a> {
 
     pub fn new(num: usize, sample: &'a Vec<Sample>) -> Self {
         Mixer {
-            rate  : 44100,
-            mute  : false,
-            voices: Vec::new(),
-            buf32 : [0; MAX_FRAMESIZE],
-            buffer: [0; MAX_FRAMESIZE],
-            interp: AnyInterpolator::Linear(interpolator::Linear),
+            rate     : 44100,
+            mute     : false,
+            voices   : Vec::new(),
+            framesize: 0,
+            buf32    : [0; MAX_FRAMESIZE],
+            buffer   : [0; MAX_FRAMESIZE],
+            interp   : AnyInterpolator::Linear(interpolator::Linear),
             sample,
         }
     }
@@ -201,9 +203,9 @@ impl<'a> Mixer<'a> {
 
     }
 
-    pub fn mix(&self, bpm: usize) {
+    pub fn mix(&mut self, bpm: usize) {
 
-        let framesize = self.rate * PAL_RATE / bpm / 100;
+        self.framesize = self.rate * PAL_RATE / bpm / 100;
 
         for v in &self.voices {
             let sample = &self.sample[v.smp];
@@ -211,17 +213,17 @@ impl<'a> Mixer<'a> {
 
             match sample.sample_type {
                 SampleType::Empty    => {},
-                SampleType::Sample8  => self.mix_data::<i8>(&v, framesize, &sample.data::<i8>()),
-                SampleType::Sample16 => self.mix_data::<i16>(&v, framesize, &sample.data::<i16>()),
+                SampleType::Sample8  => self.mix_data::<i8>(&v, &sample.data::<i8>()),
+                SampleType::Sample16 => self.mix_data::<i16>(&v, &sample.data::<i16>()),
             };
         }
     }
 
-    fn mix_data<T>(&self, v: &Voice, framesize: usize, data: &[T])
+    fn mix_data<T>(&self, v: &Voice, data: &[T])
     where interpolator::NearestNeighbor: interpolator::Interpolate<T>,
           interpolator::Linear: interpolator::Interpolate<T>
     {
-        for n in 0..framesize {
+        for n in 0..self.framesize {
             let p = v.pos as usize;
             let i = &data[p-1..p+2];
 
@@ -234,8 +236,8 @@ impl<'a> Mixer<'a> {
         }
     }
 
-    pub fn buffer(&self) -> &[u8] {
-        &[0; 1]
+    pub fn buffer(&self) -> &[i16] {
+        &self.buffer[..self.framesize]
     }
 }
 

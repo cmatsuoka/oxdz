@@ -65,10 +65,14 @@ impl<'a> Player<'a> {
         self
     }
 
-    pub fn info(&self, mut info: FrameInfo) -> FrameInfo {
+    pub fn info(&self, info: &mut FrameInfo) -> &Self {
         info.pos = self.data.pos;
-        //info.buffer = self.virt.buffer();
-        info
+        info.row = self.data.row;
+        info.song = self.data.song;
+        info.frame = self.data.frame;
+        info.speed = self.data.speed;
+        info.bpm = self.data.bpm;
+        self
     }
 
     fn next_frame(&mut self) {
@@ -131,20 +135,25 @@ impl<'a> Player<'a> {
         //self.data.pos = 0; FIXME: songs may start at pos != 0
         self
     }
+
+    pub fn buffer(&self) -> &[i16] {
+        self.virt.buffer()
+    }
 }
 
 
+#[derive(Default)]
 pub struct FrameInfo {
-    pos   : usize,
+    pub pos: usize,
+    pub row: usize,
+    pub frame: usize,
+    pub song: usize,
+    pub bpm: usize,
+    pub speed: usize,
 }
 
 impl FrameInfo {
     pub fn new() -> Self {
-        FrameInfo {
-            pos   : 0,
-        }
-    }
-
-    pub fn buffer(&self) {
+        Default::default()
     }
 }
