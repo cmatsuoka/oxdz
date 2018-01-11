@@ -10,7 +10,7 @@ pub struct ModPlayer {
     state: Vec<ChannelData>,
 
 //  mt_speed          : u8,  // -> data.speed
-//  mt_counter        : u8,  // frame counter -> data.frame
+//  mt_counter        : u8,  // -> data.frame
 //  mt_song_pos       : u8,  // -> data.pos
     mt_pbreak_pos     : u8,
     mt_pos_jump_flag  : u8,
@@ -38,9 +38,35 @@ impl ModPlayer {
         }
     }
 
-    fn mt_get_new_note(&self, data: &PlayerData, pats: &ModPatterns) {
+    fn mt_get_new_note(&mut self, mut data: &mut PlayerData, module: &Module, pats: &ModPatterns, virt: &mut Virtual) {
         for chn in 0..self.state.len() {
+            // mt_PlayVoice
             let event = pats.event(data.pos, data.row, chn);
+            if event.has_ins() {
+                let instrument = &module.instrument[event.ins as usize];
+                virt.set_patch(chn, event.ins as usize, event.ins as usize, event.note as usize);
+                virt.set_volume(chn, instrument.volume);
+            }
+
+            // mt_SetRegs
+            if event.has_note() {
+
+                let period = 100_f64;
+
+                match event.cmd {
+                    0xe => if (event.cmdlo & 0xf0) == 0x50 {
+                                // mt_DoSetFinetune()
+                           },
+                    0x3 => { self.mt_set_tone_porta(chn, &mut data); self.mt_check_efx(chn, &mut data) },
+                    0x5 => { self.mt_set_tone_porta(chn, &mut data); self.mt_check_efx(chn, &mut data) },
+                    0x9 => { self.mt_check_more_efx(chn, &mut data); virt.set_period(chn, period) },
+                    _   => virt.set_period(chn, period),
+                }
+                
+
+            } else {
+                self.mt_check_more_efx(chn, &mut data);
+            }
         }
     }
 
@@ -222,14 +248,14 @@ impl FormatPlayer for ModPlayer {
         self.name
     }
 
-    fn play(&mut self, mut data: &mut PlayerData, module: &Module, virt: &mut Virtual) {
+    fn play(&mut self, mut data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
         let pats = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
 
         data.frame += 1;
         if data.frame >= data.speed {
             data.frame = 0;
             if self.mt_patt_del_time_2 == 0 {
-                self.mt_get_new_note(data, pats);
+                self.mt_get_new_note(&mut data, &module, &pats, &mut virt);
             } else {
                 // mt_NoNewAllChannels
                 for chn in 0..self.state.len() {

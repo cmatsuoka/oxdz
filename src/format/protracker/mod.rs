@@ -38,19 +38,19 @@ impl SubInstrument for ModInstrument {
 
 /// ModEvent defines the event format used in Protracker patterns.
 pub struct ModEvent {
-    pub note: u8,
-    pub ins : u8,
-    pub fxt : u8,
-    pub fxp : u8,
+    pub note : u8,
+    pub ins  : u8,
+    pub cmd  : u8,
+    pub cmdlo: u8,
 }
 
 impl ModEvent {
     fn from_slice(b: &[u8]) -> Self {
         ModEvent {
-            note: period_to_note((((b[0] & 0x0f) as u32) << 8) | b[1] as u32) as u8,
-            ins : (b[0] & 0xf0) | ((b[2] & 0xf0) >> 4),
-            fxt : b[2] & 0x0f,
-            fxp : b[3],
+            note : period_to_note((((b[0] & 0x0f) as u32) << 8) | b[1] as u32) as u8,
+            ins  : (b[0] & 0xf0) | ((b[2] & 0xf0) >> 4),
+            cmd  : b[2] & 0x0f,
+            cmdlo: b[3],
         }
     }
 
@@ -62,8 +62,8 @@ impl ModEvent {
         self.ins != 0x00
     }
 
-    fn has_fxt(&self) -> bool {
-        self.fxt != 0x00
+    fn has_cmd(&self) -> bool {
+        self.cmd != 0x00
     }
 }
 
@@ -81,7 +81,7 @@ impl fmt::Display for ModEvent {
             format!("{:02x}", self.ins)
         };
 
-        write!(f, "{} {} {:02X}{:02X}", note, ins, self.fxt, self.fxp)
+        write!(f, "{} {} {:02X}{:02X}", note, ins, self.cmd, self.cmdlo)
     }
 }
 

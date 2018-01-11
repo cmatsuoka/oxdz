@@ -181,8 +181,8 @@ impl Patterns for ModPatterns {
         let raw = &self.data[ofs];
         e.note = raw.note;
         e.ins  = raw.ins;
-        e.fxt  = raw.fxt;
-        e.fxp  = raw.fxp;
+        e.fxt  = raw.cmd;
+        e.fxp  = raw.cmdlo;
         e
     }
 }
