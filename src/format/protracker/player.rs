@@ -55,7 +55,7 @@ impl ModPlayer {
             if self.mt_patt_del_time_2 == 0 {
                 self.mt_get_new_note(&mut data, &module, &pats, &mut virt);
             } else {
-                self.mt_no_new_all_channels(&mut data);
+                self.mt_no_new_all_channels(&mut data, &pats, &mut virt);
 
                 // mt_dskip
                 data.pos +=1;
@@ -87,15 +87,16 @@ impl ModPlayer {
             }
         } else {
             // mt_NoNewNote
-            self.mt_no_new_all_channels(&mut data);
+            self.mt_no_new_all_channels(&mut data, &pats, &mut virt);
             self.mt_no_new_pos_yet(&mut data, &module);
             return;
         }
     }
 
-    fn mt_no_new_all_channels(&mut self, mut data: &mut PlayerData) {
+    fn mt_no_new_all_channels(&mut self, mut data: &mut PlayerData, pats: &ModPatterns, mut virt: &mut Virtual) {
         for chn in 0..self.state.len() {
-            self.mt_check_efx(chn, &mut data);
+            let event = pats.event(data.pos, data.row, chn);
+            self.mt_check_efx(chn, &mut data, event.cmdlo, &mut virt);
         }
     }
 
@@ -120,11 +121,11 @@ impl ModPlayer {
                            },
                     0x3 => {
                                self.mt_set_tone_porta(chn, &mut data);
-                               self.mt_check_efx(chn, &mut data)
+                               self.mt_check_efx(chn, &mut data, event.cmdlo, &mut virt)
                            },
                     0x5 => {
                                self.mt_set_tone_porta(chn, &mut data);
-                               self.mt_check_efx(chn, &mut data)
+                               self.mt_check_efx(chn, &mut data, event.cmdlo, &mut virt)
                            },
                     0x9 => {
                                self.mt_check_more_efx(chn, &mut data, event.cmdlo, &mut virt);
@@ -158,7 +159,7 @@ impl ModPlayer {
         }
     }
 
-    fn mt_check_efx(&mut self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_check_efx(&mut self, chn: usize, mut data: &mut PlayerData, cmdlo: u8, mut virt: &mut Virtual) {
         let cmd = 0;
 
         // mt_UpdateFunk()
@@ -169,13 +170,13 @@ impl ModPlayer {
 
         match cmd {
             0x0 => self.mt_arpeggio(chn, &mut data),
-            0x1 => self.mt_porta_up(chn, &mut data),
-            0x2 => self.mt_porta_down(chn, &mut data),
+            0x1 => self.mt_porta_up(chn, &mut data, cmdlo, &mut virt),
+            0x2 => self.mt_porta_down(chn, &mut data, cmdlo, &mut virt),
             0x3 => self.mt_tone_portamento(chn, &mut data),
             0x4 => self.mt_vibrato(chn, &mut data),
             0x5 => self.mt_tone_plus_vol_slide(chn, &mut data),
             0x6 => self.mt_vibrato_plus_vol_slide(chn, &mut data),
-            0xe => self.mt_e_commands(chn, &mut data),
+            0xe => self.mt_e_commands(chn, &mut data, cmdlo, &mut virt),
 // SetBack MOVE.W  n_period(A6),6(A5)
             0x7 => self.mt_tremolo(chn, &mut data),
             0xa => self.mt_volume_slide(chn, &mut data),
@@ -190,21 +191,42 @@ impl ModPlayer {
     fn mt_arpeggio(&self, chn: usize, mut data: &mut PlayerData) {
     }
 
-    fn mt_fine_porta_up(&mut self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_fine_porta_up(&mut self, chn: usize, mut data: &mut PlayerData, cmdlo: u8, mut virt: &mut Virtual) {
         if data.frame != 0 {
             return
         }
         self.mt_low_mask = 0x0f;
-        self.mt_porta_up(chn, &mut data);
+        self.mt_porta_up(chn, &mut data, cmdlo, &mut virt);
     }
 
-    fn mt_porta_up(&self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_porta_up(&mut self, chn: usize, mut data: &mut PlayerData, cmdlo: u8, mut virt: &mut Virtual) {
+        let mut period = self.state[chn].n_period;
+        period -= (cmdlo & self.mt_low_mask) as u16;
+        self.mt_low_mask = 0xff;
+        if period < 113 {
+            period = 113;
+        }
+        self.state[chn].n_period = period;
+        virt.set_period(chn, period as f64);  // MOVE.W  D0,6(A5)
     }
 
-    fn mt_fine_porta_down(&self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_fine_porta_down(&mut self, chn: usize, mut data: &mut PlayerData, cmdlo: u8, mut virt: &mut Virtual) {
+        if data.frame != 0 {
+            return
+        }
+        self.mt_low_mask = 0x0f;
+        self.mt_porta_down(chn, &mut data, cmdlo, &mut virt);
     }
 
-    fn mt_porta_down(&self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_porta_down(&mut self, chn: usize, mut data: &mut PlayerData, cmdlo: u8, mut virt: &mut Virtual) {
+        let mut period = self.state[chn].n_period;
+        period += (cmdlo & self.mt_low_mask) as u16;
+        self.mt_low_mask = 0xff;
+        if period < 856 {
+            period = 856;
+        }
+        self.state[chn].n_period = period;
+        virt.set_period(chn, period as f64);  // MOVE.W  D0,6(A5)
     }
 
     fn mt_set_tone_porta(&self, chn: usize, mut data: &mut PlayerData) {
@@ -269,7 +291,7 @@ impl ModPlayer {
             0x9 => self.mt_sample_offset(chn, &mut data),
             0xb => self.mt_position_jump(chn, &mut data),
             0xd => self.mt_pattern_break(chn, &mut data, cmdlo),
-            0xe => self.mt_e_commands(chn, &mut data),
+            0xe => self.mt_e_commands(chn, &mut data, cmdlo, &mut virt),
             0xf => self.mt_set_speed(chn, &mut data, cmdlo),
             0xc => self.mt_volume_change(chn, &mut data, cmdlo, &mut virt),
             _   => {},
@@ -279,13 +301,13 @@ impl ModPlayer {
         self.per_nop(chn, &mut data)
     }
 
-    fn mt_e_commands(&mut self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_e_commands(&mut self, chn: usize, mut data: &mut PlayerData, cmdlo: u8, mut virt: &mut Virtual) {
         let cmd = 0;
 
         match cmd {
            0x0 => self.mt_filter_on_off(chn, &mut data),
-           0x1 => self.mt_fine_porta_up(chn, &mut data),
-           0x2 => self.mt_fine_porta_down(chn, &mut data),
+           0x1 => self.mt_fine_porta_up(chn, &mut data, cmdlo, &mut virt),
+           0x2 => self.mt_fine_porta_down(chn, &mut data, cmd, &mut virt),
            0x3 => self.mt_set_gliss_control(chn, &mut data),
            0x4 => self.mt_set_vibrato_control(chn, &mut data),
            0x5 => self.mt_set_finetune(chn, &mut data),
