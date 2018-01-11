@@ -61,3 +61,9 @@ pub struct Module {
     pub orders    : Box<Orders>,
     pub patterns  : Box<Patterns>,
 }
+
+impl Module {
+    pub fn len(&self, song: usize) -> usize {
+        self.orders.num(song)
+    }
+}

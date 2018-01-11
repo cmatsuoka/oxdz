@@ -5,6 +5,13 @@ use super::ModPatterns;
 
 const FX_TONEPORTA: u8 = 0x03;
 
+/// Vinterstigen PT2.1A Replayer
+///
+/// An oxdz player based on the Protracker V2.1A play routine written by Peter
+/// "CRAYON" Hanning / Mushroom Studios in 1992. Original names are used whenever
+/// possible (converted to snake case according to Rust convention, i.e.
+/// mt_PosJumpFlag becomes mt_pos_jump_flag).
+
 pub struct ModPlayer {
     name : &'static str,
     state: Vec<ChannelData>,
@@ -13,11 +20,12 @@ pub struct ModPlayer {
 //  mt_counter        : u8,  // -> data.frame
 //  mt_song_pos       : u8,  // -> data.pos
     mt_pbreak_pos     : u8,
-    mt_pos_jump_flag  : u8,
-    mt_pbreak_flag    : u8,
+    mt_pos_jump_flag  : bool,
+    mt_pbreak_flag    : bool,
     mt_low_mask       : u8,
     mt_patt_del_time  : u8,
     mt_patt_del_time_2: u8,
+//  mt_pattern_pos    : u8,  // -> data.row
 }
 
 impl ModPlayer {
@@ -30,15 +38,68 @@ impl ModPlayer {
 //          mt_counter        : 0,
 //          mt_song_pos       : 0,
             mt_pbreak_pos     : 0,
-            mt_pos_jump_flag  : 0,
-            mt_pbreak_flag    : 0,
+            mt_pos_jump_flag  : false,
+            mt_pbreak_flag    : false,
             mt_low_mask       : 0,
             mt_patt_del_time  : 0,
             mt_patt_del_time_2: 0,
         }
     }
 
-    fn mt_get_new_note(&mut self, mut data: &mut PlayerData, module: &Module, pats: &ModPatterns, virt: &mut Virtual) {
+    fn mt_music(&mut self, mut data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
+        let pats = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
+
+        data.frame += 1;
+        if data.frame >= data.speed {
+            data.frame = 0;
+            if self.mt_patt_del_time_2 == 0 {
+                self.mt_get_new_note(&mut data, &module, &pats, &mut virt);
+            } else {
+                self.mt_no_new_all_channels(&mut data);
+
+                // mt_dskip
+                data.pos +=1;
+                if self.mt_patt_del_time != 0 {
+                    self.mt_patt_del_time_2 = self.mt_patt_del_time;
+                    self.mt_patt_del_time = 0;
+                }
+
+                // mt_dskc
+                if self.mt_patt_del_time_2 != 0 {
+                    self.mt_patt_del_time_2 -= 1;
+                    if self.mt_patt_del_time_2 != 0 {
+                        data.row -= 1;
+                    }
+                }
+
+                // mt_dska
+                if self.mt_pbreak_flag {
+                    self.mt_pbreak_flag = false;
+                    data.row = self.mt_pbreak_pos as usize;
+                    self.mt_pbreak_pos = 0;
+                }
+
+                // mt_nnpysk
+                if data.row >= 64 {
+                    self.mt_next_position(&mut data, &module);
+                }
+                self.mt_no_new_pos_yet(&mut data, &module);
+            }
+        } else {
+            // mt_NoNewNote
+            self.mt_no_new_all_channels(&mut data);
+            self.mt_no_new_pos_yet(&mut data, &module);
+            return;
+        }
+    }
+
+    fn mt_no_new_all_channels(&mut self, mut data: &mut PlayerData) {
+        for chn in 0..self.state.len() {
+            self.mt_check_efx(chn, &mut data);
+        }
+    }
+
+    fn mt_get_new_note(&mut self, mut data: &mut PlayerData, module: &Module, pats: &ModPatterns, mut virt: &mut Virtual) {
         for chn in 0..self.state.len() {
             // mt_PlayVoice
             let event = pats.event(data.pos, data.row, chn);
@@ -51,22 +112,49 @@ impl ModPlayer {
             // mt_SetRegs
             if event.has_note() {
 
-                let period = 100_f64;
+                let period = self.state[chn].n_period as f64;
 
                 match event.cmd {
                     0xe => if (event.cmdlo & 0xf0) == 0x50 {
                                 // mt_DoSetFinetune()
                            },
-                    0x3 => { self.mt_set_tone_porta(chn, &mut data); self.mt_check_efx(chn, &mut data) },
-                    0x5 => { self.mt_set_tone_porta(chn, &mut data); self.mt_check_efx(chn, &mut data) },
-                    0x9 => { self.mt_check_more_efx(chn, &mut data); virt.set_period(chn, period) },
+                    0x3 => {
+                               self.mt_set_tone_porta(chn, &mut data);
+                               self.mt_check_efx(chn, &mut data)
+                           },
+                    0x5 => {
+                               self.mt_set_tone_porta(chn, &mut data);
+                               self.mt_check_efx(chn, &mut data)
+                           },
+                    0x9 => {
+                               self.mt_check_more_efx(chn, &mut data, event.cmdlo, &mut virt);
+                               virt.set_period(chn, period)
+                           },
                     _   => virt.set_period(chn, period),
                 }
                 
 
             } else {
-                self.mt_check_more_efx(chn, &mut data);
+                self.mt_check_more_efx(chn, &mut data, event.cmdlo, &mut virt);
             }
+        }
+    }
+
+    fn mt_next_position(&mut self, mut data: &mut PlayerData, module: &Module) {
+        data.row = self.mt_pbreak_pos as usize;
+        self.mt_pbreak_pos = 0;
+        self.mt_pos_jump_flag = false;
+        data.pos += 1;
+        data.pos &= 0x7f;
+        if data.pos >= module.len(0) {
+            data.pos = 0;
+        }
+    }
+
+    fn mt_no_new_pos_yet(&mut self, mut data: &mut PlayerData, module: &Module) {
+        if self.mt_pos_jump_flag {
+            self.mt_next_position(&mut data, &module);
+            self.mt_no_new_pos_yet(&mut data, &module);
         }
     }
 
@@ -149,26 +237,41 @@ impl ModPlayer {
     fn mt_position_jump(&self, chn: usize, mut data: &mut PlayerData) {
     }
 
-    fn mt_volume_change(&self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_volume_change(&mut self, chn: usize, mut data: &mut PlayerData, mut cmdlo: u8, virt: &mut Virtual) {
+        if cmdlo > 0x40 {
+            cmdlo = 40
+        }
+        self.state[chn].n_volume = cmdlo;
+        virt.set_volume(chn, cmdlo as usize);  // MOVE.W  D0,8(A5)
     }
 
-    fn mt_pattern_break(&self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_pattern_break(&mut self, chn: usize, mut data: &mut PlayerData, cmdlo: u8) {
+        let line = (cmdlo >> 4) * 10 + (cmdlo & 0x0f);
+        if line >= 63 {
+            // mt_pj2
+            self.mt_pbreak_pos = 0;
+        }
+        self.mt_pos_jump_flag = true;
     }
 
-    fn mt_set_speed(&self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_set_speed(&self, chn: usize, mut data: &mut PlayerData, cmdlo: u8) {
+        if cmdlo != 0 {
+            data.frame = 0;
+            data.speed = cmdlo as usize;
+        }
     }
 
-    fn mt_check_more_efx(&mut self, chn: usize, mut data: &mut PlayerData) {
+    fn mt_check_more_efx(&mut self, chn: usize, mut data: &mut PlayerData, cmdlo: u8, mut virt: &mut Virtual) {
         let cmd = 0;
 
         // mt_UpdateFunk()
         match cmd {
             0x9 => self.mt_sample_offset(chn, &mut data),
             0xb => self.mt_position_jump(chn, &mut data),
-            0xd => self.mt_pattern_break(chn, &mut data),
+            0xd => self.mt_pattern_break(chn, &mut data, cmdlo),
             0xe => self.mt_e_commands(chn, &mut data),
-            0xf => self.mt_set_speed(chn, &mut data),
-            0xc => self.mt_volume_change(chn, &mut data),
+            0xf => self.mt_set_speed(chn, &mut data, cmdlo),
+            0xc => self.mt_volume_change(chn, &mut data, cmdlo, &mut virt),
             _   => {},
         }
 
@@ -249,30 +352,13 @@ impl FormatPlayer for ModPlayer {
     }
 
     fn play(&mut self, mut data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
-        let pats = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
-
-        data.frame += 1;
-        if data.frame >= data.speed {
-            data.frame = 0;
-            if self.mt_patt_del_time_2 == 0 {
-                self.mt_get_new_note(&mut data, &module, &pats, &mut virt);
-            } else {
-                // mt_NoNewAllChannels
-                for chn in 0..self.state.len() {
-                    self.mt_check_efx(chn, &mut data)
-                }
-		
-
-
-                // mt_NoNewPosYet
-            }
-        }
+        self.mt_music(&mut data, &module, &mut virt)
     }
 
     fn reset(&mut self) {
         self.mt_pbreak_pos      = 0;
-        self.mt_pos_jump_flag   = 0;
-        self.mt_pbreak_flag     = 0;
+        self.mt_pos_jump_flag   = false;
+        self.mt_pbreak_flag     = false;
         self.mt_low_mask        = 0;
         self.mt_patt_del_time   = 0;
         self.mt_patt_del_time_2 = 0;
