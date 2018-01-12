@@ -3,8 +3,6 @@ use format::FormatPlayer;
 use player::{PlayerData, Virtual};
 use super::ModPatterns;
 
-const FX_TONEPORTA: u8 = 0x03;
-
 /// Vinterstigen PT2.1A Replayer
 ///
 /// An oxdz player based on the Protracker V2.1A play routine written by Peter
@@ -93,7 +91,7 @@ impl ModPlayer {
         }
     }
 
-    fn mt_no_new_all_channels(&mut self, mut data: &mut PlayerData, pats: &ModPatterns, mut virt: &mut Virtual) {
+    fn mt_no_new_all_channels(&mut self, data: &mut PlayerData, pats: &ModPatterns, mut virt: &mut Virtual) {
         for chn in 0..self.state.len() {
             let event = pats.event(data.pos, data.row, chn);
             let mut e = EffectData{chn, cmd: event.cmd, cmdlo: event.cmdlo, data};
@@ -190,12 +188,12 @@ impl ModPlayer {
         }
     }
 
-    fn per_nop(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn per_nop(&self, mut e: &mut EffectData, virt: &mut Virtual) {
         let period = self.state[e.chn].n_period;
         virt.set_period(e.chn, period as f64);  // MOVE.W  n_period(A6),6(A5)
     }
 
-    fn mt_arpeggio(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_arpeggio(&self, e: &mut EffectData, mut virt: &mut Virtual) {
         match e.data.frame % 3 {
             0 => {  // Arpeggio2
                  },
@@ -233,7 +231,7 @@ impl ModPlayer {
         self.mt_porta_down(&mut e, &mut virt);
     }
 
-    fn mt_porta_down(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_porta_down(&mut self, e: &mut EffectData, mut virt: &mut Virtual) {
         let mut state = &mut self.state[e.chn];
         state.n_period += (e.cmdlo & self.mt_low_mask) as u16;
         self.mt_low_mask = 0xff;
@@ -255,13 +253,48 @@ impl ModPlayer {
     fn mt_tone_portamento(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
     }
 
-    fn mt_vibrato(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_tone_port_no_change(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
     }
 
-    fn mt_tone_plus_vol_slide(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_vibrato(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        let mut cmdlo = e.cmdlo;
+        let mut vcmd = self.state[e.chn].n_vibratocmd;
+        if cmdlo != 0 {
+            if cmdlo & 0x0f != 0 {
+                cmdlo = (vcmd & 0xf0) | (cmdlo & 0x0f)
+            }
+            // mt_vibskip
+            if e.cmdlo & 0xf0 != 0 {
+                cmdlo = (vcmd & 0x0f) | (cmdlo & 0xf0)
+            }
+            // mt_vibskip2
+            self.state[e.chn].n_vibratocmd = cmdlo;
+        }
+        self.mt_vibrato_2(&mut e, &mut virt);
     }
 
-    fn mt_vibrato_plus_vol_slide(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_vibrato_2(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        let mut state = &mut self.state[e.chn];
+        let pos = (state.n_vibratopos >> 2) & 0x1f;
+        match state.n_wavecontrol & 0x03 {
+            0 => {  // mt_vib_sine
+                 },
+            1 => {  // mt_vib_rampdown
+                 },
+            _ => {}
+        }
+
+        //let v = MT_VIBRATO_TABLE[];
+    }
+
+    fn mt_tone_plus_vol_slide(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        self.mt_tone_port_no_change(&mut e, &mut virt);
+        self.mt_volume_slide(&mut e, &mut virt);
+    }
+
+    fn mt_vibrato_plus_vol_slide(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        self.mt_vibrato_2(&mut e, &mut virt);
+        self.mt_volume_slide(&mut e, &mut virt);
     }
 
     fn mt_tremolo(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -299,14 +332,14 @@ impl ModPlayer {
         virt.set_volume(e.chn, state.n_volume as usize);
     }
 
-    fn mt_position_jump(&mut self, mut e: &mut EffectData) {
+    fn mt_position_jump(&mut self, e: &mut EffectData) {
         e.data.pos = e.cmdlo as usize - 1;
         // mt_pj2
         self.mt_pbreak_pos = 0;
         self.mt_pos_jump_flag = true;
     }
 
-    fn mt_volume_change(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_volume_change(&mut self, e: &mut EffectData, mut virt: &mut Virtual) {
         if e.cmdlo > 0x40 {
             e.cmdlo = 40
         }
@@ -314,7 +347,7 @@ impl ModPlayer {
         virt.set_volume(e.chn, e.cmdlo as usize);  // MOVE.W  D0,8(A5)
     }
 
-    fn mt_pattern_break(&mut self, mut e: &mut EffectData) {
+    fn mt_pattern_break(&mut self, e: &mut EffectData) {
         let line = (e.cmdlo >> 4) * 10 + (e.cmdlo & 0x0f);
         if line >= 63 {
             // mt_pj2
@@ -323,7 +356,7 @@ impl ModPlayer {
         self.mt_pos_jump_flag = true;
     }
 
-    fn mt_set_speed(&self, mut e: &mut EffectData) {
+    fn mt_set_speed(&self, e: &mut EffectData) {
         if e.cmdlo != 0 {
             e.data.frame = 0;
             e.data.speed = e.cmdlo as usize;
@@ -431,10 +464,21 @@ impl ModPlayer {
         self.mt_vol_slide_up(&mut e, &mut virt);
     }
 
-    fn mt_volume_fine_down(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_volume_fine_down(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        if e.data.frame != 0 {
+            return;
+        }
+        e.cmdlo &= 0x0f;
+        self.mt_vol_slide_down(&mut e, &mut virt);
     }
 
-    fn mt_note_cut(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_note_cut(&mut self, e: &mut EffectData, mut virt: &mut Virtual) {
+        let mut state = &mut self.state[e.chn];
+        if e.data.frame != e.cmdlo as usize {
+            return;
+        }
+        state.n_volume = 0;
+        virt.set_volume(e.chn, 0);  // MOVE.W  #0,8(A5)
     }
 
     fn mt_note_delay(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -449,7 +493,7 @@ impl ModPlayer {
         // BRA mt_DoRetrig
     }
 
-    fn mt_pattern_delay(&mut self, mut e: &mut EffectData) {
+    fn mt_pattern_delay(&mut self, e: &mut EffectData) {
         if e.data.frame != 0 {
             return;
         }
@@ -459,7 +503,7 @@ impl ModPlayer {
         self.mt_patt_del_time = e.cmdlo & 0x0f + 1;
     }
 
-    fn mt_funk_it(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_funk_it(&self, e: &mut EffectData, mut virt: &mut Virtual) {
     }
 }
 
@@ -515,9 +559,22 @@ impl ChannelData {
 }
 
 
+const MT_FUNK_TABLE: &'static [u8] = &[
+    0, 5, 6, 7, 8, 10, 11, 13, 16, 19, 22, 26, 32, 43, 64, 128
+];
+
+const MT_VIBRATO_TABLE: &'static [u8] = &[
+      0,  24,  49,  74,  97, 120, 141, 161,
+    180, 197, 212, 224, 235, 244, 250, 253,
+    255, 253, 250, 244, 235, 224, 212, 197,
+    180, 161, 141, 120,  97,  74,  49,  24
+];
+
+
 struct EffectData<'a> {
     chn  : usize,
     cmd  : u8,
     cmdlo: u8,
     data : &'a mut PlayerData,
 }
+
