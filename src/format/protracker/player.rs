@@ -96,7 +96,7 @@ impl ModPlayer {
     fn mt_no_new_all_channels(&mut self, mut data: &mut PlayerData, pats: &ModPatterns, mut virt: &mut Virtual) {
         for chn in 0..self.state.len() {
             let event = pats.event(data.pos, data.row, chn);
-            let mut e = EffectData{chn, cmdlo: event.cmdlo, data};
+            let mut e = EffectData{chn, cmd: event.cmd, cmdlo: event.cmdlo, data};
             self.mt_check_efx(&mut e, &mut virt);
         }
     }
@@ -111,7 +111,7 @@ impl ModPlayer {
                 virt.set_volume(chn, instrument.volume);
             }
 
-            let mut e = EffectData{chn, cmdlo: event.cmdlo, data};
+            let mut e = EffectData{chn, cmd: event.cmd, cmdlo: event.cmdlo, data};
 
             // mt_SetRegs
             if event.has_note() {
@@ -162,15 +162,14 @@ impl ModPlayer {
     }
 
     fn mt_check_efx(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
-        let cmd = 0;
 
         // mt_UpdateFunk()
-        if cmd == 000 {
+        if e.cmd == 0 {
             self.per_nop(&mut e, &mut virt);
             return
         }
 
-        match cmd {
+        match e.cmd {
             0x0 => self.mt_arpeggio(&mut e, &mut virt),
             0x1 => self.mt_porta_up(&mut e, &mut virt),
             0x2 => self.mt_porta_down(&mut e, &mut virt),
@@ -179,10 +178,15 @@ impl ModPlayer {
             0x5 => self.mt_tone_plus_vol_slide(&mut e, &mut virt),
             0x6 => self.mt_vibrato_plus_vol_slide(&mut e, &mut virt),
             0xe => self.mt_e_commands(&mut e, &mut virt),
-// SetBack MOVE.W  n_period(A6),6(A5)
-            0x7 => self.mt_tremolo(&mut e, &mut virt),
-            0xa => self.mt_volume_slide(&mut e, &mut virt),
-            _   => {},
+            _   => {
+                       // SetBack
+                       virt.set_period(e.chn, self.state[e.chn].n_period as f64);  // MOVE.W  n_period(A6),6(A5)
+                       match e.cmd {
+                           0x7 => self.mt_tremolo(&mut e, &mut virt),
+                           0xa => self.mt_volume_slide(&mut e, &mut virt),
+                           _   => {},
+                       }
+                   }
         }
     }
 
@@ -192,6 +196,15 @@ impl ModPlayer {
     }
 
     fn mt_arpeggio(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        match e.data.frame % 3 {
+            0 => {  // Arpeggio2
+                 },
+            1 => {  // Arpeggio1
+                 },
+            2 => {  // Arpeggio3
+                 },
+            _ => {},
+        }
     }
 
     fn mt_fine_porta_up(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -203,14 +216,13 @@ impl ModPlayer {
     }
 
     fn mt_porta_up(&mut self, e: &mut EffectData, mut virt: &mut Virtual) {
-        let mut period = self.state[e.chn].n_period;
-        period -= (e.cmdlo & self.mt_low_mask) as u16;
+        let mut state = &mut self.state[e.chn];
+        state.n_period -= (e.cmdlo & self.mt_low_mask) as u16;
         self.mt_low_mask = 0xff;
-        if period < 113 {
-            period = 113;
+        if state.n_period < 113 {
+            state.n_period = 113;
         }
-        self.state[e.chn].n_period = period;
-        virt.set_period(e.chn, period as f64);  // MOVE.W  D0,6(A5)
+        virt.set_period(e.chn, state.n_period as f64);  // MOVE.W  D0,6(A5)
     }
 
     fn mt_fine_porta_down(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -222,20 +234,22 @@ impl ModPlayer {
     }
 
     fn mt_porta_down(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
-        let mut period = self.state[e.chn].n_period;
-        period += (e.cmdlo & self.mt_low_mask) as u16;
+        let mut state = &mut self.state[e.chn];
+        state.n_period += (e.cmdlo & self.mt_low_mask) as u16;
         self.mt_low_mask = 0xff;
-        if period < 856 {
-            period = 856;
+        if state.n_period < 856 {
+            state.n_period = 856;
         }
-        self.state[e.chn].n_period = period;
-        virt.set_period(e.chn, period as f64);  // MOVE.W  D0,6(A5)
+        virt.set_period(e.chn, state.n_period as f64);  // MOVE.W  D0,6(A5)
     }
 
     fn mt_set_tone_porta(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        let note = self.state[e.chn].n_note;
+        //let period = 
     }
 
-    fn mt_clear_tone_porta(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_clear_tone_porta(&mut self, mut e: &mut EffectData) {
+        self.state[e.chn].n_wantedperiod = 0;
     }
 
     fn mt_tone_portamento(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -256,10 +270,40 @@ impl ModPlayer {
     fn mt_sample_offset(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
     }
 
-    fn mt_volume_slide(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_volume_slide(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        if e.cmdlo & 0xf0 == 0 {
+            self.mt_vol_slide_down(&mut e, &mut virt);
+        } else {
+            self.mt_vol_slide_up(&mut e, &mut virt);
+        }
     }
 
-    fn mt_position_jump(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_vol_slide_up(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        let cmdlo = e.cmdlo & 0x0f;
+        let mut state = &mut self.state[e.chn];
+        state.n_volume += cmdlo;
+        if state.n_volume > 0x40 {
+            state.n_volume = 0x40;
+        }
+        virt.set_volume(e.chn, state.n_volume as usize);
+    }
+
+    fn mt_vol_slide_down(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        let cmdlo = e.cmdlo & 0x0f;
+        let mut state = &mut self.state[e.chn];
+        if state.n_volume > cmdlo {
+            state.n_volume -= cmdlo;
+        } else {
+            state.n_volume = 0;
+        }
+        virt.set_volume(e.chn, state.n_volume as usize);
+    }
+
+    fn mt_position_jump(&mut self, mut e: &mut EffectData) {
+        e.data.pos = e.cmdlo as usize - 1;
+        // mt_pj2
+        self.mt_pbreak_pos = 0;
+        self.mt_pos_jump_flag = true;
     }
 
     fn mt_volume_change(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -292,7 +336,7 @@ impl ModPlayer {
         // mt_UpdateFunk()
         match cmd {
             0x9 => self.mt_sample_offset(&mut e, &mut virt),
-            0xb => self.mt_position_jump(&mut e, &mut virt),
+            0xb => self.mt_position_jump(&mut e),
             0xd => self.mt_pattern_break(&mut e),
             0xe => self.mt_e_commands(&mut e, &mut virt),
             0xf => self.mt_set_speed(&mut e),
@@ -305,23 +349,22 @@ impl ModPlayer {
     }
 
     fn mt_e_commands(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
-        let cmd = 0;
 
-        match cmd {
+        match e.cmdlo >> 4 {
            0x0 => self.mt_filter_on_off(&mut e, &mut virt),
            0x1 => self.mt_fine_porta_up(&mut e, &mut virt),
            0x2 => self.mt_fine_porta_down(&mut e, &mut virt),
            0x3 => self.mt_set_gliss_control(&mut e),
            0x4 => self.mt_set_vibrato_control(&mut e),
            0x5 => self.mt_set_finetune(&mut e),
-           0x6 => self.mt_jump_loop(&mut e, &mut virt),
-           0x7 => self.mt_set_tremolo_control(&mut e, &mut virt),
+           0x6 => self.mt_jump_loop(&mut e),
+           0x7 => self.mt_set_tremolo_control(&mut e),
            0x9 => self.mt_retrig_note(&mut e, &mut virt),
            0xa => self.mt_volume_fine_up(&mut e, &mut virt),
            0xb => self.mt_volume_fine_down(&mut e, &mut virt),
            0xc => self.mt_note_cut(&mut e, &mut virt),
            0xd => self.mt_note_delay(&mut e, &mut virt),
-           0xe => self.mt_pattern_delay(&mut e, &mut virt),
+           0xe => self.mt_pattern_delay(&mut e),
            0xf => self.mt_funk_it(&mut e, &mut virt),
            _   => {},
         }
@@ -335,24 +378,57 @@ impl ModPlayer {
     }
 
     fn mt_set_vibrato_control(&mut self, mut e: &mut EffectData) {
-        self.state[e.chn].n_wavecontrol &= 0xf0;
-        self.state[e.chn].n_wavecontrol |= e.cmdlo & 0x0f;
+        let mut state = &mut self.state[e.chn];
+        state.n_wavecontrol &= 0xf0;
+        state.n_wavecontrol |= e.cmdlo & 0x0f;
     }
 
     fn mt_set_finetune(&mut self, mut e: &mut EffectData) {
         self.state[e.chn].n_finetune = e.cmdlo as i8;
     }
 
-    fn mt_jump_loop(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_jump_loop(&mut self, mut e: &mut EffectData) {
+        if e.data.frame != 0 {
+            return
+        }
+
+        let cmdlo = e.cmdlo & 0x0f;
+        let mut state = &mut self.state[e.chn];
+
+        if cmdlo == 0 {
+            // mt_SetLoop
+            state.n_pattpos = e.data.row as u8;
+        } else {
+            if state.n_loopcount == 0 {
+                // mt_jmpcnt
+                state.n_loopcount = cmdlo;
+            } else {
+                state.n_loopcount -= 1;
+                if state.n_loopcount == 0 {
+                    return;
+                }
+            }
+            // mt_jmploop
+            self.mt_pbreak_pos = state.n_pattpos;
+            self.mt_pbreak_flag = true;
+        }
     }
 
-    fn mt_set_tremolo_control(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_set_tremolo_control(&mut self, mut e: &mut EffectData) {
+        let mut state = &mut self.state[e.chn];
+        state.n_wavecontrol &= 0x0f;
+        state.n_wavecontrol |= (e.cmdlo & 0x0f) << 4;
     }
 
     fn mt_retrig_note(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
     }
 
-    fn mt_volume_fine_up(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_volume_fine_up(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        if e.data.frame != 0 {
+            return;
+        }
+        e.cmdlo &= 0x0f;
+        self.mt_vol_slide_up(&mut e, &mut virt);
     }
 
     fn mt_volume_fine_down(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -361,10 +437,26 @@ impl ModPlayer {
     fn mt_note_cut(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
     }
 
-    fn mt_note_delay(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_note_delay(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+        let cmdlo = e.cmdlo & 0x0f;
+        let mut state = &mut self.state[e.chn];
+        if e.data.frame != cmdlo as usize {
+            return;
+        }
+        if state.n_note == 0 {
+            return;
+        }
+        // BRA mt_DoRetrig
     }
 
-    fn mt_pattern_delay(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
+    fn mt_pattern_delay(&mut self, mut e: &mut EffectData) {
+        if e.data.frame != 0 {
+            return;
+        }
+        if self.mt_patt_del_time_2 != 0 {
+            return;
+        }
+        self.mt_patt_del_time = e.cmdlo & 0x0f + 1;
     }
 
     fn mt_funk_it(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -425,6 +517,7 @@ impl ChannelData {
 
 struct EffectData<'a> {
     chn  : usize,
+    cmd  : u8,
     cmdlo: u8,
     data : &'a mut PlayerData,
 }
