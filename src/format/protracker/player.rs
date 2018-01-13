@@ -1,7 +1,9 @@
 use module::Module;
 use format::FormatPlayer;
 use player::{PlayerData, Virtual};
-use super::ModPatterns;
+use format::protracker::{ModPatterns, ModInstrument};
+use util;
+use ::*;
 
 /// Vinterstigen PT2.1A Replayer
 ///
@@ -41,6 +43,7 @@ impl ModPlayer {
             mt_low_mask       : 0,
             mt_patt_del_time  : 0,
             mt_patt_del_time_2: 0,
+//          mt_pattern_pos    : 0,
         }
     }
 
@@ -53,7 +56,7 @@ impl ModPlayer {
             if self.mt_patt_del_time_2 == 0 {
                 self.mt_get_new_note(&mut data, &module, &pats, &mut virt);
             } else {
-                self.mt_no_new_all_channels(&mut data, &pats, &mut virt);
+                self.mt_no_new_all_channels(&mut data, &module, &pats, &mut virt);
 
                 // mt_dskip
                 data.pos +=1;
@@ -85,14 +88,14 @@ impl ModPlayer {
             }
         } else {
             // mt_NoNewNote
-            self.mt_no_new_all_channels(&mut data, &pats, &mut virt);
+            self.mt_no_new_all_channels(&mut data, &module, &pats, &mut virt);
             self.mt_no_new_pos_yet(&mut data, &module);
             return;
         }
     }
 
-    fn mt_no_new_all_channels(&mut self, data: &mut PlayerData, pats: &ModPatterns, mut virt: &mut Virtual) {
-        for chn in 0..self.state.len() {
+    fn mt_no_new_all_channels(&mut self, data: &mut PlayerData, module: &Module, pats: &ModPatterns, mut virt: &mut Virtual) {
+        for chn in 0..module.chn {
             let event = pats.event(data.pos, data.row, chn);
             let mut e = EffectData{chn, cmd: event.cmd, cmdlo: event.cmdlo, data};
             self.mt_check_efx(&mut e, &mut virt);
@@ -100,24 +103,45 @@ impl ModPlayer {
     }
 
     fn mt_get_new_note(&mut self, mut data: &mut PlayerData, module: &Module, pats: &ModPatterns, mut virt: &mut Virtual) {
-        for chn in 0..self.state.len() {
-            // mt_PlayVoice
+        for chn in 0..module.chn {
             let event = pats.event(data.pos, data.row, chn);
-            if event.has_ins() {
-                let instrument = &module.instrument[event.ins as usize];
-                virt.set_patch(chn, event.ins as usize, event.ins as usize, event.note as usize);
+            let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
+            let mut e = EffectData{chn, cmd, cmdlo, data};
+
+            // mt_PlayVoice
+            if self.state[chn].n_note == 0 {
+                self.per_nop(&mut e, &mut virt);
+            }
+
+            // mt_plvskip
+            self.state[chn].n_note = note;
+            self.state[chn].n_ins = ins;
+            self.state[chn].n_cmd = cmd;
+            self.state[chn].n_cmdlo = cmdlo;
+
+            if ins != 0 {
+                let instrument = &module.instrument[ins as usize];
+                let subins = instrument.subins[0].as_any().downcast_ref::<ModInstrument>().unwrap();
+                let sample = &module.sample[ins as usize];
+                //self.state[chn].n_start = sample.loop_start;
+                //self.state[chn].n_length = sample.size;
+                //self.state[chn].n_reallength = sample.size;
+                self.state[chn].n_finetune = subins.finetune;
+                //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
+                self.state[chn].n_volume = instrument.volume as u8;
+                virt.set_patch(chn, ins as usize, ins as usize, note as usize);
                 virt.set_volume(chn, instrument.volume);
             }
 
-            let mut e = EffectData{chn, cmd: event.cmd, cmdlo: event.cmdlo, data};
-
             // mt_SetRegs
-            if event.has_note() {
-                let period = self.state[chn].n_period as f64;
+            if note != 0 {
+                let period = self.state[chn].n_period;
 
-                match event.cmd {
-                    0xe => if (event.cmdlo & 0xf0) == 0x50 {
-                                // mt_DoSetFinetune()
+                match cmd {
+                    0xe => if (cmdlo & 0xf0) == 0x50 {
+                               // mt_DoSetFinetune
+                               self.mt_set_finetune(&mut e);
+                               self.mt_set_period(&mut e, &mut virt);
                            },
                     0x3 => {
                                self.mt_set_tone_porta(&mut e, &mut virt);
@@ -129,9 +153,11 @@ impl ModPlayer {
                            },
                     0x9 => {
                                self.mt_check_more_efx(&mut e, &mut virt);
-                               virt.set_period(chn, period)
+                               self.mt_set_period(&mut e, &mut virt);
                            },
-                    _   => virt.set_period(chn, period),
+                    _   => {
+                               self.mt_set_period(&mut e, &mut virt);
+                           },
                 }
                 
 
@@ -139,6 +165,12 @@ impl ModPlayer {
                 self.mt_check_more_efx(&mut e, &mut virt);
             }
         }
+    }
+
+    fn mt_set_period(&mut self, e: &mut EffectData, mut virt: &mut Virtual) {
+        let mut state = &mut self.state[e.chn];
+        let period = util::note_to_period(state.n_note as usize, state.n_finetune, PeriodType::Amiga);
+        state.n_period = period;
     }
 
     fn mt_next_position(&mut self, mut data: &mut PlayerData, module: &Module) {
@@ -178,7 +210,7 @@ impl ModPlayer {
             0xe => self.mt_e_commands(&mut e, &mut virt),
             _   => {
                        // SetBack
-                       virt.set_period(e.chn, self.state[e.chn].n_period as f64);  // MOVE.W  n_period(A6),6(A5)
+                       virt.set_period(e.chn, self.state[e.chn].n_period);  // MOVE.W  n_period(A6),6(A5)
                        match e.cmd {
                            0x7 => self.mt_tremolo(&mut e, &mut virt),
                            0xa => self.mt_volume_slide(&mut e, &mut virt),
@@ -190,7 +222,7 @@ impl ModPlayer {
 
     fn per_nop(&self, mut e: &mut EffectData, virt: &mut Virtual) {
         let period = self.state[e.chn].n_period;
-        virt.set_period(e.chn, period as f64);  // MOVE.W  n_period(A6),6(A5)
+        virt.set_period(e.chn, period);  // MOVE.W  n_period(A6),6(A5)
     }
 
     fn mt_arpeggio(&self, e: &mut EffectData, mut virt: &mut Virtual) {
@@ -215,12 +247,12 @@ impl ModPlayer {
 
     fn mt_porta_up(&mut self, e: &mut EffectData, mut virt: &mut Virtual) {
         let mut state = &mut self.state[e.chn];
-        state.n_period -= (e.cmdlo & self.mt_low_mask) as u16;
+        state.n_period -= (e.cmdlo & self.mt_low_mask) as f64;
         self.mt_low_mask = 0xff;
-        if state.n_period < 113 {
-            state.n_period = 113;
+        if state.n_period < 113.0 {
+            state.n_period = 113.0;
         }
-        virt.set_period(e.chn, state.n_period as f64);  // MOVE.W  D0,6(A5)
+        virt.set_period(e.chn, state.n_period);  // MOVE.W  D0,6(A5)
     }
 
     fn mt_fine_porta_down(&mut self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -233,12 +265,12 @@ impl ModPlayer {
 
     fn mt_porta_down(&mut self, e: &mut EffectData, mut virt: &mut Virtual) {
         let mut state = &mut self.state[e.chn];
-        state.n_period += (e.cmdlo & self.mt_low_mask) as u16;
+        state.n_period += (e.cmdlo & self.mt_low_mask) as f64;
         self.mt_low_mask = 0xff;
-        if state.n_period < 856 {
-            state.n_period = 856;
+        if state.n_period < 856.0 {
+            state.n_period = 856.0;
         }
-        virt.set_period(e.chn, state.n_period as f64);  // MOVE.W  D0,6(A5)
+        virt.set_period(e.chn, state.n_period);  // MOVE.W  D0,6(A5)
     }
 
     fn mt_set_tone_porta(&self, mut e: &mut EffectData, mut virt: &mut Virtual) {
@@ -417,7 +449,7 @@ impl ModPlayer {
     }
 
     fn mt_set_finetune(&mut self, mut e: &mut EffectData) {
-        self.state[e.chn].n_finetune = e.cmdlo as i8;
+        self.state[e.chn].n_finetune = ((e.cmdlo << 4) as i8) as isize;
     }
 
     fn mt_jump_loop(&mut self, mut e: &mut EffectData) {
@@ -530,10 +562,11 @@ impl FormatPlayer for ModPlayer {
 #[derive(Clone,Default)]
 struct ChannelData {
     n_note         : u8,
+    n_ins          : u8,     // not in PT2.1A
     n_cmd          : u8,
     n_cmdlo        : u8,
-    n_period       : u16,
-    n_finetune     : i8,
+    n_period       : f64,    // u16
+    n_finetune     : isize,  // i8
     n_volume       : u8,
     n_toneportdirec: i8,
     n_toneportspeed: u8,

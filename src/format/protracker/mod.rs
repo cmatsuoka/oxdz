@@ -53,18 +53,6 @@ impl ModEvent {
             cmdlo: b[3],
         }
     }
-
-    fn has_note(&self) -> bool {
-        self.note != 0x00
-    }
-
-    fn has_ins(&self) -> bool {
-        self.ins != 0x00
-    }
-
-    fn has_cmd(&self) -> bool {
-        self.cmd != 0x00
-    }
 }
 
 impl fmt::Display for ModEvent {

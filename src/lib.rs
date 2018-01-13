@@ -26,6 +26,12 @@ pub const PAL_RATE     : usize = 250;
 
 
 #[derive(Debug)]
+pub enum PeriodType {
+    Linear,
+    Amiga,
+}
+
+#[derive(Debug)]
 pub enum Error {
     Format(&'static str),
     Load(&'static str),

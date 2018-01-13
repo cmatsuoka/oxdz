@@ -76,3 +76,11 @@ pub fn note_to_period_mix(note: usize, bend: usize) -> f64 {
     let d = note as f64 + bend as f64 / 12800.0;
     PERIOD_BASE / 2.0_f64.powf(d / 12.0)
 }
+
+pub fn note_to_period(note: usize, finetune: isize, period_type: PeriodType) -> f64 {
+    let d = note as f64 + finetune as f64 / 128_f64;
+    match period_type {
+        PeriodType::Linear => (240.0 - d) * 16.0,
+        PeriodType::Amiga  => PERIOD_BASE / 2.0_f64.powf(d / 12.0),
+    }
+}
