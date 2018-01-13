@@ -1,4 +1,5 @@
 use mixer::Mixer;
+use module::Sample;
 use ::*;
 
 
@@ -30,8 +31,9 @@ pub struct Virtual<'a> {
 
 
 impl<'a> Virtual<'a> {
-    pub fn new(mixer: Mixer<'a>, chn: usize, has_virt: bool) -> Self {
+    pub fn new(chn: usize, sample: &'a Vec<Sample>, has_virt: bool) -> Self {
 
+        let mixer = Mixer::new(chn, &sample);
         let num = mixer.num_voices();
 
         let mut v = Virtual {

@@ -52,8 +52,7 @@ pub struct Player<'a> {
 
 impl<'a> Player<'a> {
     pub fn new(module: &'a Module, format_player: Box<FormatPlayer>) -> Self {
-        let mixer = Mixer::new(module.chn, &module.sample);
-        let virt = Virtual::new(mixer, module.chn, false);
+        let virt = Virtual::new(module.chn, &module.sample, false);
         Player {
             data : PlayerData::new(&module),
             module,
