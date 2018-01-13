@@ -56,6 +56,7 @@ pub struct Module {
     pub title     : String,             // module title
     pub chn       : usize,              // number of channels
     pub speed     : usize,              // initial speed (frames per row)
+    pub bpm       : usize,              // initial bpm (frame duration)
     pub instrument: Vec<Instrument>,
     pub sample    : Vec<Sample>,
     pub orders    : Box<Orders>,

@@ -13,6 +13,9 @@ pub struct PlayerData {
     pub song : usize,
     pub speed: usize,
     pub bpm  : usize,
+
+    initial_speed: usize,
+    initial_bpm  : usize,
 }
 
 impl PlayerData {
@@ -23,8 +26,20 @@ impl PlayerData {
             frame: 0,
             song : 0,
             speed: module.speed,
-            bpm  : 125,
+            bpm  : module.bpm,
+
+            initial_speed: module.speed,
+            initial_bpm  : module.bpm,
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.pos   = 0;
+        self.row   = 0;
+        self.frame = 0;
+        self.song  = 0;
+        self.speed = self.initial_speed;
+        self.bpm   = self.initial_bpm;
     }
 }
 
@@ -45,6 +60,11 @@ impl<'a> Player<'a> {
             format_player, //: &mut *format_player,
             virt,
         }
+    }
+
+    pub fn scan(&mut self) -> &Self {
+        self.data.reset();
+        self
     }
 
     pub fn restart(&mut self) -> &Self {
@@ -73,31 +93,6 @@ impl<'a> Player<'a> {
         self
     }
 
-/*
-    fn next_frame(&mut self) {
-        self.data.frame += 1;
-        if self.data.frame >= self.data.speed {
-            self.next_row();
-        }
-    }
-
-    fn next_row(&mut self) {
-        self.data.frame = 0;
-        self.data.row += 1;
-        if self.data.row > self.module.patterns.len(self.module.orders.pattern(&self.data)) {
-            self.next_pattern();
-        }
-    }
-
-    fn next_pattern(&mut self) {
-        self.data.row = 0;  // FIXME: pattern break row
-        self.data.pos += 1;
-        if self.data.pos > self.module.orders.num(self.data.song) {
-            // FIXME: add loop control
-            self.restart();
-        }
-    }
-*/
     pub fn position(&self) -> usize {
         self.data.pos
     }

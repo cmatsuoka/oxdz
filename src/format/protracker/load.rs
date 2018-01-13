@@ -103,6 +103,7 @@ impl ModuleFormat for Mod {
             title     : title,
             chn       : 4,
             speed     : 6,
+            bpm       : 125,
             instrument: ins_list,
             sample    : smp_list,
             orders    : Box::new(ord),
