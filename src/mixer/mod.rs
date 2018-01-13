@@ -5,7 +5,12 @@ use ::*;
 
 mod interpolator;
 
-const C4_PERIOD: f64 = 428.0;
+const C4_PERIOD    : f64 = 428.0;
+const SMIX_SHIFT   : usize = 16;
+const SMIX_MASK    : usize = 0xffff;
+const LIM16_HI     : i32 = 32767;
+const LIM16_LO     : i32 = -32768;
+const DOWNMIX_SHIFT: usize = 10;
 
 
 pub struct Mixer<'a> {
@@ -184,6 +189,7 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn set_patch(&mut self, voice: usize, ins: usize, smp: usize, ac: bool) {
+println!("voice:{} set patch {}", voice, ins);
         if voice < self.voices.len() {
             return
         }
@@ -199,40 +205,107 @@ impl<'a> Mixer<'a> {
 
         let sample = &self.sample[v.smp];
 
+        v.pos = 0_f64;
+        v.end = sample.size;
+        
         // ...
 
     }
 
     pub fn mix(&mut self, bpm: usize) {
 
+println!("mix");
+
         self.framesize = self.rate * PAL_RATE / bpm / 100;
 
-        for v in &self.voices {
+        let mut md = MixerData{
+            pos    : 0,
+            buf_pos: 0,
+            step   : 0,
+            size   : 0,
+        };
+
+        for mut v in &mut self.voices {
+println!("mix voice");
+println!("sample = {}", v.smp);
+            if v.period < 1.0 {
+                continue
+            }
+        
             let sample = &self.sample[v.smp];
             let step = C4_PERIOD * sample.rate / self.rate as f64 / v.period;
+println!("rate = {}", self.rate);
+//println!("sample = {:?}", sample);
 
-            match sample.sample_type {
-                SampleType::Empty    => {},
-                SampleType::Sample8  => self.mix_data::<i8>(&v, &sample.data::<i8>()),
-                SampleType::Sample16 => self.mix_data::<i16>(&v, &sample.data::<i16>()),
-            };
+println!("step = {}", step);
+            let mut size = self.framesize;
+            loop {
+                if size <= 0 {
+                    break
+                }
+
+                let mut buf_pos = 0;
+                let mut samples = 0;
+
+                // How many samples we can write before the loop break or sample end...
+                if v.pos < v.end as f64 {
+                    let mut s = ((v.end as f64 - v.pos) / step).ceil() as usize;
+                    // ...inside the tick boundaries
+                    if s > self.framesize {
+                       s = self.framesize;
+                    }
+                    samples = s;
+                }
+println!("v.pos={}, v.end={}, samples={}", v.pos, v.end, samples);
+
+                if v.vol > 0 {
+                    let mix_size = samples * 2;
+
+                    if samples > 0 {
+
+                        md.pos = v.pos as usize;
+                        md.buf_pos = buf_pos;
+                        md.step = (step * (1_u32 << SMIX_SHIFT) as f64) as usize;
+                        md.size = samples;
+
+                        match sample.sample_type {
+                            SampleType::Empty    => {},
+                            SampleType::Sample8  => md.mix_data::<i8>(&self.interp, &sample.data::<i8>(), &mut self.buf32),
+                            SampleType::Sample16 => md.mix_data::<i16>(&self.interp, &sample.data::<i16>(), &mut self.buf32),
+                        };
+
+                        buf_pos += mix_size;
+                    }
+                }
+                v.pos += step * samples as f64;
+                size -= samples;
+                // TODO: handle loop
+            }
         }
+
+        // Render final frame
+        self.downmix();
     }
 
-    fn mix_data<T>(&self, v: &Voice, data: &[T])
-    where interpolator::NearestNeighbor: interpolator::Interpolate<T>,
-          interpolator::Linear: interpolator::Interpolate<T>
-    {
-        for n in 0..self.framesize {
-            let p = v.pos as usize;
-            let i = &data[p-1..p+2];
+    fn downmix(&mut self) {
+        println!("downmix");
 
-            let smp = match &self.interp {
-                &AnyInterpolator::NearestNeighbor(ref int) => int.get_sample(i, 0),
-                &AnyInterpolator::Linear(ref int)          => int.get_sample(i, 0),
-            };
+        let mut i = 0;
+        loop {
+            if i >= self.framesize {
+                break;
+            }
 
-            println!("sample value is {}", smp);
+            let smp = self.buf32[i] >> DOWNMIX_SHIFT;
+            if smp > LIM16_HI {
+                self.buffer[i] = LIM16_HI as i16;
+            } else if smp < LIM16_LO {
+                self.buffer[i] = LIM16_LO as i16;
+            } else {
+                self.buffer[i] = smp as i16;
+            }
+
+            i += 1;
         }
     }
 
@@ -277,5 +350,36 @@ impl Voice {
     }
 
     pub fn anticlick(&self) {
+    }
+}
+
+
+struct MixerData {
+    pub pos: usize,
+    pub buf_pos: usize,
+    pub step: usize,
+    pub size: usize
+}
+
+impl MixerData {
+    fn mix_data<T>(&mut self, interp: &AnyInterpolator, data: &[T], buf32: &mut [i32])
+    where interpolator::NearestNeighbor: interpolator::Interpolate<T>,
+          interpolator::Linear: interpolator::Interpolate<T>
+    {
+        println!("mix_data");
+
+        for n in 0..self.size {
+            let i = &data[self.pos-1..self.pos+2];
+
+            let smp = match interp {
+                &AnyInterpolator::NearestNeighbor(ref int) => int.get_sample(i, 0),
+                &AnyInterpolator::Linear(ref int)          => int.get_sample(i, 0),
+            };
+
+            self.pos += self.step;
+
+            buf32[self.buf_pos] = smp;
+            println!("sample: {}", smp);
+        }
     }
 }

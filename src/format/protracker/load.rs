@@ -4,6 +4,7 @@ use Error;
 use format::{ModuleFormat, FormatPlayer};
 use format::protracker::{ModPlayer, ModInstrument, ModEvent};
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
+use module::sample::SampleType;
 use player::PlayerData;
 use util::BinaryRead;
 
@@ -38,6 +39,10 @@ impl Mod {
         let mut sub = ModInstrument::new();
         sub.finetune = b.read8i(ofs + 24)? as isize * 16;
         sub.smp_num = i;
+
+        if smp.size > 0 {
+            smp.sample_type = SampleType::Sample8;
+        }
 
         ins.subins.push(Box::new(sub));
         Ok((ins, smp))
