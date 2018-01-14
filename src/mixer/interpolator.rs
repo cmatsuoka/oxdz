@@ -1,5 +1,4 @@
-
-const SHIFT: i32 = 16;
+use mixer::SMIX_SHIFT;
 
 pub trait InterpolatorBase {
     fn name() -> &'static str;
@@ -49,7 +48,7 @@ impl Interpolate<i8> for Linear {
     fn get_sample(&self, i: &[i8], frac: i32) -> i32 {
         let l1 = (i[1] as i32) << 8;
         let dt = ((i[2] as i32) << 8) - l1;
-        l1 as i32 + (((frac >> 1) * dt as i32) >> (SHIFT - 1)) as i32
+        l1 as i32 + (((frac >> 1) * dt as i32) >> (SMIX_SHIFT - 1)) as i32
     }
 }
 
@@ -57,7 +56,7 @@ impl Interpolate<i16> for Linear {
     fn get_sample(&self, i: &[i16], frac: i32) -> i32 {
         let l1 = i[1] as i32;
         let dt = i[2] as i32 - l1;
-        l1 as i32 + (((frac >> 1) * dt as i32) >> (SHIFT - 1)) as i32
+        l1 as i32 + (((frac >> 1) * dt as i32) >> (SMIX_SHIFT - 1)) as i32
     }
 }
 

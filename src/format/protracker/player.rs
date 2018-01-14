@@ -223,6 +223,7 @@ println!("get_new_note: chn:{} -> {}", chn, event);
 
     fn per_nop(&self, chn: usize, event: &ModEvent, virt: &mut Virtual) {
         let period = self.state[chn].n_period;
+println!("per_nop chn={} period={}", chn, period);
         virt.set_period(chn, period);  // MOVE.W  n_period(A6),6(A5)
     }
 

@@ -6,6 +6,13 @@ pub const NOTES: &'static [&'static str] = &[
     "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#", "A ", "A#", "B "
 ];
 
+pub const C4_PAL_RATE : f64 = 8287.0;   // 7093789.2 / period (C4) * 2
+pub const C4_NTSC_RATE: f64 = 8363.0;   // 7159090.5 / period (C4) * 2
+
+// [Amiga] PAL color carrier frequency (PCCF) = 4.43361825 MHz
+// [Amiga] CPU clock = 1.6 * PCCF = 7.0937892 MHz
+
+
 #[macro_export]
 macro_rules! try_option {
     ( $a: expr ) => {

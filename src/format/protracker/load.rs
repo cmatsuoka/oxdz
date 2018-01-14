@@ -6,7 +6,7 @@ use format::protracker::{ModPlayer, ModInstrument, ModEvent};
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use module::sample::SampleType;
 use player::PlayerData;
-use util::BinaryRead;
+use util::{self, BinaryRead};
 
 /// Protracker module loader
 pub struct Mod {
@@ -40,6 +40,7 @@ impl Mod {
         sub.finetune = b.read8i(ofs + 24)? as isize * 16;
         sub.smp_num = i;
 
+        smp.rate = util::C4_PAL_RATE;
         if smp.size > 0 {
             smp.sample_type = SampleType::Sample8;
         }
