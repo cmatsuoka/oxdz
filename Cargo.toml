@@ -9,8 +9,10 @@ path = "src/bin/oxdz.rs"
 doc = false
 
 [dependencies]
-memmap = "0.6"
 byteorder = "1.2"
+getopts = "0.2"
+memmap = "0.6"
+riff-wave = "0.1"
 
 [profile.release]
 lto = true

@@ -1,21 +1,46 @@
 extern crate memmap;
 extern crate oxdz;
+extern crate riff_wave;
+extern crate getopts;
 
+use std::env;
 use std::error::Error;
 use std::fs::File;
+use std::io::BufWriter;
+use getopts::{Matches, Options};
 use memmap::Mmap;
 use oxdz::{format, module, player, FrameInfo};
+use riff_wave::WaveWriter;
 
 fn main() {
 
-    match run() {
+    let args: Vec<String> = env::args().collect();
+    let mut opts = Options::new();
+
+    opts.optflag("h", "help", "display usage information and exit");
+
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
+    };
+
+    if matches.opt_present("h") ||  matches.free.len() < 1 {
+        let brief = format!("Usage: {} [options] filename", args[0]);
+        print!("{}", opts.usage(&brief));
+        return;
+    }
+
+    match run(&matches.free[0]) {
         Ok(_)  => {},
         Err(e) => println!("Error: {}", e),
     }
 }
 
-fn run() -> Result<(), Box<Error>> {
-    let file = try!(File::open("space_debris.mod"));
+fn run(name: &String) -> Result<(), Box<Error>> {
+    let file = try!(File::open(name));
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
     let (module, format_player) = try!(format::load(&mmap[..]));
@@ -43,11 +68,18 @@ fn run() -> Result<(), Box<Error>> {
 
     let mut frame_info = FrameInfo::new();
 
-    for _ in 0..16 {
+    let file = try!(File::create("out.wav"));
+    let writer = BufWriter::new(file);
+    let mut wave_writer = try!(WaveWriter::new(2, 44100, 16, writer));
+
+    for _ in 0..32 {
         let buffer = player.info(&mut frame_info).play_frame().buffer();
         println!("info pos:{} row:{} frame:{} speed:{} bpm:{}", frame_info.pos, frame_info.row, frame_info.frame, frame_info.speed, frame_info.bpm);
         println!("buffer {:?}", buffer);
+        buffer.iter().for_each(|x| { wave_writer.write_sample_i16(*x); });
     }
+
+    wave_writer.sync_header();
 
     Ok(())
 }

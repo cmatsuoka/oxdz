@@ -11,7 +11,7 @@ const SMIX_SHIFT   : usize = 16;
 const SMIX_MASK    : usize = 0xffff;
 const LIM16_HI     : i32 = 32767;
 const LIM16_LO     : i32 = -32768;
-const DOWNMIX_SHIFT: usize = 10;
+const DOWNMIX_SHIFT: usize = 6;
 
 
 pub struct Mixer<'a> {

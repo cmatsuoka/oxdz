@@ -114,7 +114,6 @@ println!("virt::alloc_voice: num={}", num);
     }
 
     fn channel_to_voice(&self, chn: usize) -> Option<usize> {
-println!("mixer::channel_to_voice: chn:{}/{}", chn, self.virt_numch);
         if chn >= self.virt_numch {
             None
         } else {
