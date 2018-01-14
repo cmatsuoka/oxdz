@@ -135,6 +135,7 @@ impl<'a> Virtual<'a> {
     }
 
     pub fn set_period(&mut self, chn: usize, period: f64) {
+println!("set_period: chn:{} period:{}", chn, period);
         let voice = try_option!(self.channel_to_voice(chn));
         self.mixer.set_period(voice, period);
     }
@@ -146,6 +147,7 @@ impl<'a> Virtual<'a> {
 
     pub fn set_patch(&mut self, chn: usize, ins: usize, smp: usize, note: usize) {
 
+println!("set_patch: chn:{} ins:{} smp:{} note:{}", chn, ins, smp, note);
         let voice = match self.channel_to_voice(chn) {
             Some(v) => v,  // TODO: act stuff
             None    => self.alloc_voice(chn),

@@ -76,13 +76,13 @@ impl<'a> Player<'a> {
         self
     }
 
-    pub fn play_frame(&mut self) -> &Self {
+    pub fn play_frame(&mut self) -> &mut Self {
         self.format_player.play(&mut self.data, &self.module, &mut self.virt);
         self.virt.mix(self.data.bpm);
         self
     }
 
-    pub fn info(&self, info: &mut FrameInfo) -> &Self {
+    pub fn info(&mut self, info: &mut FrameInfo) -> &mut Self {
         info.pos = self.data.pos;
         info.row = self.data.row;
         info.song = self.data.song;

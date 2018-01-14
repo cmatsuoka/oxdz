@@ -44,10 +44,9 @@ fn run() -> Result<(), Box<Error>> {
     let mut frame_info = FrameInfo::new();
 
     for _ in 0..16 {
-        let buffer = player.play_frame().info(&mut frame_info).buffer();
-        println!("info pos:{} row:{} frame:{} speed:{} bpm:{}",
-		frame_info.pos, frame_info.row, frame_info.frame, frame_info.speed, frame_info.bpm);
-        println!("buffer len: {}", buffer.len());
+        let buffer = player.info(&mut frame_info).play_frame().buffer();
+        println!("info pos:{} row:{} frame:{} speed:{} bpm:{}", frame_info.pos, frame_info.row, frame_info.frame, frame_info.speed, frame_info.bpm);
+        println!("buffer {:?}", buffer);
     }
 
     Ok(())

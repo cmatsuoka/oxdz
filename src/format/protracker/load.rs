@@ -148,8 +148,8 @@ impl ModPatterns {
         Ok(pat)
     }
 
-    pub fn event(&self, pat: usize, row: usize, chn: usize) -> &ModEvent {
-        &self.data[pat * 256 + row * 4 + chn]
+    pub fn event(&self, pat: u8, row: u8, chn: usize) -> &ModEvent {
+        &self.data[pat as usize * 256 + row as usize * 4 + chn]
     }
 }
 
