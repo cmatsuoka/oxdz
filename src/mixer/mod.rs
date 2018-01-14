@@ -221,7 +221,7 @@ println!("voice:{} set patch {}", voice, ins);
 
     pub fn mix(&mut self, bpm: usize) {
 
-println!("mix");
+println!("--- mix");
 
         self.framesize = self.rate * PAL_RATE / bpm / 100;
 
@@ -239,34 +239,40 @@ println!("sample = {}, period = {}", v.smp, v.period);
             if v.period < 1.0 {
                 continue
             }
+
+            let mut buf_pos = 0;
         
             let sample = &self.sample[v.smp];
             let step = C4_PERIOD * sample.rate / self.rate as f64 / v.period;
-
             if step < 0.001 {
                 continue;
             }
-println!("rate = {}", self.rate);
-//println!("sample = {:?}", sample);
-
 println!("step = {}", step);
-            let mut size = self.framesize;
+
+            let lps = sample.loop_start;
+            let lpe = sample.loop_end;
+
+            let mut usmp = 0;
+            let mut size = self.framesize as isize;
             loop {
                 if size <= 0 {
                     break
                 }
 
-                let mut buf_pos = 0;
-                let mut samples = 0;
-
                 // How many samples we can write before the loop break or sample end...
-                if v.pos < v.end as f64 {
-                    let mut s = ((v.end as f64 - v.pos) / step).ceil() as usize;
+                let mut samples = 0;
+                if v.pos > v.end as f64 {
+                    usmp = 1;
+                } else {
+                    let mut s = ((v.end as f64 - v.pos) / step).ceil() as isize;
                     // ...inside the tick boundaries
-                    if s > self.framesize {
-                       s = self.framesize;
+                    if s > size {
+                       s = size;
                     }
                     samples = s;
+                    if samples > 0 {
+                        usmp = 0;
+                    }
                 }
 println!("v.pos={}, v.end={}, samples={}, v.vol={}", v.pos, v.end, samples, v.vol);
 
@@ -280,19 +286,22 @@ println!("v.pos={}, v.end={}, samples={}, v.vol={}", v.pos, v.end, samples, v.vo
                         md.step = (step * (1_u32 << SMIX_SHIFT) as f64) as usize;
                         md.size = samples;
 
-println!("sample_type: {:?}", sample.sample_type);
                         match sample.sample_type {
                             SampleType::Empty    => {},
-                            SampleType::Sample8  => md.mix::<i8>(&self.interp, &sample.data::<i8>(), &mut self.buf32),
-                            SampleType::Sample16 => md.mix::<i16>(&self.interp, &sample.data::<i16>(), &mut self.buf32),
+                            SampleType::Sample8  => md.mix::<i8>(&self.interp, &sample.data_8(), &mut self.buf32),
+                            SampleType::Sample16 => md.mix::<i16>(&self.interp, &sample.data_16(), &mut self.buf32),
                         };
 
-                        buf_pos += mix_size;
+                        buf_pos += mix_size as usize;
                     }
                 }
                 v.pos += step * samples as f64;
-                size -= samples;
-                // TODO: handle loop
+
+                // No more samples in this frame
+                size -= samples + usmp;
+                if size <= 0 {
+                    continue;
+                }
             }
         }
 
@@ -368,10 +377,10 @@ impl Voice {
 
 
 struct MixerData {
-    pub pos: f64,
+    pub pos    : f64,
     pub buf_pos: usize,
-    pub step: usize,
-    pub size: usize
+    pub step   : usize,
+    pub size   : isize
 }
 
 impl MixerData {

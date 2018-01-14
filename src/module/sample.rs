@@ -1,5 +1,6 @@
 use std::slice;
 
+// Allow 2 samples in 16-bit
 pub const GUARD_SIZE: usize = 4;
 
 
@@ -48,18 +49,24 @@ impl Sample {
             guard_size  : 0,
             rate        : 8000_f64,
             name        : "".to_owned(),
-            data        : vec![0; GUARD_SIZE],
+            data        : vec![0; GUARD_SIZE],  // start guard bytes
         }
     }
 
     pub fn store(&mut self, b: &[u8]) {
         self.data.extend(b);
-        self.data.extend([0; GUARD_SIZE].iter());  // add guard bytes
+        self.data.extend([0; GUARD_SIZE].iter());  // add end guard bytes
     }
 
-    pub fn data<T>(&self) -> &[T] {
+    pub fn data_8(&self) -> &[i8] {
         unsafe {
-            slice::from_raw_parts(self.data.as_ptr() as *const T, self.size as usize)
+            slice::from_raw_parts(self.data.as_ptr().offset(2) as *const i8, self.size + 2 * (GUARD_SIZE/2) as usize)
+        }
+    }
+
+    pub fn data_16(&self) -> &[i16] {
+        unsafe {
+            slice::from_raw_parts(self.data.as_ptr() as *const i16, self.size + 2 * GUARD_SIZE as usize)
         }
     }
 }
