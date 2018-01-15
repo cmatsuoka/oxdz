@@ -104,11 +104,11 @@ println!(">> mt_music: speed={}, frame={}", self.mt_speed, self.mt_counter);
     }
 
     fn mt_get_new_note(&mut self, module: &Module, pats: &ModPatterns, mut virt: &mut Virtual) {
-println!("get_new_note");
+        let p = module.orders.pattern(self.mt_song_pos as usize);
+println!("+++ get_new_note: pos={} pat={} row={}", self.mt_song_pos, p, self.mt_pattern_pos);
         for chn in 0..module.chn {
-            let p = module.orders.pattern(self.mt_song_pos as usize);
             let event = pats.event(p, self.mt_pattern_pos, chn);
-println!("get_new_note: chn:{} -> {}", chn, event);
+println!("--- get_new_note: chn:{} -> {}", chn, event);
             let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
             // mt_PlayVoice
@@ -132,7 +132,7 @@ println!("get_new_note: chn:{} -> {}", chn, event);
                 self.state[chn].n_finetune = subins.finetune;
                 //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
                 self.state[chn].n_volume = instrument.volume as u8;
-                virt.set_patch(chn, ins as usize, ins as usize, note as usize);
+                virt.set_patch(chn, ins as usize - 1, ins as usize - 1, note as usize);
                 virt.set_volume(chn, instrument.volume);
             }
 
@@ -213,8 +213,7 @@ println!("get_new_note: chn:{} -> {}", chn, event);
             0xe => self.mt_e_commands(chn, &event, &mut virt),
             _   => {
                        // SetBack
-                       //virt.set_period(chn, self.state[chn].n_period);  // MOVE.W  n_period(A6),6(A5)
-                       self.per_nop(chn, &mut virt);
+                       virt.set_period(chn, self.state[chn].n_period);  // MOVE.W  n_period(A6),6(A5)
                        match event.cmd {
                            0x7 => self.mt_tremolo(chn, &event, &mut virt),
                            0xa => self.mt_volume_slide(chn, &event, &mut virt),
@@ -225,11 +224,9 @@ println!("get_new_note: chn:{} -> {}", chn, event);
     }
 
     fn per_nop(&self, chn: usize, virt: &mut Virtual) {
-        let state = &self.state[chn];
-        let bend = util::period_to_bend(state.n_period, state.n_note as usize, PeriodType::Amiga);
-println!("per_nop chn={} note={} period={} bend={}", chn, state.n_note, state.n_period, bend);
-        let mix_period = util::note_to_period_mix(state.n_note as usize, bend);
-        virt.set_period(chn, mix_period);  // MOVE.W  n_period(A6),6(A5)
+        let period = self.state[chn].n_period;
+println!("per_nop chn={} period={}", chn, period);
+        virt.set_period(chn, period);  // MOVE.W  n_period(A6),6(A5)
     }
 
     fn mt_arpeggio(&self, chn: usize, event: &ModEvent, mut virt: &mut Virtual) {
@@ -259,9 +256,7 @@ println!("per_nop chn={} note={} period={} bend={}", chn, state.n_note, state.n_
         if state.n_period < 113.0 {
             state.n_period = 113.0;
         }
-        let bend = util::period_to_bend(state.n_period, state.n_note as usize, PeriodType::Amiga);
-        let mix_period = util::note_to_period_mix(state.n_note as usize, bend);
-        virt.set_period(chn, mix_period);  // MOVE.W  n_period(A6),6(A5)
+        virt.set_period(chn, state.n_period);  // MOVE.W  n_period(A6),6(A5)
     }
 
     fn mt_fine_porta_down(&mut self, chn: usize, event: &ModEvent, mut virt: &mut Virtual) {
@@ -279,9 +274,7 @@ println!("per_nop chn={} note={} period={} bend={}", chn, state.n_note, state.n_
         if state.n_period < 856.0 {
             state.n_period = 856.0;
         }
-        let bend = util::period_to_bend(state.n_period, state.n_note as usize, PeriodType::Amiga);
-        let mix_period = util::note_to_period_mix(state.n_note as usize, bend);
-        virt.set_period(chn, mix_period);  // MOVE.W  D0,6(A5)
+        virt.set_period(chn, state.n_period);  // MOVE.W  D0,6(A5)
     }
 
     fn mt_set_tone_porta(&self, chn: usize, event: &ModEvent, mut virt: &mut Virtual) {
@@ -376,6 +369,7 @@ println!("per_nop chn={} note={} period={} bend={}", chn, state.n_note, state.n_
     }
 
     fn mt_position_jump(&mut self, chn: usize, event: &ModEvent) {
+println!("=== mt_position_jump: chn={} cmdlo={}", chn, event.cmdlo);
         self.mt_song_pos = event.cmdlo - 1;
         // mt_pj2
         self.mt_pbreak_pos = 0;

@@ -224,7 +224,7 @@ println!("voice:{} set patch {}", voice, ins);
 
 println!("--- mix");
 
-        self.framesize = self.rate * PAL_RATE / bpm / 100;
+        self.framesize = self.rate * PAL_RATE * 2 / bpm / 100;
 
         let mut md = MixerData{
             pos    : 0.0_f64,

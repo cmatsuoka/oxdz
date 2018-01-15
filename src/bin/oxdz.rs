@@ -7,7 +7,7 @@ use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufWriter;
-use getopts::{Matches, Options};
+use getopts::Options;
 use memmap::Mmap;
 use oxdz::{format, module, player, FrameInfo};
 use riff_wave::WaveWriter;
@@ -76,10 +76,12 @@ fn run(name: &String) -> Result<(), Box<Error>> {
         let buffer = player.info(&mut frame_info).play_frame().buffer();
         println!("info pos:{} row:{} frame:{} speed:{} bpm:{}", frame_info.pos, frame_info.row, frame_info.frame, frame_info.speed, frame_info.bpm);
         println!("buffer {:?}", buffer);
-        buffer.iter().for_each(|x| { wave_writer.write_sample_i16(*x); });
+        for s in buffer {
+            try!(wave_writer.write_sample_i16(*s));
+        }
     }
 
-    wave_writer.sync_header();
+    try!(wave_writer.sync_header());
 
     Ok(())
 }
