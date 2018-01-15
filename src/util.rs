@@ -71,6 +71,8 @@ fn check_buffer_size(b: &[u8], size: usize) -> Result<(), Error> {
     Ok(())
 }
 
+// Get note from Protracker period
+// This function is used only in the MOD loader
 pub fn period_to_note(period: u32) -> usize {
     if period == 0 {
         return 0
@@ -79,7 +81,7 @@ pub fn period_to_note(period: u32) -> usize {
     (12.0_f64 * (PERIOD_BASE / period as f64).log(2.0)).round() as usize + 1
 }
 
-pub fn note_to_period_mix(note: usize, bend: usize) -> f64 {
+pub fn note_to_period_mix(note: usize, bend: isize) -> f64 {
     let d = note as f64 + bend as f64 / 12800.0;
     PERIOD_BASE / 2.0_f64.powf(d / 12.0)
 }
@@ -92,19 +94,56 @@ pub fn note_to_period(note: usize, finetune: isize, period_type: PeriodType) -> 
     }
 }
 
-pub fn period_to_bend(period: f64, note: usize, ptype: PeriodType) -> usize {
+pub fn period_to_bend(period: f64, note: usize, ptype: PeriodType) -> isize {
     if note == 0 {
         return 0;
     }
 
     match ptype {
-        Linear => {
-                      (100.0_f64 * (8.0 * (((240 - note) << 4) as f64 - period))) as usize
+        PeriodType::Linear => {
+                      (100.0_f64 * (8.0 * (((240 - note) << 4) as f64 - period))) as isize
                   },
-        Amiga  => {
+        PeriodType::Amiga  => {
                       let d = note_to_period(note, 0, PeriodType::Amiga);
-                      (100.0_f64 * 1536.0 * (d / period).log(2.0)).round() as usize
+                      (100.0_f64 * 1536.0 * (d / period).log(2.0)).round() as isize
                   },
         _      => 0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MAX_ERROR: f64 = 10e-5;
+
+    macro_rules! assert_delta {
+        ($x:expr, $y:expr) => {
+            assert!(($x - $y).abs() < MAX_ERROR);
+        }
+    }
+
+    #[test]
+    fn test_period_to_note() {
+        assert_eq!(period_to_note(500), 58);
+    }
+
+    #[test]
+    fn test_note_to_period_mix() {
+        assert_delta!(note_to_period_mix(60, 1000), 426.072926);
+        assert_delta!(note_to_period_mix(60, -1000), 429.935790);
+    }
+
+    #[test]
+    fn test_note_to_period() {
+        assert_delta!(note_to_period(60, 20, PeriodType::Amiga), 424.154528);
+        assert_delta!(note_to_period(60, 20, PeriodType::Linear), 2877.500000);
+    }
+
+    #[test]
+    fn test_period_to_bend() {
+        assert_eq!(period_to_bend(500.0_f64, 0, PeriodType::Amiga), 0);
+        assert_eq!(period_to_bend(500.0_f64, 60, PeriodType::Amiga), -34455);
+        assert_eq!(period_to_bend(500.0_f64, 60, PeriodType::Linear), 1904000);
     }
 }
