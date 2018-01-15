@@ -30,7 +30,7 @@ impl Interpolate<i8> for NearestNeighbor {
 
 impl Interpolate<i16> for NearestNeighbor {
     fn get_sample(&self, i: &[i16], _frac: i32) -> i32 {
-        i[1] as i32
+        0 /* i[1] as i32 */
     }
 }
 

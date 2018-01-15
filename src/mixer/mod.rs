@@ -12,7 +12,7 @@ const SMIX_SHIFT   : usize = 16;
 const SMIX_MASK    : usize = 0xffff;
 const LIM16_HI     : i32 = 32767;
 const LIM16_LO     : i32 = -32768;
-const DOWNMIX_SHIFT: usize = 10;
+const DOWNMIX_SHIFT: usize = 7;
 
 
 pub struct Mixer<'a> {
@@ -38,7 +38,7 @@ impl<'a> Mixer<'a> {
             framesize: 0,
             buf32    : [0; MAX_FRAMESIZE],
             buffer   : [0; MAX_FRAMESIZE],
-            interp   : AnyInterpolator::Linear(interpolator::Linear),
+            interp   : AnyInterpolator::NearestNeighbor(interpolator::NearestNeighbor),
             sample,
         }
     }
@@ -288,7 +288,6 @@ println!("step = {}", step);
                     let mix_size = samples * 2;
 
                     if samples > 0 {
-
                         md.pos = v.pos + 2.0;
                         md.buf_pos = buf_pos;
                         md.step = (step * (1_u32 << SMIX_SHIFT) as f64) as usize;
@@ -305,13 +304,10 @@ println!("step = {}", step);
                         buf_pos += mix_size as usize;
                     }
                 }
-                v.pos += step * samples as f64;
+                v.pos += step * samples as f64 / 2.0;
 
                 // No more samples in this frame
                 size -= samples + usmp;
-                if size <= 0 {
-                    continue;
-                }
             }
         }
 
@@ -407,8 +403,8 @@ impl MixerData {
             let i = &data[pos-1..pos+2];
 
             let smp = match interp {
-                &AnyInterpolator::NearestNeighbor(ref int) => int.get_sample(i, 0),
-                &AnyInterpolator::Linear(ref int)          => int.get_sample(i, 0),
+                &AnyInterpolator::NearestNeighbor(ref int) => int.get_sample(i, frac as i32),
+                &AnyInterpolator::Linear(ref int)          => { 0 /*int.get_sample(i, frac)*/ },
             };
 
             frac += self.step;
