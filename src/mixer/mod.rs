@@ -1,6 +1,6 @@
 use std::ptr;
 use module::sample::{Sample, SampleType};
-use mixer::interpolator::{AnyInterpolator, Interpolate};
+use mixer::interpolator::{Interpolator, Interpolate};
 use util;
 use ::*;
 
@@ -12,7 +12,7 @@ const SMIX_SHIFT   : usize = 16;
 const SMIX_MASK    : usize = 0xffff;
 const LIM16_HI     : i32 = 32767;
 const LIM16_LO     : i32 = -32768;
-const DOWNMIX_SHIFT: usize = 7;
+const DOWNMIX_SHIFT: usize = 10;
 
 
 pub struct Mixer<'a> {
@@ -23,7 +23,7 @@ pub struct Mixer<'a> {
     framesize : usize,
     buf32     : [i32; MAX_FRAMESIZE],
     buffer    : [i16; MAX_FRAMESIZE],
-    pub interp: interpolator::AnyInterpolator,
+    pub interp: interpolator::Interpolator,
     sample    : &'a Vec<Sample>,
 }
 
@@ -38,7 +38,7 @@ impl<'a> Mixer<'a> {
             framesize: 0,
             buf32    : [0; MAX_FRAMESIZE],
             buffer   : [0; MAX_FRAMESIZE],
-            interp   : AnyInterpolator::Linear(interpolator::Linear),
+            interp   : Interpolator::Linear,
             sample,
         }
     }
@@ -391,9 +391,9 @@ struct MixerData {
 }
 
 impl MixerData {
-    fn mix<T>(&mut self, interp: &AnyInterpolator, data: &[T], buf32: &mut [i32])
-    where interpolator::NearestNeighbor: interpolator::Interpolate<T>,
-          interpolator::Linear: interpolator::Interpolate<T>
+    fn mix<T>(&mut self, interp: &Interpolator, data: &[T], buf32: &mut [i32])
+    where interpolator::Nearest: interpolator::Interpolate<T>,
+          interpolator::Linear : interpolator::Interpolate<T>
     {
         let mut pos = self.pos as usize;
         let mut frac = ((1 << SMIX_SHIFT) as f64 * (self.pos - pos as f64)) as usize;
@@ -403,8 +403,8 @@ impl MixerData {
             let i = &data[pos-1..pos+2];
 
             let smp = match interp {
-                &AnyInterpolator::NearestNeighbor(ref int) => int.get_sample(i, frac as i32),
-                &AnyInterpolator::Linear(ref int)          => int.get_sample(i, frac as i32),
+                &Interpolator::Nearest => interpolator::Nearest.get_sample(i, frac as i32),
+                &Interpolator::Linear  => interpolator::Linear.get_sample(i, frac as i32),
             };
 
             frac += self.step;

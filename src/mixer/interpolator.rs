@@ -8,27 +8,27 @@ pub trait Interpolate<T> {
     fn get_sample(&self, &[T], i32) -> i32;
 }
 
-pub enum AnyInterpolator {
-    NearestNeighbor(NearestNeighbor),
-    Linear(Linear),
+pub enum Interpolator {
+    Nearest,
+    Linear,
 }
 
 // Nearest neighbor interpolator
-pub struct NearestNeighbor;
+pub struct Nearest;
 
-impl InterpolatorBase for NearestNeighbor {
+impl InterpolatorBase for Nearest {
     fn name() -> &'static str {
         "nearest neighbor"
     }
 }
 
-impl Interpolate<i8> for NearestNeighbor {
+impl Interpolate<i8> for Nearest {
     fn get_sample(&self, i: &[i8], _frac: i32) -> i32 {
         (i[1] as i32) << 8
     }
 }
 
-impl Interpolate<i16> for NearestNeighbor {
+impl Interpolate<i16> for Nearest {
     fn get_sample(&self, i: &[i16], _frac: i32) -> i32 {
         i[1] as i32
     }
@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_interpolate_nearest_i8() {
-        let interp = NearestNeighbor;
+        let interp = Nearest;
         let i: &[i8] = &[0, 0x10, 0x40, 0x70];
         assert_eq!(interp.get_sample(i, 0), 0x1000);
         assert_eq!(interp.get_sample(i, 32767), 0x1000);
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_interpolate_nearest_i16() {
-        let interp = NearestNeighbor;
+        let interp = Nearest;
         let i: &[i16] = &[0, 0x1000, 0x4000, 0x7000];
         assert_eq!(interp.get_sample(i, 0), 0x1000);
         assert_eq!(interp.get_sample(i, 32767), 0x1000);
