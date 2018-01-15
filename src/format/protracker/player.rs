@@ -225,7 +225,6 @@ println!("--- get_new_note: chn:{} -> {}", chn, event);
 
     fn per_nop(&self, chn: usize, virt: &mut Virtual) {
         let period = self.state[chn].n_period;
-println!("per_nop chn={} period={}", chn, period);
         virt.set_period(chn, period);  // MOVE.W  n_period(A6),6(A5)
     }
 
@@ -402,10 +401,9 @@ println!("=== mt_position_jump: chn={} cmdlo={}", chn, event.cmdlo);
     }
 
     fn mt_check_more_efx(&mut self, chn: usize, event: &ModEvent, mut virt: &mut Virtual) {
-        let cmd = 0;
 
         // mt_UpdateFunk()
-        match cmd {
+        match event.cmd {
             0x9 => self.mt_sample_offset(chn, &event, &mut virt),
             0xb => self.mt_position_jump(chn, &event),
             0xd => self.mt_pattern_break(chn, &event),

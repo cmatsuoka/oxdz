@@ -38,7 +38,7 @@ impl<'a> Mixer<'a> {
             framesize: 0,
             buf32    : [0; MAX_FRAMESIZE],
             buffer   : [0; MAX_FRAMESIZE],
-            interp   : AnyInterpolator::NearestNeighbor(interpolator::NearestNeighbor),
+            interp   : AnyInterpolator::Linear(interpolator::Linear),
             sample,
         }
     }
@@ -404,15 +404,15 @@ impl MixerData {
 
             let smp = match interp {
                 &AnyInterpolator::NearestNeighbor(ref int) => int.get_sample(i, frac as i32),
-                &AnyInterpolator::Linear(ref int)          => { 0 /*int.get_sample(i, frac)*/ },
+                &AnyInterpolator::Linear(ref int)          => int.get_sample(i, frac as i32),
             };
 
             frac += self.step;
             pos += frac >> SMIX_SHIFT;
             frac &= SMIX_MASK;
 
-            buf32[bpos    ] += smp * self.vol_l as i32;
-            buf32[bpos + 1] += smp * self.vol_r as i32;
+            buf32[bpos    ] += smp * self.vol_r as i32;
+            buf32[bpos + 1] += smp * self.vol_l as i32;
             bpos += 2;
         }
     }
