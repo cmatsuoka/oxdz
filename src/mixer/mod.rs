@@ -320,7 +320,6 @@ println!("step = {}", step);
     }
 
     fn downmix(&mut self) {
-        println!("downmix");
 
         let mut i = 0;
         loop {

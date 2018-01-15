@@ -92,7 +92,7 @@ impl ModuleFormat for Mod {
         let len = b.read8(950)? as usize;
         let rst = b.read8(951)?;
         let ord = ModOrders::from_slice(rst, b.slice(952, len)?);
-        let pat = ord.patterns();
+        let pat = ord.num_patterns();
 
         // Load patterns
         let patterns = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
@@ -101,8 +101,10 @@ impl ModuleFormat for Mod {
         let mut ofs = 1084 + 1024*pat;
         for i in 0..31 {
             let size = smp_list[i].size as usize;
-            smp_list = try!(self.load_sample(b.slice(ofs, size)?, smp_list, i));
-            ofs += size;
+            if size > 0 {
+                smp_list = try!(self.load_sample(b.slice(ofs, size)?, smp_list, i));
+                ofs += size;
+            }
         }
 
         let m = Module {
@@ -217,10 +219,10 @@ impl ModOrders {
         }
     }
 
-    fn patterns(&self) -> usize {
+    fn num_patterns(&self) -> usize {
         let mut num = 0;
         self.orders.iter().for_each(|x| num = max(*x as usize, num));
-        num 
+        num + 1
     }
 }
 

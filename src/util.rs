@@ -64,8 +64,8 @@ impl<'a> BinaryRead for &'a [u8] {
     }
 }
 
-fn check_buffer_size(b: &[u8], size: usize) -> Result<(), Error> {
-    if size > b.len() {
+fn check_buffer_size(b: &[u8], end: usize) -> Result<(), Error> {
+    if end > b.len() {
         return Err(Error::Load("short read"))
     }
     Ok(())
