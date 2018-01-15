@@ -91,3 +91,20 @@ pub fn note_to_period(note: usize, finetune: isize, period_type: PeriodType) -> 
         PeriodType::Amiga  => PERIOD_BASE / 2.0_f64.powf(d / 12.0),
     }
 }
+
+pub fn period_to_bend(period: f64, note: usize, ptype: PeriodType) -> usize {
+    if note == 0 {
+        return 0;
+    }
+
+    match ptype {
+        Linear => {
+                      (100.0_f64 * (8.0 * (((240 - note) << 4) as f64 - period))) as usize
+                  },
+        Amiga  => {
+                      let d = note_to_period(note, 0, PeriodType::Amiga);
+                      (100.0_f64 * 1536.0 * (d / period).log(2.0)).round() as usize
+                  },
+        _      => 0,
+    }
+}

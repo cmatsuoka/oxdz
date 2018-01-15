@@ -113,7 +113,7 @@ println!("get_new_note: chn:{} -> {}", chn, event);
 
             // mt_PlayVoice
             if self.state[chn].n_note == 0 {
-                self.per_nop(chn, &event, &mut virt);
+                self.per_nop(chn, &mut virt);
             }
 
             // mt_plvskip
@@ -198,7 +198,7 @@ println!("get_new_note: chn:{} -> {}", chn, event);
 
         // mt_UpdateFunk()
         if event.cmd == 0 {
-            self.per_nop(chn, &event, &mut virt);
+            self.per_nop(chn, &mut virt);
             return
         }
 
@@ -213,7 +213,8 @@ println!("get_new_note: chn:{} -> {}", chn, event);
             0xe => self.mt_e_commands(chn, &event, &mut virt),
             _   => {
                        // SetBack
-                       virt.set_period(chn, self.state[chn].n_period);  // MOVE.W  n_period(A6),6(A5)
+                       //virt.set_period(chn, self.state[chn].n_period);  // MOVE.W  n_period(A6),6(A5)
+                       self.per_nop(chn, &mut virt);
                        match event.cmd {
                            0x7 => self.mt_tremolo(chn, &event, &mut virt),
                            0xa => self.mt_volume_slide(chn, &event, &mut virt),
@@ -223,10 +224,12 @@ println!("get_new_note: chn:{} -> {}", chn, event);
         }
     }
 
-    fn per_nop(&self, chn: usize, event: &ModEvent, virt: &mut Virtual) {
-        let period = self.state[chn].n_period;
-println!("per_nop chn={} period={}", chn, period);
-        virt.set_period(chn, period);  // MOVE.W  n_period(A6),6(A5)
+    fn per_nop(&self, chn: usize, virt: &mut Virtual) {
+        let state = &self.state[chn];
+        let bend = util::period_to_bend(state.n_period, state.n_note as usize, PeriodType::Amiga);
+println!("per_nop chn={} note={} period={} bend={}", chn, state.n_note, state.n_period, bend);
+        let mix_period = util::note_to_period_mix(state.n_note as usize, bend);
+        virt.set_period(chn, mix_period);  // MOVE.W  n_period(A6),6(A5)
     }
 
     fn mt_arpeggio(&self, chn: usize, event: &ModEvent, mut virt: &mut Virtual) {
@@ -256,7 +259,9 @@ println!("per_nop chn={} period={}", chn, period);
         if state.n_period < 113.0 {
             state.n_period = 113.0;
         }
-        virt.set_period(chn, state.n_period);  // MOVE.W  D0,6(A5)
+        let bend = util::period_to_bend(state.n_period, state.n_note as usize, PeriodType::Amiga);
+        let mix_period = util::note_to_period_mix(state.n_note as usize, bend);
+        virt.set_period(chn, mix_period);  // MOVE.W  n_period(A6),6(A5)
     }
 
     fn mt_fine_porta_down(&mut self, chn: usize, event: &ModEvent, mut virt: &mut Virtual) {
@@ -274,7 +279,9 @@ println!("per_nop chn={} period={}", chn, period);
         if state.n_period < 856.0 {
             state.n_period = 856.0;
         }
-        virt.set_period(chn, state.n_period);  // MOVE.W  D0,6(A5)
+        let bend = util::period_to_bend(state.n_period, state.n_note as usize, PeriodType::Amiga);
+        let mix_period = util::note_to_period_mix(state.n_note as usize, bend);
+        virt.set_period(chn, mix_period);  // MOVE.W  D0,6(A5)
     }
 
     fn mt_set_tone_porta(&self, chn: usize, event: &ModEvent, mut virt: &mut Virtual) {
@@ -415,7 +422,7 @@ println!("per_nop chn={} period={}", chn, period);
         }
 
         // per_nop
-        self.per_nop(chn, &event, &mut virt)
+        self.per_nop(chn, &mut virt)
     }
 
     fn mt_e_commands(&mut self, chn: usize, event: &ModEvent, mut virt: &mut Virtual) {
