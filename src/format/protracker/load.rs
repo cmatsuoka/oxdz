@@ -149,8 +149,8 @@ impl ModPatterns {
         Ok(pat)
     }
 
-    pub fn event(&self, pat: u8, row: u8, chn: usize) -> &ModEvent {
-        &self.data[pat as usize * 256 + row as usize * 4 + chn]
+    pub fn event(&self, pat: usize, row: u8, chn: usize) -> &ModEvent {
+        &self.data[pat * 256 + row as usize * 4 + chn]
     }
 }
 
@@ -233,8 +233,8 @@ impl Orders for ModOrders {
         self.rstpos
     }
 
-    fn pattern(&self, data: &PlayerData) -> usize {
-        self.orders[data.pos] as usize
+    fn pattern(&self, pos: usize) -> usize {
+        self.orders[pos] as usize
     }
 
     fn next(&self, data: &mut PlayerData) -> usize {

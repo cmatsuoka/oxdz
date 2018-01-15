@@ -97,7 +97,8 @@ println!(">> mt_music: speed={}, frame={}", self.mt_speed, self.mt_counter);
 
     fn mt_no_new_all_channels(&mut self, module: &Module, pats: &ModPatterns, mut virt: &mut Virtual) {
         for chn in 0..module.chn {
-            let event = pats.event(self.mt_song_pos, self.mt_pattern_pos, chn);
+            let p = module.orders.pattern(self.mt_song_pos as usize);
+            let event = pats.event(p, self.mt_pattern_pos, chn);
             self.mt_check_efx(chn, &event, &mut virt);
         }
     }
@@ -105,7 +106,8 @@ println!(">> mt_music: speed={}, frame={}", self.mt_speed, self.mt_counter);
     fn mt_get_new_note(&mut self, module: &Module, pats: &ModPatterns, mut virt: &mut Virtual) {
 println!("get_new_note");
         for chn in 0..module.chn {
-            let event = pats.event(self.mt_song_pos, self.mt_pattern_pos, chn);
+            let p = module.orders.pattern(self.mt_song_pos as usize);
+            let event = pats.event(p, self.mt_pattern_pos, chn);
 println!("get_new_note: chn:{} -> {}", chn, event);
             let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 

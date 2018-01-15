@@ -232,6 +232,9 @@ println!("--- mix");
             size   : 0,
         };
 
+        //self.buf32.iter().map(|x| x = 0);
+        self.buf32 = [0; MAX_FRAMESIZE];
+
         for mut v in &mut self.voices {
 println!("mixer::mix: {:?}", v);
 println!("mix voice {}", v.num);
@@ -274,7 +277,7 @@ println!("step = {}", step);
                         usmp = 0;
                     }
                 }
-println!("v.pos={}, v.end={}, samples={}, v.vol={}", v.pos, v.end, samples, v.vol);
+//println!("v.pos={}, v.end={}, samples={}, v.vol={}", v.pos, v.end, samples, v.vol);
 
                 if v.vol > 0 {
                     let mix_size = samples * 2;

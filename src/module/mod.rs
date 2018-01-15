@@ -17,7 +17,7 @@ use player::PlayerData;
 pub trait Orders {
     fn num(&self, usize) -> usize;
     fn restart_position(&mut self) -> usize;
-    fn pattern(&self, &PlayerData) -> usize;
+    fn pattern(&self, usize) -> usize;
     fn next(&self, &mut PlayerData) -> usize;
     fn prev(&self, &mut PlayerData) -> usize;
     fn num_songs(&self) -> usize;
