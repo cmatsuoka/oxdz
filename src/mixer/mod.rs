@@ -1,3 +1,4 @@
+use std::ptr;
 use module::sample::{Sample, SampleType};
 use mixer::interpolator::{AnyInterpolator, Interpolate};
 use util;
@@ -11,7 +12,7 @@ const SMIX_SHIFT   : usize = 16;
 const SMIX_MASK    : usize = 0xffff;
 const LIM16_HI     : i32 = 32767;
 const LIM16_LO     : i32 = -32768;
-const DOWNMIX_SHIFT: usize = 6;
+const DOWNMIX_SHIFT: usize = 10;
 
 
 pub struct Mixer<'a> {
@@ -230,10 +231,11 @@ println!("--- mix");
             buf_pos: 0,
             step   : 0,
             size   : 0,
+            vol_r  : 0,
+            vol_l  : 0,
         };
 
-        //self.buf32.iter().map(|x| x = 0);
-        self.buf32 = [0; MAX_FRAMESIZE];
+        unsafe { ptr::write_bytes(self.buf32.as_mut_ptr(), 0, self.buf32.len() - 1); }
 
         for mut v in &mut self.voices {
 println!("mixer::mix: {:?}", v);
@@ -244,6 +246,9 @@ println!("sample = {}, period = {}", v.smp, v.period);
             }
 
             let mut buf_pos = 0;
+
+            let vol_r = v.vol * (0x80 - v.pan) as usize;
+            let vol_l = v.vol * (0x80 + v.pan) as usize;
         
             let sample = &self.sample[v.smp];
             let step = C4_PERIOD * sample.rate / self.rate as f64 / v.period;
@@ -288,6 +293,8 @@ println!("step = {}", step);
                         md.buf_pos = buf_pos;
                         md.step = (step * (1_u32 << SMIX_SHIFT) as f64) as usize;
                         md.size = samples;
+                        md.vol_l = vol_l >> 8;
+                        md.vol_r = vol_r >> 8;
 
                         match sample.sample_type {
                             SampleType::Empty    => {},
@@ -383,7 +390,9 @@ struct MixerData {
     pub pos    : f64,
     pub buf_pos: usize,
     pub step   : usize,
-    pub size   : isize
+    pub size   : isize,
+    pub vol_l  : usize,
+    pub vol_r  : usize,
 }
 
 impl MixerData {
@@ -407,8 +416,9 @@ impl MixerData {
             pos += frac >> SMIX_SHIFT;
             frac &= SMIX_MASK;
 
-            buf32[bpos] += smp;
-            bpos += 1;
+            buf32[bpos    ] += smp * self.vol_l as i32;
+            buf32[bpos + 1] += smp * self.vol_r as i32;
+            bpos += 2;
         }
     }
 }
