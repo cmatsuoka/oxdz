@@ -1,4 +1,5 @@
 mod virt;
+mod scan;
 
 pub use player::virt::Virtual;
 pub use mixer::Mixer;
@@ -42,6 +43,7 @@ impl PlayerData {
         self.bpm   = self.initial_bpm;
     }
 }
+
 
 pub struct Player<'a> {
     pub data  : PlayerData,
