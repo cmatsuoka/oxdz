@@ -347,15 +347,29 @@ impl ModPlayer {
     fn mt_vibrato_2(&mut self, chn: usize, mut virt: &mut Virtual) {
         let state = &mut self.state[chn];
         let pos = (state.n_vibratopos >> 2) & 0x1f;
-        match state.n_wavecontrol & 0x03 {
+        let val = match state.n_wavecontrol & 0x03 {
             0 => {  // mt_vib_sine
+                     MT_VIBRATO_TABLE[pos as usize]
                  },
             1 => {  // mt_vib_rampdown
+                     if pos & 0x80 != 0 { 255 - pos } else { pos }
                  },
-            _ => {}
-        }
+            _ => {
+                     255
+                 }
+        };
+        // mt_vib_set
+        let mut period = state.n_period;
+        let amt = (val as usize * (state.n_vibratocmd & 15) as usize) >> 7;
+        if state.n_vibratopos & 0x80 == 0 {
+            period += amt as f64
+        } else {
+            period -= amt as f64
+        };
 
-        //let v = MT_VIBRATO_TABLE[];
+        // mt_Vibrato3
+        virt.set_period(chn, period);
+        state.n_vibratopos += (state.n_vibratocmd >> 2) & 0x3c;
     }
 
     fn mt_tone_plus_vol_slide(&mut self, chn: usize, mut virt: &mut Virtual) {
