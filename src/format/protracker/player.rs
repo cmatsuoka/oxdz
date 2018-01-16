@@ -167,7 +167,7 @@ impl ModPlayer {
 
     fn mt_set_period(&mut self, chn: usize, mut virt: &mut Virtual) {
         {
-            let mut state = &mut self.state[chn];
+            let state = &mut self.state[chn];
             let period = util::note_to_period(state.n_note as usize, state.n_finetune, PeriodType::Amiga);
             state.n_period = period;
     
@@ -254,7 +254,7 @@ impl ModPlayer {
     }
 
     fn mt_porta_up(&mut self, chn: usize, mut virt: &mut Virtual) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         state.n_period -= (state.n_cmdlo & self.mt_low_mask) as f64;
         self.mt_low_mask = 0xff;
         if state.n_period < 113.0 {
@@ -286,19 +286,49 @@ impl ModPlayer {
         //let period = 
     }
 
-    fn mt_clear_tone_porta(&mut self, mut chn: usize) {
-        self.state[chn].n_wantedperiod = 0;
+    fn mt_clear_tone_porta(&mut self, chn: usize) {
+        self.state[chn].n_wantedperiod = None;
     }
 
-    fn mt_tone_portamento(&self, chn: usize, mut virt: &mut Virtual) {
+    fn mt_tone_portamento(&mut self, chn: usize, mut virt: &mut Virtual) {
+        {
+            let state = &mut self.state[chn];
+            if state.n_cmdlo != 0 {
+                state.n_toneportspeed = state.n_cmdlo;
+                state.n_cmdlo = 0;
+            }
+        }
+        self.mt_tone_port_no_change(chn, &mut virt);
     }
 
-    fn mt_tone_port_no_change(&self, chn: usize, mut virt: &mut Virtual) {
+    fn mt_tone_port_no_change(&mut self, chn: usize, mut virt: &mut Virtual) {
+        let state = &mut self.state[chn];
+        let wantedperiod = try_option!(state.n_wantedperiod);
+        if state.n_toneportdirec {
+            // mt_TonePortaUp
+            state.n_period -= state.n_toneportspeed as f64;
+            if state.n_period < wantedperiod {
+                state.n_period = wantedperiod;
+                state.n_wantedperiod = None;
+            }
+        } else {
+            // mt_TonePortaDown
+            state.n_period += state.n_toneportspeed as f64;
+            if state.n_period > wantedperiod {
+                state.n_period = wantedperiod;
+                state.n_wantedperiod = None;
+            }
+        }
+        // mt_TonePortaSetPer
+        if state.n_glissfunk & 0x0f != 0 {
+        }
+        // mt_GlissSkip
+        virt.set_period(chn, state.n_period);
     }
 
     fn mt_vibrato(&mut self, chn: usize, mut virt: &mut Virtual) {
         {
-            let mut state = &mut self.state[chn];
+            let state = &mut self.state[chn];
             if state.n_cmdlo != 0 {
                 if state.n_cmdlo & 0x0f != 0 {
                     state.n_cmdlo = (state.n_vibratocmd & 0xf0) | (state.n_cmdlo & 0x0f)
@@ -315,7 +345,7 @@ impl ModPlayer {
     }
 
     fn mt_vibrato_2(&mut self, chn: usize, mut virt: &mut Virtual) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         let pos = (state.n_vibratopos >> 2) & 0x1f;
         match state.n_wavecontrol & 0x03 {
             0 => {  // mt_vib_sine
@@ -353,7 +383,7 @@ impl ModPlayer {
     }
 
     fn mt_vol_slide_up(&mut self, chn: usize, mut virt: &mut Virtual) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         state.n_volume += state.n_cmdlo & 0x0f;
         if state.n_volume > 0x40 {
             state.n_volume = 0x40;
@@ -362,7 +392,7 @@ impl ModPlayer {
     }
 
     fn mt_vol_slide_down(&mut self, chn: usize, mut virt: &mut Virtual) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         let cmdlo = state.n_cmdlo & 0x0f;
         if state.n_volume > cmdlo {
             state.n_volume -= cmdlo;
@@ -373,7 +403,7 @@ impl ModPlayer {
     }
 
     fn mt_position_jump(&mut self, chn: usize) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         self.mt_song_pos = state.n_cmdlo - 1;
         // mt_pj2
         self.mt_pbreak_pos = 0;
@@ -381,7 +411,7 @@ impl ModPlayer {
     }
 
     fn mt_volume_change(&mut self, chn: usize, mut virt: &mut Virtual) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         if state.n_cmdlo > 0x40 {
             state.n_cmdlo = 40
         }
@@ -390,7 +420,7 @@ impl ModPlayer {
     }
 
     fn mt_pattern_break(&mut self, chn: usize) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         let line = (state.n_cmdlo >> 4) * 10 + (state.n_cmdlo & 0x0f);
         if line >= 63 {
             // mt_pj2
@@ -400,7 +430,7 @@ impl ModPlayer {
     }
 
     fn mt_set_speed(&mut self, chn: usize) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         if state.n_cmdlo != 0 {
             self.mt_counter = 0;
             self.mt_speed = state.n_cmdlo;
@@ -449,24 +479,24 @@ impl ModPlayer {
     fn mt_filter_on_off(&self, chn: usize, mut virt: &mut Virtual) {
     }
 
-    fn mt_set_gliss_control(&mut self, mut chn: usize) {
-        let mut state = &mut self.state[chn];
+    fn mt_set_gliss_control(&mut self, chn: usize) {
+        let state = &mut self.state[chn];
         state.n_glissfunk = state.n_cmdlo;
     }
 
-    fn mt_set_vibrato_control(&mut self, mut chn: usize) {
-        let mut state = &mut self.state[chn];
+    fn mt_set_vibrato_control(&mut self, chn: usize) {
+        let state = &mut self.state[chn];
         state.n_wavecontrol &= 0xf0;
         state.n_wavecontrol |= state.n_cmdlo & 0x0f;
     }
 
-    fn mt_set_finetune(&mut self, mut chn: usize) {
-        let mut state = &mut self.state[chn];
+    fn mt_set_finetune(&mut self, chn: usize) {
+        let state = &mut self.state[chn];
         state.n_finetune = ((state.n_cmdlo << 4) as i8) as isize;
     }
 
-    fn mt_jump_loop(&mut self, mut chn: usize) {
-        let mut state = &mut self.state[chn];
+    fn mt_jump_loop(&mut self, chn: usize) {
+        let state = &mut self.state[chn];
 
         if self.mt_counter != 0 {
             return
@@ -493,7 +523,7 @@ impl ModPlayer {
         }
     }
 
-    fn mt_set_tremolo_control(&mut self, mut chn: usize) {
+    fn mt_set_tremolo_control(&mut self, chn: usize) {
         let mut state = &mut self.state[chn];
         state.n_wavecontrol &= 0x0f;
         state.n_wavecontrol |= (state.n_cmdlo & 0x0f) << 4;
@@ -517,7 +547,7 @@ impl ModPlayer {
     }
 
     fn mt_note_cut(&mut self, chn: usize, mut virt: &mut Virtual) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         if self.mt_counter != state.n_cmdlo {
             return;
         }
@@ -526,7 +556,7 @@ impl ModPlayer {
     }
 
     fn mt_note_delay(&mut self, chn: usize, mut virt: &mut Virtual) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         if self.mt_counter != state.n_cmdlo {
             return;
         }
@@ -537,7 +567,7 @@ impl ModPlayer {
     }
 
     fn mt_pattern_delay(&mut self, chn: usize) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         if self.mt_counter != 0 {
             return;
         }
@@ -600,9 +630,9 @@ struct ChannelData {
     n_period       : f64,    // u16
     n_finetune     : isize,  // i8
     n_volume       : u8,
-    n_toneportdirec: i8,
+    n_toneportdirec: bool,
     n_toneportspeed: u8,
-    n_wantedperiod : u16,
+    n_wantedperiod : Option<f64>,
     n_vibratocmd   : u8,
     n_vibratopos   : u8,
     n_tremolocmd   : u8,
