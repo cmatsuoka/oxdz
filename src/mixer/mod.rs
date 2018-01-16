@@ -171,7 +171,6 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn set_volume(&mut self, voice: usize, vol: usize) {
-println!("mixer::set_volume voice={} vol={}", voice, vol);
         if voice >= self.voices.len() {
             return
         }
@@ -188,7 +187,6 @@ println!("mixer::set_volume voice={} vol={}", voice, vol);
     }
 
     pub fn set_period(&mut self, voice: usize, period: f64) {
-println!("mixer::set_period: voice={}/{}, period={}", voice, self.voices.len(), period);
         if voice >= self.voices.len() {
             return
         }
@@ -197,7 +195,6 @@ println!("mixer::set_period: voice={}/{}, period={}", voice, self.voices.len(), 
     }
 
     pub fn set_patch(&mut self, voice: usize, ins: usize, smp: usize, ac: bool) {
-println!("voice:{} set patch {}", voice, ins);
         if voice >= self.voices.len() {
             return
         }
@@ -222,8 +219,6 @@ println!("voice:{} set patch {}", voice, ins);
 
     pub fn mix(&mut self, bpm: usize) {
 
-println!("--- mix");
-
         self.framesize = self.rate * PAL_RATE * 2 / bpm / 100;
 
         let mut md = MixerData{
@@ -238,9 +233,6 @@ println!("--- mix");
         unsafe { ptr::write_bytes(self.buf32.as_mut_ptr(), 0, self.buf32.len() - 1); }
 
         for mut v in &mut self.voices {
-println!("mixer::mix: {:?}", v);
-println!("mix voice {}", v.num);
-println!("sample = {}, period = {}", v.smp, v.period);
             if v.period < 1.0 {
                 continue
             }
@@ -255,7 +247,6 @@ println!("sample = {}, period = {}", v.smp, v.period);
             if step < 0.001 {
                 continue;
             }
-println!("step = {}", step);
 
             let lps = sample.loop_start;
             let lpe = sample.loop_end;

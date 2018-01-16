@@ -74,11 +74,12 @@ fn run(name: &String) -> Result<(), Box<Error>> {
 
     for _ in 0..640 {
         let buffer = player.info(&mut frame_info).play_frame().buffer();
-        println!("info pos:{} row:{} frame:{} speed:{} bpm:{}", frame_info.pos, frame_info.row, frame_info.frame, frame_info.speed, frame_info.bpm);
+        print!("info pos:{} row:{} frame:{} speed:{} bpm:{}    \r", frame_info.pos, frame_info.row, frame_info.frame, frame_info.speed, frame_info.bpm);
         for s in buffer {
             try!(wave_writer.write_sample_i16(*s));
         }
     }
+    println!();
 
     try!(wave_writer.sync_header());
 

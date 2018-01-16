@@ -33,7 +33,6 @@ pub struct Virtual<'a> {
 impl<'a> Virtual<'a> {
     pub fn new(chn: usize, sample: &'a Vec<Sample>, has_virt: bool) -> Self {
 
-println!("+++ new virtual: chn:{} has_virt={}", chn, has_virt);
         let mixer = Mixer::new(chn, &sample);
         let num = mixer.num_voices();
 
@@ -89,7 +88,6 @@ println!("+++ new virtual: chn:{} has_virt={}", chn, has_virt);
             Some(v) => v,
             None    => self.free_voice(),
         };
-println!("virt::alloc_voice: num={}", num);
 
         self.virt_channel[chn].count += 1;
         self.virt_used += 1;
@@ -117,7 +115,6 @@ println!("virt::alloc_voice: num={}", num);
         if chn >= self.virt_numch {
             None
         } else {
-println!("mixer::channel_to_voice: map to {:?}", self.virt_channel[chn].map);
             self.virt_channel[chn].map
         }
     }
@@ -144,9 +141,7 @@ println!("mixer::channel_to_voice: map to {:?}", self.virt_channel[chn].map);
     }
 
     pub fn set_period(&mut self, chn: usize, period: f64) {
-println!("virt::set_period: chn:{}/{}", chn, self.virt_numch);
         let voice = try_option!(self.channel_to_voice(chn));
-println!("virt::set_period: chn:{} voice:{} period:{}", chn, voice, period);
         self.mixer.set_period(voice, period);
     }
 
@@ -157,7 +152,6 @@ println!("virt::set_period: chn:{} voice:{} period:{}", chn, voice, period);
 
     pub fn set_patch(&mut self, chn: usize, ins: usize, smp: usize, note: usize) {
 
-println!("set_patch: chn:{} ins:{} smp:{} note:{} voice:{:?}", chn, ins, smp, note, self.channel_to_voice(chn));
         let voice = match self.channel_to_voice(chn) {
             Some(v) => v,  // TODO: act stuff
             None    => self.alloc_voice(chn),

@@ -50,7 +50,6 @@ impl ModPlayer {
     fn mt_music(&mut self, module: &Module, mut virt: &mut Virtual) {
         let pats = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
 
-println!(">> mt_music: speed={}, frame={}", self.mt_speed, self.mt_counter);
         self.mt_counter += 1;
         if self.mt_speed > self.mt_counter {
             // mt_NoNewNote
@@ -105,10 +104,8 @@ println!(">> mt_music: speed={}, frame={}", self.mt_speed, self.mt_counter);
 
     fn mt_get_new_note(&mut self, module: &Module, pats: &ModPatterns, mut virt: &mut Virtual) {
         let p = module.orders.pattern(self.mt_song_pos as usize);
-println!("+++ get_new_note: pos={} pat={} row={}", self.mt_song_pos, p, self.mt_pattern_pos);
         for chn in 0..module.chn {
             let event = pats.event(p, self.mt_pattern_pos, chn);
-println!("--- get_new_note: chn:{} -> {}", chn, event);
             let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
             // mt_PlayVoice
@@ -377,7 +374,6 @@ println!("--- get_new_note: chn:{} -> {}", chn, event);
 
     fn mt_position_jump(&mut self, chn: usize) {
         let mut state = &mut self.state[chn];
-println!("=== mt_position_jump: chn={} cmdlo={}", chn, state.n_cmdlo);
         self.mt_song_pos = state.n_cmdlo - 1;
         // mt_pj2
         self.mt_pbreak_pos = 0;
@@ -572,7 +568,6 @@ impl FormatPlayer for ModPlayer {
         }
         
         self.mt_music(&module, &mut virt);
-println!("=========== SPEED = {}", self.mt_speed);
 
         data.frame = self.mt_counter as usize + 1;
         data.row = self.mt_pattern_pos as usize;
