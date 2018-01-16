@@ -23,6 +23,7 @@ macro_rules! try_option {
     }
 }
 
+
 pub trait BinaryRead {
     fn read_string(&self, ofs: usize, size: usize) -> Result<String, Error>;
     fn read32b(&self, ofs: usize) -> Result<u32, Error>;

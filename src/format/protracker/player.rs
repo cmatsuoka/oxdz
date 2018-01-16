@@ -331,14 +331,13 @@ impl ModPlayer {
             let state = &mut self.state[chn];
             if state.n_cmdlo != 0 {
                 if state.n_cmdlo & 0x0f != 0 {
-                    state.n_cmdlo = (state.n_vibratocmd & 0xf0) | (state.n_cmdlo & 0x0f)
+                    state.n_vibratocmd = (state.n_vibratocmd & 0xf0) | (state.n_cmdlo & 0x0f)
                 }
                 // mt_vibskip
                 if state.n_cmdlo & 0xf0 != 0 {
-                    state.n_cmdlo = (state.n_vibratocmd & 0x0f) | (state.n_cmdlo & 0xf0)
+                    state.n_vibratocmd = (state.n_vibratocmd & 0x0f) | (state.n_cmdlo & 0xf0)
                 }
                 // mt_vibskip2
-                state.n_vibratocmd = state.n_cmdlo;
             }
         }
         self.mt_vibrato_2(chn, &mut virt);
@@ -346,12 +345,13 @@ impl ModPlayer {
 
     fn mt_vibrato_2(&mut self, chn: usize, mut virt: &mut Virtual) {
         let state = &mut self.state[chn];
-        let pos = (state.n_vibratopos >> 2) & 0x1f;
+        let mut pos = (state.n_vibratopos >> 2) & 0x1f;
         let val = match state.n_wavecontrol & 0x03 {
             0 => {  // mt_vib_sine
                      MT_VIBRATO_TABLE[pos as usize]
                  },
             1 => {  // mt_vib_rampdown
+                     pos <<= 3;
                      if pos & 0x80 != 0 { 255 - pos } else { pos }
                  },
             _ => {
@@ -369,7 +369,7 @@ impl ModPlayer {
 
         // mt_Vibrato3
         virt.set_period(chn, period);
-        state.n_vibratopos += (state.n_vibratocmd >> 2) & 0x3c;
+        state.n_vibratopos = state.n_vibratopos.wrapping_add((state.n_vibratocmd >> 2) & 0x3c);
     }
 
     fn mt_tone_plus_vol_slide(&mut self, chn: usize, mut virt: &mut Virtual) {
@@ -382,7 +382,52 @@ impl ModPlayer {
         self.mt_volume_slide(chn, &mut virt);
     }
 
-    fn mt_tremolo(&self, chn: usize, mut virt: &mut Virtual) {
+    fn mt_tremolo(&mut self, chn: usize, mut virt: &mut Virtual) {
+        let state = &mut self.state[chn];
+        if state.n_cmdlo != 0 {
+            if state.n_cmdlo & 0x0f != 0 {
+                 state.n_tremolocmd = (state.n_cmdlo & 0x0f) | (state.n_tremolocmd & 0xf0)
+            }
+            // mt_treskip
+            if state.n_cmdlo & 0xf0 != 0 {
+                 state.n_tremolocmd = (state.n_cmdlo & 0xf0) | (state.n_tremolocmd & 0x0f)
+            }
+            // mt_treskip2
+        }
+        // mt_Tremolo2
+        let mut pos = (state.n_tremolopos >> 2) & 0x1f;
+        let val = match (state.n_wavecontrol >> 4) & 0x03 {
+            0 => {  // mt_tre_sine
+                     MT_VIBRATO_TABLE[pos as usize]
+                 },
+            1 => {  // mt_rampdown
+                     pos <<= 3;
+                     if pos & 0x80 != 0 { 255 - pos } else { pos }
+                 },
+            _ => {
+                     255
+                 },
+        };
+        // mt_tre_set
+        let mut volume = state.n_volume as isize;
+        let amt = ((val as usize * (state.n_tremolocmd & 15) as usize) >> 6) as isize;
+        if state.n_tremolopos & 0x80 == 0 {
+            volume += amt;
+        } else {
+            volume -= amt;
+        }
+        // mt_Tremolo3
+        if volume < 0 {
+            volume = 0;
+        }
+        // mt_TremoloSkip
+        if volume > 0x40 {
+           volume = 0x40;
+        }
+
+        // mt_TremoloOk
+        virt.set_volume(chn, volume as usize);  // MOVE.W  D0,8(A5)
+        state.n_tremolopos = state.n_tremolopos.wrapping_add((state.n_tremolocmd >> 2) & 0x3c);
     }
 
     fn mt_sample_offset(&self, chn: usize, mut virt: &mut Virtual) {
