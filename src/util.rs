@@ -101,13 +101,12 @@ pub fn period_to_bend(period: f64, note: usize, ptype: PeriodType) -> isize {
 
     match ptype {
         PeriodType::Linear => {
-                      (100.0_f64 * (8.0 * (((240 - note) << 4) as f64 - period))) as isize
-                  },
+            (100.0_f64 * (8.0 * (((240 - note) << 4) as f64 - period))) as isize
+        },
         PeriodType::Amiga  => {
-                      let d = note_to_period(note, 0, PeriodType::Amiga);
-                      (100.0_f64 * 1536.0 * (d / period).log(2.0)).round() as isize
-                  },
-        _      => 0,
+            let d = note_to_period(note, 0, PeriodType::Amiga);
+            (100.0_f64 * 1536.0 * (d / period).log(2.0)).round() as isize
+        },
     }
 }
 

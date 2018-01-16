@@ -272,7 +272,7 @@ impl ModPlayer {
     }
 
     fn mt_porta_down(&mut self, chn: usize, mut virt: &mut Virtual) {
-        let mut state = &mut self.state[chn];
+        let state = &mut self.state[chn];
         state.n_period += (state.n_cmdlo & self.mt_low_mask) as f64;
         self.mt_low_mask = 0xff;
         if state.n_period < 856.0 {
