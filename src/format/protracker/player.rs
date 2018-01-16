@@ -132,7 +132,7 @@ println!("--- get_new_note: chn:{} -> {}", chn, event);
                 self.state[chn].n_finetune = subins.finetune;
                 //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
                 self.state[chn].n_volume = instrument.volume as u8;
-                virt.set_patch(chn, ins as usize - 1, ins as usize - 1, note as usize - 1);
+                virt.set_patch(chn, ins as usize - 1, ins as usize - 1, note as usize);
                 virt.set_volume(chn, instrument.volume);  // MOVE.W  D0,8(A5)        ; Set volume
             }
 
@@ -175,7 +175,7 @@ println!("--- get_new_note: chn:{} -> {}", chn, event);
             state.n_period = period;
     
             if state.n_cmd != 0x0e || (state.n_cmdlo & 0xf0) != 0xd0 {  // !Notedelay
-                return;
+                // check vibrato, tremolo wave
             }
         }
 
@@ -406,7 +406,6 @@ println!("=== mt_position_jump: chn={} cmdlo={}", chn, state.n_cmdlo);
     fn mt_set_speed(&mut self, chn: usize) {
         let mut state = &mut self.state[chn];
         if state.n_cmdlo != 0 {
-println!("mt_set_speed: {}", state.n_cmdlo);
             self.mt_counter = 0;
             self.mt_speed = state.n_cmdlo;
         }
