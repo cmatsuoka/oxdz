@@ -232,7 +232,7 @@ impl<'a> Mixer<'a> {
 
         unsafe { ptr::write_bytes(self.buf32.as_mut_ptr(), 0, self.buf32.len() - 1); }
 
-        for mut v in &mut self.voices {
+        for v in &mut self.voices {
             if v.period < 1.0 {
                 continue
             }
