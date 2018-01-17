@@ -600,7 +600,24 @@ impl ModPlayer {
         state.n_wavecontrol |= (state.n_cmdlo & 0x0f) << 4;
     }
 
-    fn mt_retrig_note(&self, chn: usize, mut virt: &mut Virtual) {
+    fn mt_retrig_note(&mut self, chn: usize, virt: &mut Virtual) {
+        let state = &mut self.state[chn];
+        let cmdlo = state.n_cmdlo & 0x0f;
+        if cmdlo == 0 {
+            return;
+        }
+        if self.mt_counter == 0 {
+            if state.n_note != 0 {
+                return;
+            }
+        }
+        // mt_rtnskp
+        if self.mt_counter % cmdlo != 0 {
+            return;
+        }
+        
+        // mt_DoRetrig
+        virt.set_voicepos(chn, 0.0);
     }
 
     fn mt_volume_fine_up(&mut self, chn: usize, mut virt: &mut Virtual) {
@@ -614,7 +631,7 @@ impl ModPlayer {
         if self.mt_counter != 0 {
             return;
         }
-        self.mt_vol_slide_down(chn, &mut virt);
+        self.mt_vol_slide_down(chn, &mut virt)
     }
 
     fn mt_note_cut(&mut self, chn: usize, virt: &mut Virtual) {
@@ -626,7 +643,7 @@ impl ModPlayer {
         virt.set_volume(chn, 0);  // MOVE.W  #0,8(A5)
     }
 
-    fn mt_note_delay(&mut self, chn: usize, mut virt: &mut Virtual) {
+    fn mt_note_delay(&mut self, chn: usize, virt: &mut Virtual) {
         let state = &mut self.state[chn];
         if self.mt_counter != state.n_cmdlo {
             return;
@@ -635,6 +652,7 @@ impl ModPlayer {
             return;
         }
         // BRA mt_DoRetrig
+        virt.set_voicepos(chn, 0.0);
     }
 
     fn mt_pattern_delay(&mut self, chn: usize) {
