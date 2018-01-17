@@ -233,16 +233,22 @@ impl ModPlayer {
         virt.set_period(chn, period);  // MOVE.W  n_period(A6),6(A5)
     }
 
-    fn mt_arpeggio(&self, chn: usize, mut virt: &mut Virtual) {
-        match self.mt_counter % 3 {
+    fn mt_arpeggio(&mut self, chn: usize, mut virt: &mut Virtual) {
+        let state = &mut self.state[chn];
+        let val = match self.mt_counter % 3 {
             0 => {  // Arpeggio2
+                     0
                  },
             1 => {  // Arpeggio1
+                     state.n_cmdlo & 15
                  },
-            2 => {  // Arpeggio3
+            _ => {  // Arpeggio3
+                     state.n_cmdlo >> 4
                  },
-            _ => {},
-        }
+        } as usize;
+        // Arpeggio4
+        let period = util::note_to_period(state.n_note as usize+ val, state.n_finetune, PeriodType::Amiga);
+        virt.set_period(chn, period);  // MOVE.W  D2,6(A5)
     }
 
     fn mt_fine_porta_up(&mut self, chn: usize, mut virt: &mut Virtual) {
