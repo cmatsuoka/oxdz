@@ -430,7 +430,13 @@ impl ModPlayer {
         state.n_tremolopos = state.n_tremolopos.wrapping_add((state.n_tremolocmd >> 2) & 0x3c);
     }
 
-    fn mt_sample_offset(&self, chn: usize, mut virt: &mut Virtual) {
+    fn mt_sample_offset(&mut self, chn: usize, mut virt: &mut Virtual) {
+        let state = &mut self.state[chn];
+        if state.n_cmdlo != 0 {
+            state.n_sampleoffset = state.n_cmdlo;
+        }
+        virt.set_voicepos(chn, (state.n_sampleoffset << 7) as f64);
+
     }
 
     fn mt_volume_slide(&mut self, chn: usize, mut virt: &mut Virtual) {
@@ -535,7 +541,7 @@ impl ModPlayer {
         }
     }
 
-    fn mt_filter_on_off(&self, chn: usize, mut virt: &mut Virtual) {
+    fn mt_filter_on_off(&self, _chn: usize, mut _virt: &mut Virtual) {
     }
 
     fn mt_set_gliss_control(&mut self, chn: usize) {
