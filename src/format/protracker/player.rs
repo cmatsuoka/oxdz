@@ -281,9 +281,11 @@ impl ModPlayer {
         virt.set_period(chn, state.n_period);  // MOVE.W  D0,6(A5)
     }
 
-    fn mt_set_tone_porta(&self, chn: usize, mut virt: &mut Virtual) {
-        let note = self.state[chn].n_note;
-        //let period = 
+    fn mt_set_tone_porta(&mut self, chn: usize, mut virt: &mut Virtual) {
+        let state = &mut self.state[chn];
+        let wantedperiod = util::note_to_period(state.n_note as usize, state.n_finetune, PeriodType::Amiga);
+        state.n_wantedperiod = Some(wantedperiod);
+        state.n_toneportdirec = state.n_period < wantedperiod;
     }
 
     fn mt_clear_tone_porta(&mut self, chn: usize) {
