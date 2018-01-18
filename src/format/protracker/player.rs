@@ -191,7 +191,7 @@ impl ModPlayer {
         self.mt_pattern_pos = self.mt_pbreak_pos;
         self.mt_pbreak_pos = 0;
         self.mt_pos_jump_flag = false;
-        self.mt_song_pos += 1;
+        self.mt_song_pos = self.mt_song_pos.wrapping_add(1);
         self.mt_song_pos &= 0x7f;
         if self.mt_song_pos as usize >= module.len(0) {
             self.mt_song_pos = 0;
@@ -485,7 +485,7 @@ impl ModPlayer {
 
     fn mt_position_jump(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        self.mt_song_pos = state.n_cmdlo - 1;
+        self.mt_song_pos = state.n_cmdlo.wrapping_sub(1);
         // mt_pj2
         self.mt_pbreak_pos = 0;
         self.mt_pos_jump_flag = true;
