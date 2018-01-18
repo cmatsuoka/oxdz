@@ -12,7 +12,10 @@ use ::*;
 /// possible (converted to snake case according to Rust convention, i.e.
 /// mt_PosJumpFlag becomes mt_pos_jump_flag).
 ///
-/// Note: mixer volumes are *16, so adjust when setting.
+/// Note: mixer volumes are *16, so adjust when setting. Also, periods are not
+/// Protracker-accurate, we're using "exact" floating point periods instead of the
+/// approximate value table. An option to use the Protracker table will be added
+/// later.
 
 pub struct ModPlayer {
     name : &'static str,

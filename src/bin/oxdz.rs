@@ -72,7 +72,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     let writer = BufWriter::new(file);
     let mut wave_writer = try!(WaveWriter::new(2, 44100, 16, writer));
 
-    for _ in 0..640 {
+    for _ in 0..1000 {
         let buffer = player.info(&mut frame_info).play_frame().buffer();
         print!("info pos:{} row:{} frame:{} speed:{} bpm:{}    \r", frame_info.pos, frame_info.row, frame_info.frame, frame_info.speed, frame_info.bpm);
         for s in buffer {

@@ -207,6 +207,7 @@ impl<'a> Mixer<'a> {
         v.vol = 0;
         v.pan = 0; 
         v.has_loop = false;
+	v.sample_end = true;
 
         let sample = &self.sample[v.smp];
 
@@ -295,9 +296,27 @@ impl<'a> Mixer<'a> {
                     }
                 }
                 v.pos += step * samples as f64;
+                size -= samples + usmp;
 
                 // No more samples in this frame
-                size -= samples + usmp;
+                if size <= 0 {
+                    if sample.has_loop {
+                        if v.pos + step >= v.end as f64 {
+                            v.pos += step;
+                            v.loop_reposition(&sample);
+                        }
+                    }
+                    continue;
+                }
+
+                // First sample loop run
+                if !sample.has_loop {
+                    v.sample_end = true;
+                    size = 0;
+                    continue;
+                }
+
+                v.loop_reposition(&sample);
             }
         }
 
@@ -337,18 +356,19 @@ impl<'a> Mixer<'a> {
 
 #[derive(Clone,Debug,Default)]
 struct Voice {
-    num     : usize,
-    root    : Option<usize>,
-    chn     : Option<usize>,
-    pos     : f64,
-    period  : f64,
-    note    : usize,
-    pan     : isize,
-    vol     : usize,
-    ins     : usize,
-    smp     : usize,
-    end     : usize,
-    has_loop: bool,
+    num       : usize,
+    root      : Option<usize>,
+    chn       : Option<usize>,
+    pos       : f64,
+    period    : f64,
+    note      : usize,
+    pan       : isize,
+    vol       : usize,
+    ins       : usize,
+    smp       : usize,
+    end       : usize,
+    has_loop  : bool,
+    sample_end: bool,
 }
 
 impl Voice {
@@ -367,6 +387,18 @@ impl Voice {
         } else {
             self.end = sample.size;
         }
+    }
+
+    pub fn loop_reposition(&mut self, sample: &Sample) {
+        let loop_size = sample.loop_end - sample.loop_start;
+
+        // Reposition for next loop
+        self.pos -= loop_size as f64;  // forward loop
+        self.end = sample.loop_end;
+        self.has_loop = true;
+
+        //if self.bidir_loop {
+        //}
     }
 
     pub fn anticlick(&self) {
