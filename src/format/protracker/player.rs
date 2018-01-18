@@ -123,7 +123,7 @@ impl ModPlayer {
             self.state[chn].n_cmdlo = cmdlo;
 
             if ins != 0 {
-                let instrument = &module.instrument[ins as usize];
+                let instrument = &module.instrument[ins as usize - 1];
                 let subins = instrument.subins[0].as_any().downcast_ref::<ModInstrument>().unwrap();
                 //let sample = &module.sample[ins as usize];
                 //self.state[chn].n_start = sample.loop_start;
