@@ -289,7 +289,7 @@ impl ModPlayer {
         let state = &mut self.state[chn];
         state.n_period += (state.n_cmdlo & self.mt_low_mask) as f64;
         self.mt_low_mask = 0xff;
-        if state.n_period < 856.0 {
+        if state.n_period > 856.0 {
             state.n_period = 856.0;
         }
         virt.set_period(chn, state.n_period);  // MOVE.W  D0,6(A5)
