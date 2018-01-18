@@ -118,33 +118,36 @@ impl ModPlayer {
             let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
             // mt_PlayVoice
-            if self.state[chn].n_note == 0 {
+            if { let e = &self.state[chn]; e.n_note == 0 && e.n_ins == 0 && e.n_cmd == 0 && e.n_cmdlo == 0 } {  // TST.L   (A6)
                 self.per_nop(chn, &mut virt);
             }
 
-            // mt_plvskip
-            self.state[chn].n_note = note;
-            self.state[chn].n_ins = ins;
-            self.state[chn].n_cmd = cmd;
-            self.state[chn].n_cmdlo = cmdlo;
+            {
+                let state = &mut self.state[chn];
 
-            if ins != 0 {
-                let instrument = &module.instrument[ins as usize - 1];
-                let subins = instrument.subins[0].as_any().downcast_ref::<ModInstrument>().unwrap();
-                //let sample = &module.sample[ins as usize];
-                //self.state[chn].n_start = sample.loop_start;
-                //self.state[chn].n_length = sample.size;
-                //self.state[chn].n_reallength = sample.size;
-                self.state[chn].n_finetune = subins.finetune;
-                //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
-                self.state[chn].n_volume = instrument.volume as u8;
-                virt.set_patch(chn, ins as usize - 1, ins as usize - 1, note as usize);
-                virt.set_volume(chn, instrument.volume << 4);  // MOVE.W  D0,8(A5)        ; Set volume
+                // mt_plvskip
+                state.n_note = note;
+                state.n_ins = ins;
+                state.n_cmd = cmd;
+                state.n_cmdlo = cmdlo;
+
+                if ins != 0 {
+                    let instrument = &module.instrument[ins as usize - 1];
+                    let subins = instrument.subins[0].as_any().downcast_ref::<ModInstrument>().unwrap();
+                    //let sample = &module.sample[ins as usize];
+                    //state.n_start = sample.loop_start;
+                    //state.n_length = sample.size;
+                    //state.n_reallength = sample.size;
+                    state.n_finetune = subins.finetune;
+                    //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
+                    state.n_volume = instrument.volume as u8;
+                    virt.set_patch(chn, ins as usize - 1, ins as usize - 1, note as usize);
+                    virt.set_volume(chn, instrument.volume << 4);  // MOVE.W  D0,8(A5)        ; Set volume
+                }
             }
 
             // mt_SetRegs
             if note != 0 {
-
                 match cmd {
                     0xe => if (cmdlo & 0xf0) == 0x50 {
                                // mt_DoSetFinetune
@@ -244,19 +247,20 @@ impl ModPlayer {
     fn mt_arpeggio(&mut self, chn: usize, virt: &mut Virtual) {
         let state = &mut self.state[chn];
         let val = match self.mt_counter % 3 {
+            2 => {  // Arpeggio1
+                     state.n_cmdlo & 15
+                 },
             0 => {  // Arpeggio2
                      0
                  },
-            1 => {
+            _ => {
                      state.n_cmdlo >> 4
-                 },
-            _ => {  // Arpeggio1
-                     state.n_cmdlo & 15
                  },
         } as usize;
         // Arpeggio3
         // Arpeggio4
-        let period = util::note_to_period(state.n_note as usize + val, state.n_finetune, PeriodType::Amiga);
+        let note = util::period_to_note(state.n_period.round() as u32);
+        let period = util::note_to_period(note + val, state.n_finetune, PeriodType::Amiga);
         virt.set_period(chn, period);  // MOVE.W  D2,6(A5)
     }
 
@@ -745,7 +749,6 @@ struct ChannelData {
     n_loopcount    : u8,
     n_funkoffset   : u8,
     n_wavestart    : u32,
-    n_reallength   : u16,
 }
 
 impl ChannelData {
