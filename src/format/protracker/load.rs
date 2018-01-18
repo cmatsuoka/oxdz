@@ -37,7 +37,7 @@ impl Mod {
         smp.has_loop = loop_size > 1 && smp.loop_end >= 4;
 
         let mut sub = ModInstrument::new();
-        sub.finetune = b.read8i(ofs + 24)? as isize * 16;
+        sub.finetune = (((b.read8i(ofs + 24)? << 4) as isize) >> 4) * 16;
         sub.smp_num = i;
 
         smp.rate = util::C4_PAL_RATE;
