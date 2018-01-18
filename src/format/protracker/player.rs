@@ -161,7 +161,6 @@ impl ModPlayer {
                                self.mt_set_period(chn, &mut virt);
                            },
                 }
-
             } else {
                 self.mt_check_more_efx(chn, &mut virt);  // If no note
             }
@@ -316,16 +315,16 @@ impl ModPlayer {
         let state = &mut self.state[chn];
         let wantedperiod = try_option!(state.n_wantedperiod);
         if state.n_toneportdirec {
-            // mt_TonePortaUp
-            state.n_period -= state.n_toneportspeed as f64;
-            if state.n_period < wantedperiod {
+            // mt_TonePortaDown
+            state.n_period += state.n_toneportspeed as f64;
+            if state.n_period > wantedperiod {
                 state.n_period = wantedperiod;
                 state.n_wantedperiod = None;
             }
         } else {
-            // mt_TonePortaDown
-            state.n_period += state.n_toneportspeed as f64;
-            if state.n_period > wantedperiod {
+            // mt_TonePortaUp
+            state.n_period -= state.n_toneportspeed as f64;
+            if state.n_period < wantedperiod {
                 state.n_period = wantedperiod;
                 state.n_wantedperiod = None;
             }
