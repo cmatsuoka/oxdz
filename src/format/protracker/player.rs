@@ -12,10 +12,14 @@ use ::*;
 /// possible (converted to snake case according to Rust convention, i.e.
 /// mt_PosJumpFlag becomes mt_pos_jump_flag).
 ///
-/// Note: mixer volumes are *16, so adjust when setting. Also, periods are not
-/// Protracker-accurate, we're using "exact" floating point periods instead of the
-/// approximate value table. An option to use the Protracker table will be added
-/// later.
+/// Notes:
+/// * Mixer volumes are *16, so adjust when setting.
+/// * Periods are not Protracker-accurate, we're using "exact" floating point values
+///   instead of the approximate value table. An option to use the Protracker table
+///   will be added later.
+/// * Pattern periods are decoded beforehand and stored as a note value.
+/// * Pattern instruments are decoded beforehand and stored in channel state.
+/// * CIA tempo support added to the original PT2.1A set speed command.
 
 pub struct ModPlayer {
     name : &'static str,
@@ -31,6 +35,7 @@ pub struct ModPlayer {
     mt_patt_del_time  : u8,
     mt_patt_del_time_2: u8,
     mt_pattern_pos    : u8,
+    cia_tempo         : u8,
 }
 
 impl ModPlayer {
@@ -49,6 +54,7 @@ impl ModPlayer {
             mt_patt_del_time  : 0,
             mt_patt_del_time_2: 0,
             mt_pattern_pos    : 0,
+            cia_tempo         : 125,
         }
     }
 
@@ -508,7 +514,12 @@ impl ModPlayer {
         let state = &mut self.state[chn];
         if state.n_cmdlo != 0 {
             self.mt_counter = 0;
-            self.mt_speed = state.n_cmdlo;
+            // also check CIA tempo
+            if state.n_cmdlo < 0x20 {
+                self.mt_speed = state.n_cmdlo;
+            } else {
+                self.cia_tempo = state.n_cmdlo;
+            }
         }
     }
 
@@ -680,6 +691,7 @@ impl FormatPlayer for ModPlayer {
     }
 
     fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
+        self.cia_tempo = data.bpm as u8;
         self.mt_speed = data.speed as u8;
         self.mt_song_pos = data.pos as u8;
         self.mt_pattern_pos = data.row as u8;
@@ -696,6 +708,7 @@ impl FormatPlayer for ModPlayer {
         data.row = self.mt_pattern_pos as usize;
         data.pos = self.mt_song_pos as usize;
         data.speed = self.mt_speed as usize;
+        data.bpm = self.cia_tempo as usize;
     }
 
     fn reset(&mut self) {
