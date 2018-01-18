@@ -12,7 +12,7 @@ const SMIX_SHIFT   : usize = 16;
 const SMIX_MASK    : usize = 0xffff;
 const LIM16_HI     : i32 = 32767;
 const LIM16_LO     : i32 = -32768;
-const DOWNMIX_SHIFT: usize = 8;
+const DOWNMIX_SHIFT: usize = 10;
 
 
 pub struct Mixer<'a> {
@@ -219,7 +219,7 @@ impl<'a> Mixer<'a> {
 
     pub fn mix(&mut self, bpm: usize) {
 
-        self.framesize = self.rate * PAL_RATE * 2 / bpm / 100;
+        self.framesize = self.rate * PAL_RATE / bpm / 100;
 
         let mut md = MixerData{
             pos    : 0.0_f64,
@@ -230,7 +230,7 @@ impl<'a> Mixer<'a> {
             vol_l  : 0,
         };
 
-        unsafe { ptr::write_bytes(self.buf32.as_mut_ptr(), 0, self.buf32.len() - 1); }
+        unsafe { ptr::write_bytes(self.buf32.as_mut_ptr(), 0, self.framesize * std::mem::size_of::<i32>() - 1); }
 
         for v in &mut self.voices {
             if v.period < 1.0 {
@@ -273,7 +273,6 @@ impl<'a> Mixer<'a> {
                         usmp = 0;
                     }
                 }
-//println!("v.pos={}, v.end={}, samples={}, v.vol={}", v.pos, v.end, samples, v.vol);
 
                 if v.vol > 0 {
                     let mix_size = samples * 2;
@@ -295,7 +294,7 @@ impl<'a> Mixer<'a> {
                         buf_pos += mix_size as usize;
                     }
                 }
-                v.pos += step * samples as f64 / 2.0;
+                v.pos += step * samples as f64;
 
                 // No more samples in this frame
                 size -= samples + usmp;
@@ -306,11 +305,13 @@ impl<'a> Mixer<'a> {
         self.downmix();
     }
 
+
     fn downmix(&mut self) {
 
+        let size = self.framesize * 2;
         let mut i = 0;
         loop {
-            if i >= self.framesize {
+            if i >= size {
                 break;
             }
 
@@ -328,7 +329,8 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn buffer(&self) -> &[i16] {
-        &self.buffer[..self.framesize]
+        // *2 because we're stereo
+        &self.buffer[..self.framesize*2]
     }
 }
 
@@ -398,13 +400,13 @@ impl MixerData {
                 &Interpolator::Linear  => interpolator::Linear.get_sample(i, frac as i32),
             };
 
-            frac += self.step;
-            pos += frac >> SMIX_SHIFT;
-            frac &= SMIX_MASK;
-
             buf32[bpos    ] += smp * self.vol_r as i32;
             buf32[bpos + 1] += smp * self.vol_l as i32;
             bpos += 2;
+
+            frac += self.step;
+            pos += frac >> SMIX_SHIFT;
+            frac &= SMIX_MASK;
         }
     }
 }

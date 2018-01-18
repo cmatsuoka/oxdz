@@ -11,6 +11,8 @@ use ::*;
 /// "CRAYON" Hanning / Mushroom Studios in 1992. Original names are used whenever
 /// possible (converted to snake case according to Rust convention, i.e.
 /// mt_PosJumpFlag becomes mt_pos_jump_flag).
+///
+/// Note: mixer volumes are *16, so adjust when setting.
 
 pub struct ModPlayer {
     name : &'static str,
@@ -128,7 +130,7 @@ impl ModPlayer {
                 //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
                 self.state[chn].n_volume = instrument.volume as u8;
                 virt.set_patch(chn, ins as usize - 1, ins as usize - 1, note as usize);
-                virt.set_volume(chn, instrument.volume);  // MOVE.W  D0,8(A5)        ; Set volume
+                virt.set_volume(chn, instrument.volume << 4);  // MOVE.W  D0,8(A5)        ; Set volume
             }
 
             // mt_SetRegs
@@ -432,7 +434,7 @@ impl ModPlayer {
         }
 
         // mt_TremoloOk
-        virt.set_volume(chn, volume as usize);  // MOVE.W  D0,8(A5)
+        virt.set_volume(chn, (volume as usize) << 4);  // MOVE.W  D0,8(A5)
         state.n_tremolopos = state.n_tremolopos.wrapping_add((state.n_tremolocmd >> 2) & 0x3c);
     }
 
@@ -459,7 +461,7 @@ impl ModPlayer {
         if state.n_volume > 0x40 {
             state.n_volume = 0x40;
         }
-        virt.set_volume(chn, state.n_volume as usize);
+        virt.set_volume(chn, (state.n_volume as usize) << 4);
     }
 
     fn mt_vol_slide_down(&mut self, chn: usize, virt: &mut Virtual) {
@@ -470,7 +472,7 @@ impl ModPlayer {
         } else {
             state.n_volume = 0;
         }
-        virt.set_volume(chn, state.n_volume as usize);
+        virt.set_volume(chn, (state.n_volume as usize) << 4);
     }
 
     fn mt_position_jump(&mut self, chn: usize) {
@@ -487,7 +489,7 @@ impl ModPlayer {
             state.n_cmdlo = 40
         }
         state.n_volume = state.n_cmdlo;
-        virt.set_volume(chn, state.n_volume as usize);  // MOVE.W  D0,8(A5)
+        virt.set_volume(chn, (state.n_volume as usize) << 4);  // MOVE.W  D0,8(A5)
     }
 
     fn mt_pattern_break(&mut self, chn: usize) {
