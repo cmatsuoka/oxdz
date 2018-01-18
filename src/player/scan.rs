@@ -3,7 +3,7 @@
 pub struct ScanRow {
     millis: u32,  // milliseconds since start of replay
     speed : u8,   // current replay speed
-    bpm   : u8,   // current replay bpm
+    tempo : u8,   // current replay tempo
     gvol  : u8,   // current global volume
 }
 

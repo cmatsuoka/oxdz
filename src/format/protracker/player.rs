@@ -691,7 +691,7 @@ impl FormatPlayer for ModPlayer {
     }
 
     fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
-        self.cia_tempo = data.bpm as u8;
+        self.cia_tempo = data.tempo as u8;
         self.mt_speed = data.speed as u8;
         self.mt_song_pos = data.pos as u8;
         self.mt_pattern_pos = data.row as u8;
@@ -708,7 +708,7 @@ impl FormatPlayer for ModPlayer {
         data.row = self.mt_pattern_pos as usize;
         data.pos = self.mt_song_pos as usize;
         data.speed = self.mt_speed as usize;
-        data.bpm = self.cia_tempo as usize;
+        data.tempo = self.cia_tempo as usize;
     }
 
     fn reset(&mut self) {

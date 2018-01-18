@@ -13,10 +13,10 @@ pub struct PlayerData {
     pub frame: usize,
     pub song : usize,
     pub speed: usize,
-    pub bpm  : usize,
+    pub tempo: usize,
 
     initial_speed: usize,
-    initial_bpm  : usize,
+    initial_tempo: usize,
 }
 
 impl PlayerData {
@@ -27,10 +27,10 @@ impl PlayerData {
             frame: 0,
             song : 0,
             speed: module.speed,
-            bpm  : module.bpm,
+            tempo: module.tempo,
 
             initial_speed: module.speed,
-            initial_bpm  : module.bpm,
+            initial_tempo: module.tempo,
         }
     }
 
@@ -40,7 +40,7 @@ impl PlayerData {
         self.frame = 0;
         self.song  = 0;
         self.speed = self.initial_speed;
-        self.bpm   = self.initial_bpm;
+        self.tempo = self.initial_tempo;
     }
 }
 
@@ -80,7 +80,7 @@ impl<'a> Player<'a> {
 
     pub fn play_frame(&mut self) -> &mut Self {
         self.format_player.play(&mut self.data, &self.module, &mut self.virt);
-        self.virt.mix(self.data.bpm);
+        self.virt.mix(self.data.tempo);
         self
     }
 
@@ -90,7 +90,7 @@ impl<'a> Player<'a> {
         info.song = self.data.song;
         info.frame = self.data.frame;
         info.speed = self.data.speed;
-        info.bpm = self.data.bpm;
+        info.tempo = self.data.tempo;
         self
     }
 
@@ -139,11 +139,11 @@ impl<'a> Player<'a> {
 
 #[derive(Default)]
 pub struct FrameInfo {
-    pub pos: usize,
-    pub row: usize,
+    pub pos  : usize,
+    pub row  : usize,
     pub frame: usize,
-    pub song: usize,
-    pub bpm: usize,
+    pub song : usize,
+    pub tempo: usize,
     pub speed: usize,
 }
 

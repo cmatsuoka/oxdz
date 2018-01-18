@@ -218,9 +218,9 @@ impl<'a> Mixer<'a> {
 
     }
 
-    pub fn mix(&mut self, bpm: usize) {
+    pub fn mix(&mut self, tempo: usize) {
 
-        self.framesize = self.rate * PAL_RATE / bpm / 100;
+        self.framesize = self.rate * PAL_RATE / tempo / 100;
 
         let mut md = MixerData{
             pos    : 0.0_f64,
