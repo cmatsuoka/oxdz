@@ -210,7 +210,7 @@ impl ModPlayer {
         let cmd = self.state[chn].n_cmd;
 
         // mt_UpdateFunk()
-        if cmd == 0 {
+        if cmd == 0 && self.state[chn].n_cmdlo == 0 {
             self.per_nop(chn, &mut virt);
             return
         }
@@ -247,15 +247,16 @@ impl ModPlayer {
             0 => {  // Arpeggio2
                      0
                  },
-            1 => {  // Arpeggio1
-                     state.n_cmdlo & 15
-                 },
-            _ => {  // Arpeggio3
+            1 => {
                      state.n_cmdlo >> 4
                  },
+            _ => {  // Arpeggio1
+                     state.n_cmdlo & 15
+                 },
         } as usize;
+        // Arpeggio3
         // Arpeggio4
-        let period = util::note_to_period(state.n_note as usize+ val, state.n_finetune, PeriodType::Amiga);
+        let period = util::note_to_period(state.n_note as usize + val, state.n_finetune, PeriodType::Amiga);
         virt.set_period(chn, period);  // MOVE.W  D2,6(A5)
     }
 
