@@ -502,7 +502,7 @@ impl ModPlayer {
     fn mt_pattern_break(&mut self, chn: usize) {
         let state = &mut self.state[chn];
         let row = (state.n_cmdlo >> 4) * 10 + (state.n_cmdlo & 0x0f);
-        if row > 63 {
+        if row <= 63 {
             // mt_pj2
             self.mt_pbreak_pos = row;
         }
