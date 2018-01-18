@@ -451,7 +451,7 @@ impl ModPlayer {
     }
 
     fn mt_volume_slide(&mut self, chn: usize, mut virt: &mut Virtual) {
-        if self.state[chn].n_cmdlo & 0xf0 == 0 {
+        if self.state[chn].n_cmdlo >> 4 == 0 {
             self.mt_vol_slide_down(chn, &mut virt);
         } else {
             self.mt_vol_slide_up(chn, &mut virt);
@@ -460,7 +460,7 @@ impl ModPlayer {
 
     fn mt_vol_slide_up(&mut self, chn: usize, virt: &mut Virtual) {
         let state = &mut self.state[chn];
-        state.n_volume += state.n_cmdlo & 0x0f;
+        state.n_volume += state.n_cmdlo >> 4;
         if state.n_volume > 0x40 {
             state.n_volume = 0x40;
         }
