@@ -452,7 +452,6 @@ impl ModPlayer {
             state.n_sampleoffset = state.n_cmdlo;
         }
         virt.set_voicepos(chn, ((state.n_sampleoffset as u32) << 8) as f64);
-
     }
 
     fn mt_volume_slide(&mut self, chn: usize, mut virt: &mut Virtual) {
@@ -502,10 +501,10 @@ impl ModPlayer {
 
     fn mt_pattern_break(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        let line = (state.n_cmdlo >> 4) * 10 + (state.n_cmdlo & 0x0f);
-        if line >= 63 {
+        let row = (state.n_cmdlo >> 4) * 10 + (state.n_cmdlo & 0x0f);
+        if row > 63 {
             // mt_pj2
-            self.mt_pbreak_pos = 0;
+            self.mt_pbreak_pos = row;
         }
         self.mt_pos_jump_flag = true;
     }
@@ -695,16 +694,11 @@ impl FormatPlayer for ModPlayer {
         self.mt_speed = data.speed as u8;
         self.mt_song_pos = data.pos as u8;
         self.mt_pattern_pos = data.row as u8;
+        self.mt_counter = data.frame as u8;
 
-        if data.frame < 1 {
-            self.mt_counter = self.mt_speed;
-        } else {
-            self.mt_counter = data.frame as u8 - 1;
-        }
-        
         self.mt_music(&module, &mut virt);
 
-        data.frame = self.mt_counter as usize + 1;
+        data.frame = self.mt_counter as usize;
         data.row = self.mt_pattern_pos as usize;
         data.pos = self.mt_song_pos as usize;
         data.speed = self.mt_speed as usize;
