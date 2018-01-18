@@ -451,7 +451,7 @@ impl ModPlayer {
         if state.n_cmdlo != 0 {
             state.n_sampleoffset = state.n_cmdlo;
         }
-        virt.set_voicepos(chn, (state.n_sampleoffset << 7) as f64);
+        virt.set_voicepos(chn, ((state.n_sampleoffset as u32) << 8) as f64);
 
     }
 
