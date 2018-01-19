@@ -32,6 +32,7 @@ pub enum PeriodType {
 
 #[derive(Debug)]
 pub enum Error {
+    //Format(&'static str),
     Format(&'static str),
     Load(&'static str),
     Io(io::Error),

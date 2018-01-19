@@ -4,6 +4,7 @@ use module::Module;
 use player::{PlayerData, Virtual};
 
 mod protracker;
+mod scream_tracker_2;
 
 // Trait for module formats
 
@@ -31,7 +32,8 @@ impl fmt::Debug for FormatPlayer {
 
 pub fn list() -> Vec<Box<ModuleFormat>> {
     vec![
-        Box::new(protracker::Mod::new())
+        Box::new(protracker::Mod::new()),
+        Box::new(scream_tracker_2::Stm::new()),
     ]
 }
 
