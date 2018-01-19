@@ -1,9 +1,7 @@
 use module::Module;
 use format::FormatPlayer;
 use player::{PlayerData, Virtual};
-use format::protracker::{ModPatterns, ModInstrument};
-use util;
-use ::*;
+use format::protracker::{ModPatterns, ModInstrument, PeriodTable};
 
 /// Vinterstigen PT2.1A Replayer
 ///
@@ -14,9 +12,6 @@ use ::*;
 ///
 /// Notes:
 /// * Mixer volumes are *16, so adjust when setting.
-/// * Periods are not Protracker-accurate, we're using "exact" floating point values
-///   instead of the approximate value table. An option to use the Protracker table
-///   will be added later.
 /// * Pattern periods are decoded beforehand and stored as a note value.
 /// * Pattern instruments are decoded beforehand and stored in channel state.
 /// * CIA tempo support added to the original PT2.1A set speed command.
@@ -138,7 +133,7 @@ impl ModPlayer {
                     //state.n_start = sample.loop_start;
                     //state.n_length = sample.size;
                     //state.n_reallength = sample.size;
-                    state.n_finetune = subins.finetune;
+                    state.n_finetune = subins.finetune as i8;
                     //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
                     state.n_volume = instrument.volume as u8;
                     virt.set_patch(chn, ins as usize - 1, ins as usize - 1, note as usize);
@@ -179,7 +174,7 @@ impl ModPlayer {
     fn mt_set_period(&mut self, chn: usize, mut virt: &mut Virtual) {
         {
             let state = &mut self.state[chn];
-            let period = util::note_to_period(state.n_note as usize, state.n_finetune, PeriodType::Amiga);
+            let period = PeriodTable::note_to_period(state.n_note, state.n_finetune);
             state.n_period = period;
     
             if state.n_cmd != 0x0e || (state.n_cmdlo & 0xf0) != 0xd0 {  // !Notedelay
@@ -229,7 +224,7 @@ impl ModPlayer {
             0xe => self.mt_e_commands(chn, &mut virt),
             _   => {
                        // SetBack
-                       virt.set_period(chn, self.state[chn].n_period);  // MOVE.W  n_period(A6),6(A5)
+                       virt.set_period(chn, self.state[chn].n_period as f64);  // MOVE.W  n_period(A6),6(A5)
                        match cmd {
                            0x7 => self.mt_tremolo(chn, &mut virt),
                            0xa => self.mt_volume_slide(chn, &mut virt),
@@ -241,7 +236,7 @@ impl ModPlayer {
 
     fn per_nop(&self, chn: usize, virt: &mut Virtual) {
         let period = self.state[chn].n_period;
-        virt.set_period(chn, period);  // MOVE.W  n_period(A6),6(A5)
+        virt.set_period(chn, period as f64);  // MOVE.W  n_period(A6),6(A5)
     }
 
     fn mt_arpeggio(&mut self, chn: usize, virt: &mut Virtual) {
@@ -256,12 +251,12 @@ impl ModPlayer {
             _ => {
                      state.n_cmdlo >> 4
                  },
-        } as usize;
+        } as u8;
         // Arpeggio3
         // Arpeggio4
-        let note = util::period_to_note(state.n_period.round() as u32);
-        let period = util::note_to_period(note + val, state.n_finetune, PeriodType::Amiga);
-        virt.set_period(chn, period);  // MOVE.W  D2,6(A5)
+        let note = PeriodTable::period_to_note(state.n_period, state.n_finetune);
+        let period = PeriodTable::note_to_period(note + val, state.n_finetune);
+        virt.set_period(chn, period as f64);  // MOVE.W  D2,6(A5)
     }
 
     fn mt_fine_porta_up(&mut self, chn: usize, mut virt: &mut Virtual) {
@@ -274,12 +269,12 @@ impl ModPlayer {
 
     fn mt_porta_up(&mut self, chn: usize, virt: &mut Virtual) {
         let state = &mut self.state[chn];
-        state.n_period -= (state.n_cmdlo & self.mt_low_mask) as f64;
+        state.n_period -= (state.n_cmdlo & self.mt_low_mask) as u16;
         self.mt_low_mask = 0xff;
-        if state.n_period < 113.0 {
-            state.n_period = 113.0;
+        if state.n_period < 113 {
+            state.n_period = 113;
         }
-        virt.set_period(chn, state.n_period);  // MOVE.W  n_period(A6),6(A5)
+        virt.set_period(chn, state.n_period as f64);  // MOVE.W  n_period(A6),6(A5)
     }
 
     fn mt_fine_porta_down(&mut self, chn: usize, mut virt: &mut Virtual) {
@@ -292,23 +287,22 @@ impl ModPlayer {
 
     fn mt_porta_down(&mut self, chn: usize, virt: &mut Virtual) {
         let state = &mut self.state[chn];
-        state.n_period += (state.n_cmdlo & self.mt_low_mask) as f64;
+        state.n_period += (state.n_cmdlo & self.mt_low_mask) as u16;
         self.mt_low_mask = 0xff;
-        if state.n_period > 856.0 {
-            state.n_period = 856.0;
+        if state.n_period > 856 {
+            state.n_period = 856;
         }
-        virt.set_period(chn, state.n_period);  // MOVE.W  D0,6(A5)
+        virt.set_period(chn, state.n_period as f64);  // MOVE.W  D0,6(A5)
     }
 
     fn mt_set_tone_porta(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        let wantedperiod = util::note_to_period(state.n_note as usize, state.n_finetune, PeriodType::Amiga);
-        state.n_wantedperiod = Some(wantedperiod);
-        state.n_toneportdirec = state.n_period < wantedperiod;
+        state.n_wantedperiod = PeriodTable::note_to_period(state.n_note, state.n_finetune);
+        state.n_toneportdirec = state.n_period < state.n_wantedperiod;
     }
 
     fn mt_clear_tone_porta(&mut self, chn: usize) {
-        self.state[chn].n_wantedperiod = None;
+        self.state[chn].n_wantedperiod = 0;
     }
 
     fn mt_tone_portamento(&mut self, chn: usize, mut virt: &mut Virtual) {
@@ -324,27 +318,29 @@ impl ModPlayer {
 
     fn mt_tone_port_no_change(&mut self, chn: usize, virt: &mut Virtual) {
         let state = &mut self.state[chn];
-        let wantedperiod = try_option!(state.n_wantedperiod);
+        if state.n_wantedperiod == 0 {
+            return;
+        }
         if state.n_toneportdirec {
             // mt_TonePortaDown
-            state.n_period += state.n_toneportspeed as f64;
-            if state.n_period > wantedperiod {
-                state.n_period = wantedperiod;
-                state.n_wantedperiod = None;
+            state.n_period += state.n_toneportspeed as u16;
+            if state.n_period > state.n_wantedperiod {
+                state.n_period = state.n_wantedperiod;
+                state.n_wantedperiod = 0;
             }
         } else {
             // mt_TonePortaUp
-            state.n_period -= state.n_toneportspeed as f64;
-            if state.n_period < wantedperiod {
-                state.n_period = wantedperiod;
-                state.n_wantedperiod = None;
+            state.n_period -= state.n_toneportspeed as u16;
+            if state.n_period < state.n_wantedperiod {
+                state.n_period = state.n_wantedperiod;
+                state.n_wantedperiod = 0;
             }
         }
         // mt_TonePortaSetPer
         if state.n_glissfunk & 0x0f != 0 {
         }
         // mt_GlissSkip
-        virt.set_period(chn, state.n_period);
+        virt.set_period(chn, state.n_period as f64);
     }
 
     fn mt_vibrato(&mut self, chn: usize, mut virt: &mut Virtual) {
@@ -383,13 +379,13 @@ impl ModPlayer {
         let mut period = state.n_period;
         let amt = (val as usize * (state.n_vibratocmd & 15) as usize) >> 7;
         if state.n_vibratopos & 0x80 == 0 {
-            period += amt as f64
+            period += amt as u16
         } else {
-            period -= amt as f64
+            period -= amt as u16
         };
 
         // mt_Vibrato3
-        virt.set_period(chn, period);
+        virt.set_period(chn, period as f64);
         state.n_vibratopos = state.n_vibratopos.wrapping_add((state.n_vibratocmd >> 2) & 0x3c);
     }
 
@@ -582,7 +578,7 @@ impl ModPlayer {
 
     fn mt_set_finetune(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        state.n_finetune = ((state.n_cmdlo << 4) as i8) as isize;
+        state.n_finetune = (state.n_cmdlo << 4) as i8;
     }
 
     fn mt_jump_loop(&mut self, chn: usize) {
@@ -732,12 +728,12 @@ struct ChannelData {
     n_ins          : u8,     // not in PT2.1A
     n_cmd          : u8,
     n_cmdlo        : u8,
-    n_period       : f64,    // u16
-    n_finetune     : isize,  // i8
+    n_period       : u16,
+    n_finetune     : i8,
     n_volume       : u8,
     n_toneportdirec: bool,
     n_toneportspeed: u8,
-    n_wantedperiod : Option<f64>,
+    n_wantedperiod : u16,
     n_vibratocmd   : u8,
     n_vibratopos   : u8,
     n_tremolocmd   : u8,

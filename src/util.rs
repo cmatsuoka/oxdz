@@ -23,6 +23,17 @@ macro_rules! try_option {
     }
 }
 
+#[macro_export]
+macro_rules! clamp {
+    ( $a:ident, $min:expr, $max:expr ) => {
+        if $a < $min {
+            $a = $min
+        } else if $a > $max {
+            $a = $max
+        }
+    }
+}
+
 
 pub trait BinaryRead {
     fn read_string(&self, ofs: usize, size: usize) -> Result<String, Error>;
