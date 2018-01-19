@@ -424,7 +424,7 @@ impl MixerData {
         let mut frac = ((1 << SMIX_SHIFT) as f64 * (self.pos - pos as f64)) as usize;
         let mut bpos = self.buf_pos;
 
-        for n in 0..self.size {
+        for _ in 0..self.size {
             let i = &data[pos-1..pos+2];
 
             let smp = match interp {

@@ -113,7 +113,7 @@ impl ModPlayer {
             let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
             // mt_PlayVoice
-            if { let e = &self.state[chn]; e.n_note == 0 && e.n_ins == 0 && e.n_cmd == 0 && e.n_cmdlo == 0 } {  // TST.L   (A6)
+            if { let e = &self.state[chn]; e.n_note | e.n_ins | e.n_cmd | e.n_cmdlo == 0 } {  // TST.L   (A6)
                 self.per_nop(chn, &mut virt);
             }
 
