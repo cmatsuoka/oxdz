@@ -14,6 +14,19 @@ const LIM16_HI     : i32 = 32767;
 const LIM16_LO     : i32 = -32768;
 const DOWNMIX_SHIFT: usize = 10;
 
+macro_rules! try_voice {
+    ( $a:expr, $b: expr ) => {
+        if $a >= $b.len() {
+            return
+        }
+    };
+    ( $a:expr, $b:expr, $c:expr ) => {
+        if $a >= $b.len() {
+            return $c
+        }
+    };
+}
+
 
 pub struct Mixer<'a> {
 
@@ -88,35 +101,26 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn set_voice(&mut self, num: usize, chn: usize) {
-        if num < self.voices.len() {
-            self.voices[num].chn = Some(chn);
-            self.voices[num].root = Some(chn);
-        }
+        try_voice!(num, self.voices);
+        self.voices[num].chn = Some(chn);
+        self.voices[num].root = Some(chn);
     }
 
     pub fn voice_root(&self, voice: usize) -> Option<usize> {
-        if voice >= self.voices.len() {
-            None
-        } else {
-            self.voices[voice].root
-        }
+        try_voice!(voice, self.voices, None);
+        self.voices[voice].root
     }
 
     pub fn voice_chn(&self, voice: usize) -> Option<usize> {
-        if voice >= self.voices.len() {
-            None
-        } else {
-            self.voices[voice].chn
-        }
+        try_voice!(voice, self.voices, None);
+        self.voices[voice].chn
     }
 
     pub fn reset_voice(&self, voice: usize) {
     }
 
     pub fn voicepos(&self, voice: usize) -> f64 {
-        if voice >= self.voices.len() {
-            return 0_f64
-        }
+        try_voice!(voice, self.voices, 0_f64);
 
         let v = &self.voices[voice];
         let sample = &self.sample[v.smp];
@@ -129,9 +133,7 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn set_voicepos(&mut self, voice: usize, pos: f64, ac: bool) {
-        if voice >= self.voices.len() {
-            return
-        }
+        try_voice!(voice, self.voices);
 
         let v = &mut self.voices[voice];
         v.pos = pos;
@@ -156,9 +158,7 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn set_note(&mut self, voice: usize, mut note: usize) {
-        if voice >= self.voices.len() {
-            return
-        }
+        try_voice!(voice, self.voices);
 
         // FIXME: Workaround for crash on notes that are too high
         //        see 6nations.it (+114 transposition on instrument 16)
@@ -171,33 +171,22 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn set_volume(&mut self, voice: usize, vol: usize) {
-        if voice >= self.voices.len() {
-            return
-        }
-
+        try_voice!(voice, self.voices);
         self.voices[voice].vol = vol;
     }
 
     pub fn set_pan(&mut self, voice: usize, pan: isize) {
-        if voice >= self.voices.len() {
-            return
-        }
-
+        try_voice!(voice, self.voices);
         self.voices[voice].pan = pan;
     }
 
     pub fn set_period(&mut self, voice: usize, period: f64) {
-        if voice >= self.voices.len() {
-            return
-        }
-
+        try_voice!(voice, self.voices);
         self.voices[voice].period = period;
     }
 
     pub fn set_patch(&mut self, voice: usize, ins: usize, smp: usize, ac: bool) {
-        if voice >= self.voices.len() {
-            return
-        }
+        try_voice!(voice, self.voices);
 
         self.set_voicepos(voice, 0.0, ac);
 
