@@ -718,7 +718,6 @@ impl FormatPlayer for ModPlayer {
         self.mt_patt_del_time_2 = 0;
         self.mt_pattern_pos     = 0;
     }
-
 }
 
 

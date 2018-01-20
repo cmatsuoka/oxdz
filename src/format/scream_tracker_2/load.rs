@@ -22,10 +22,23 @@ impl Stm {
         let mut ins = Instrument::new();
         let mut smp = Sample::new();
 
+        let ofs = 48 + i * 32;
+        ins.num = i + 1;
+        smp.num = i + 1;;
+        ins.name = b.read_string(ofs, 12)?;
+        smp.size = b.read16l(ofs + 16)? as usize;
+        smp.loop_start = b.read16l(ofs + 18)? as usize;
+        smp.loop_end = b.read16l(ofs + 20)? as usize;
+        ins.volume = b.read8(ofs + 22)? as usize;
+        smp.rate = b.read16l(ofs + 24)? as f64;
+
+        if smp.loop_end == 0xffff {
+            smp.loop_end = 0;
+        }
+
         let mut sub = StmInstrument::new();
         sub.smp_num = i;
 
-        smp.rate = util::C4_PAL_RATE;
         if smp.size > 0 {
             smp.sample_type = SampleType::Sample8;
         }
@@ -70,32 +83,29 @@ impl ModuleFormat for Stm {
             return Err(Error::Format("unsupported version"));
         }
 
-        let tempo = b.read8(32);
-        let num_patterns = b.read8(33);
-        let global_vol = b.read8(34);
+        let tempo = b.read8(32)?;
+        let num_patterns = b.read8(33)? as usize;
+        let global_vol = b.read8(34)?;
 
         let mut ins_list = Vec::<Instrument>::new();
         let mut smp_list = Vec::<Sample>::new();
 
         // Load instruments
-        for i in 0..32 {
+        for i in 0..31 {
             let (ins, smp) = try!(self.load_instrument(b, i));
             ins_list.push(ins);
             smp_list.push(smp);
         }
 
-/*
         // Load orders
-        let len = b.read8(950)? as usize;
-        let rst = b.read8(951)?;
-        let ord = StmOrders::from_slice(rst, b.slice(952, len)?);
-        let pat = ord.num_patterns();
+        let ord = StmOrders::from_slice(b.slice(1040, 128)?);
+        let len = ord.len(num_patterns);
 
         // Load patterns
-        let patterns = StmPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
+        let patterns = StmPatterns::from_slice(num_patterns as usize, b.slice(1168, 1024*num_patterns)?)?;
 
-        // Load samples (sample size is set when loading instruments)
-        let mut ofs = 1084 + 1024*pat;
+        // Load samples
+        let mut ofs = 1084 + 1024*num_patterns;
         for i in 0..31 {
             let size = smp_list[i].size as usize;
             if size > 0 {
@@ -119,9 +129,6 @@ impl ModuleFormat for Stm {
         let player = StmPlayer::new(&m);
 
         Ok((m, Box::new(player)))
-*/
-        
-        Err(Error::Format("incomplete loader"))
     }
 }
 
@@ -142,8 +149,8 @@ impl StmPatterns {
             for r in 0..64 {
                 for c in 0..4 {
                     let ofs = p * 1024 + r * 16 + c * 4;
-                    //let e = StmEvent::from_slice(b.slice(ofs, 4)?);
-                    //pat.data.push(e);
+                    let e = StmEvent::from_slice(b.slice(ofs, 4)?);
+                    pat.data.push(e);
                 }
             }
         }
@@ -199,25 +206,25 @@ impl Patterns for StmPatterns {
 
 
 struct StmOrders {
-    rstpos: usize,
     orders: Vec<u8>,
     songs : Vec<u8>,  // vector of song entry points
 }
 
 impl StmOrders {
-    fn from_slice(r: u8, o: &[u8]) -> Self {
-        
-        let mut r = r as usize;
-
-        if r >= o.len() {
-            r = 0;
-        }
-
+    fn from_slice(o: &[u8]) -> Self {
         StmOrders {
-            rstpos: r,
             orders: o.to_vec(),
             songs : Vec::new(),
         }
+    }
+
+    fn len(&self, pat: usize) -> usize {
+        for (i, n) in self.orders.iter().enumerate() {
+            if *n > pat as u8 {
+                return i
+            }
+        }
+        self.orders.len()
     }
 
     fn num_patterns(&self) -> usize {
@@ -233,7 +240,7 @@ impl Orders for StmOrders {
     }
 
     fn restart_position(&mut self) -> usize {
-        self.rstpos
+        0
     }
 
     fn pattern(&self, pos: usize) -> usize {

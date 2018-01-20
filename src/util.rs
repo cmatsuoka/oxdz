@@ -1,4 +1,4 @@
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use Error;
 use ::*;
 
@@ -39,6 +39,8 @@ pub trait BinaryRead {
     fn read_string(&self, ofs: usize, size: usize) -> Result<String, Error>;
     fn read32b(&self, ofs: usize) -> Result<u32, Error>;
     fn read16b(&self, ofs: usize) -> Result<u16, Error>;
+    fn read32l(&self, ofs: usize) -> Result<u32, Error>;
+    fn read16l(&self, ofs: usize) -> Result<u16, Error>;
     fn read8(&self, ofs: usize) -> Result<u8, Error>;
     fn read8i(&self, ofs: usize) -> Result<i8, Error>;
     fn slice(&self, start: usize, size: usize) -> Result<&[u8], Error>;
@@ -58,6 +60,16 @@ impl<'a> BinaryRead for &'a [u8] {
     fn read16b(&self, ofs: usize) -> Result<u16, Error> {
         try!(check_buffer_size(&self, ofs + 2));
         Ok(BigEndian::read_u16(&self[ofs..ofs+2]))
+    }
+
+    fn read32l(&self, ofs: usize) -> Result<u32, Error> {
+        try!(check_buffer_size(&self, ofs + 4));
+        Ok(LittleEndian::read_u32(&self[ofs..ofs+4]))
+    }
+
+    fn read16l(&self, ofs: usize) -> Result<u16, Error> {
+        try!(check_buffer_size(&self, ofs + 2));
+        Ok(LittleEndian::read_u16(&self[ofs..ofs+2]))
     }
 
     fn read8(&self, ofs: usize) -> Result<u8, Error> {

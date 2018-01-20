@@ -15,13 +15,32 @@ pub struct StmPlayer {
 impl StmPlayer {
     pub fn new(module: &Module) -> Self {
         StmPlayer {
-            name : r#""Vinterstigen" 0.1 PT2.1A replayer"#,
+            name : "st2play",
             state: vec![ST2Channel::new(); module.chn],
-
         }
     }
 }
 
+const LFO_TABLE: &'static[i16] = [
+       0,   24,   49,   74,   97,  120,  141,  161,  180,  197,  212,  224,  235,  244,  250,  253,
+     255,  253,  250,  244,  235,  224,  212,  197,  180,  161,  141,  120,   97,   74,   49,   24,
+       0,  -24,  -49,  -74,  -97, -120, -141, -161, -180, -197, -212, -224, -235, -244, -250, -253,
+    -255, -253, -250, -244, -235, -224, -212, -197, -180, -161, -141, -120,  -97,  -74,  -49,  -24,
+       0
+];
+
+
+impl FormatPlayer for StmPlayer {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+
+    fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
+    }
+
+    fn reset(&mut self) {
+    }
+}
 
 #[derive(Default,Clone)]
 struct ST2Channel {
@@ -59,3 +78,4 @@ impl ST2Channel {
         Default::default()
     }
 }
+

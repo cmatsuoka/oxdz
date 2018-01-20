@@ -34,13 +34,42 @@ impl SubInstrument for StmInstrument {
 }
 
 
-/// StmEvent defines the event format used in Protracker patterns.
+/// StmEvent defines the event format used in Scream Tracker 2 patterns.
+#[derive(Default)]
 pub struct StmEvent {
     pub note    : u8,
     pub volume  : u8,
     pub smp     : u8,
     pub cmd     : u8,
     pub infobyte: u8,
+}
+
+impl StmEvent {
+    fn new() -> Self {
+        Default::default()
+    }
+
+    fn from_slice(b: &[u8]) -> Self {
+        let mut e = StmEvent::new();
+
+        if b[0] != 251 && b[0] != 252 && b[0] != 253 {
+            e.note = if b[0] == 255 {
+                0
+            } else {
+                1 + (b[0]&0x0f) + 12*(3 + (b[0]>>4))
+            };
+            e.volume = (b[1] & 0x07) | (b[2] & 0xf0) >> 1;
+            if e.volume > 0x40 {
+                e.volume = 0x40;
+            } else {
+                e.volume += 1;
+            }
+            e.smp = (b[1] & 0xf8) >> 3;
+            e.cmd = b[2] & 0x0f;
+            e.infobyte = b[3];
+        }
+        e
+    }
 }
 
 impl fmt::Display for StmEvent {
