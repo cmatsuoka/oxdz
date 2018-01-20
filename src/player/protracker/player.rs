@@ -678,7 +678,7 @@ impl ModPlayer {
         self.mt_patt_del_time = state.n_cmdlo & 0x0f + 1;
     }
 
-    fn mt_funk_it(&self, chn: usize, mut virt: &mut Virtual) {
+    fn mt_funk_it(&self, _chn: usize, _virt: &mut Virtual) {
     }
 }
 

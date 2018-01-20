@@ -6,7 +6,6 @@ mod st2;
 pub use player::virt::Virtual;
 pub use mixer::Mixer;
 
-use std::fmt;
 use module::Module;
 use ::*;
 

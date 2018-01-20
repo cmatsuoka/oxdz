@@ -1,11 +1,9 @@
 use std::any::Any;
-use std::cmp::max;
 use Error;
-use format::ModuleFormat;
+use format::{ModuleFormat, StdOrders};
 use format::mk::{ModEvent, ModInstrument};
-use module::{Module, Sample, Instrument, Orders, Patterns, Event};
+use module::{Module, Sample, Instrument, Patterns, Event};
 use module::sample::SampleType;
-use player::PlayerData;
 use util::{self, BinaryRead};
 
 /// Protracker module loader
@@ -56,7 +54,6 @@ impl ModuleFormat for Mod {
     fn name(&self) -> &'static str {
         "Protracker MOD"
     }
-
   
     fn probe(&self, b: &[u8]) -> Result<(), Error> {
         if b.len() < 1084 {
@@ -86,7 +83,7 @@ impl ModuleFormat for Mod {
         // Load orders
         let len = b.read8(950)? as usize;
         let rst = b.read8(951)?;
-        let ord = ModOrders::from_slice(rst, b.slice(952, len)?);
+        let ord = StdOrders::from_slice(rst, b.slice(952, len)?);
         let pat = ord.num_patterns();
 
         // Load patterns
@@ -190,81 +187,3 @@ impl Patterns for ModPatterns {
         e
     }
 }
-
-
-struct ModOrders {
-    rstpos: usize,
-    orders: Vec<u8>,
-    songs : Vec<u8>,  // vector of song entry points
-}
-
-impl ModOrders {
-    fn from_slice(r: u8, o: &[u8]) -> Self {
-        
-        let mut r = r as usize;
-
-        if r >= o.len() {
-            r = 0;
-        }
-
-        ModOrders {
-            rstpos: r,
-            orders: o.to_vec(),
-            songs : Vec::new(),
-        }
-    }
-
-    fn num_patterns(&self) -> usize {
-        let mut num = 0;
-        self.orders.iter().for_each(|x| num = max(*x as usize, num));
-        num + 1
-    }
-}
-
-impl Orders for ModOrders {
-    fn num(&self, song: usize) -> usize {
-        self.orders.len()
-    }
-
-    fn restart_position(&mut self) -> usize {
-        self.rstpos
-    }
-
-    fn pattern(&self, pos: usize) -> usize {
-        self.orders[pos] as usize
-    }
-
-    fn next(&self, data: &mut PlayerData) -> usize {
-        if data.pos < self.num(data.song) - 1 {
-            data.pos += 1;
-        }
-        data.pos
-    }
-
-    fn prev(&self, data: &mut PlayerData) -> usize {
-        if data.pos > 0 {
-            data.pos -= 1;
-        }
-        data.pos
-    }
-
-    fn num_songs(&self) -> usize {
-        self.songs.len()
-    }
-
-    fn next_song(&self, data: &mut PlayerData) -> usize {
-        if data.song < self.num_songs() - 1 {
-            data.song += 1;
-        }
-        data.song
-    }
-
-    fn prev_song(&self, data: &mut PlayerData) -> usize {
-        if data.song > 0 {
-            data.song -= 1;
-        }
-        data.song
-    }
-}
-
-

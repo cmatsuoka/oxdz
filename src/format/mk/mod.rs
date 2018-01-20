@@ -152,13 +152,13 @@ impl PeriodTable {
         fine as usize
     }
 
-    pub fn note_to_period(mut note: u8, mut fine: i8) -> u16 {
+    pub fn note_to_period(mut note: u8, fine: i8) -> u16 {
         clamp!(note, 48, 83);
         note -= 48;
         Self::MT_PERIOD_TABLE[Self::finetune(fine) * 36 + note as usize]
     }
 
-    pub fn period_to_note(period: u16, mut fine: i8) -> u8 {
+    pub fn period_to_note(period: u16, fine: i8) -> u8 {
         if period == 0 {
             return 0;
         }
