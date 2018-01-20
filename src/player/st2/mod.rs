@@ -11,7 +11,7 @@ impl PlayerListEntry for St2 {
           id         : "st2",
           name       : "st2play replayer",
           description: "An accurate port of the Scream Tracker 2.xx replayer",
-          author     : "",
+          author     : r#"Sergei "x0r" Kolzun, Claudio Matsuoka"#,
           accepts    : &[ "stm" ],
        }
    }

@@ -6,7 +6,7 @@ use format::stm::{StmInstrument, StmEvent};
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use module::sample::SampleType;
 use player::PlayerData;
-use util::{self, BinaryRead};
+use util::BinaryRead;
 
 /// Scream Tracker 2 module loader
 pub struct Stm;
@@ -152,8 +152,8 @@ impl StmPatterns {
         Ok(pat)
     }
 
-    pub fn event(&self, pat: usize, row: u8, chn: usize) -> &StmEvent {
-        &self.data[pat * 256 + row as usize * 4 + chn]
+    pub fn event(&self, pat: u16, row: u16, chn: usize) -> &StmEvent {
+        &self.data[pat as usize * 256 + row as usize * 4 + chn]
     }
 }
 
