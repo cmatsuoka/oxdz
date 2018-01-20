@@ -1,8 +1,6 @@
 pub mod load;
-pub mod player;
 
 pub use self::load::*;
-pub use self::player::*;
 
 use std::any::Any;
 use std::fmt;
@@ -75,7 +73,7 @@ impl fmt::Display for ModEvent {
 
 
 /// Protracker period table.
-struct PeriodTable;
+pub struct PeriodTable;
 
 impl PeriodTable {
     const MT_PERIOD_TABLE: &'static [u16] = &[
@@ -154,13 +152,13 @@ impl PeriodTable {
         fine as usize
     }
 
-    fn note_to_period(mut note: u8, mut fine: i8) -> u16 {
+    pub fn note_to_period(mut note: u8, mut fine: i8) -> u16 {
         clamp!(note, 48, 83);
         note -= 48;
         Self::MT_PERIOD_TABLE[Self::finetune(fine) * 36 + note as usize]
     }
 
-    fn period_to_note(period: u16, mut fine: i8) -> u8 {
+    pub fn period_to_note(period: u16, mut fine: i8) -> u8 {
         if period == 0 {
             return 0;
         }

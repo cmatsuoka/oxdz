@@ -1,43 +1,28 @@
 use std::fmt;
 use Error;
 use module::Module;
-use player::{PlayerData, Virtual};
+use player::{PlayerData, Virtual, FormatPlayer};
 
-mod protracker;
-mod scream_tracker_2;
+pub mod mk;
+pub mod stm;
 
 // Trait for module formats
 
 pub trait ModuleFormat {
     fn name(&self) -> &'static str;
     fn probe(&self, &[u8]) -> Result<(), Error>;
-    fn load(self: Box<Self>, &[u8]) -> Result<(Module, Box<FormatPlayer>), Error>;
-}
-
-
-// Trait for format-specific players
-
-pub trait FormatPlayer {
-    fn name(&self) -> &'static str;
-    fn play(&mut self, &mut PlayerData, &Module, &mut Virtual);
-    fn reset(&mut self);
-}
-
-impl fmt::Debug for FormatPlayer {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "player: {}", self.name())
-    }
+    fn load(self: Box<Self>, &[u8]) -> Result<Module, Error>;
 }
 
 
 pub fn list() -> Vec<Box<ModuleFormat>> {
     vec![
-        Box::new(protracker::Mod::new()),
-        Box::new(scream_tracker_2::Stm::new()),
+        Box::new(mk::Mod),
+        Box::new(stm::Stm),
     ]
 }
 
-pub fn load(b: &[u8]) -> Result<(Module, Box<FormatPlayer>), Error> {
+pub fn load(b: &[u8]) -> Result<Module, Error> {
 
     for f in list() {
         println!("Probing format: {}", f.name());

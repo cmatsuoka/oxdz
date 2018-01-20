@@ -53,14 +53,17 @@ impl fmt::Debug for Patterns {
 
 #[derive(Debug)]
 pub struct Module {
-    pub title     : String,             // module title
-    pub chn       : usize,              // number of channels
-    pub speed     : usize,              // initial speed (frames per row)
-    pub tempo     : usize,              // initial tempo (frame duration)
-    pub instrument: Vec<Instrument>,
-    pub sample    : Vec<Sample>,
-    pub orders    : Box<Orders>,
-    pub patterns  : Box<Patterns>,
+    pub format     : &'static str,       // format identifier
+    pub description: String,             // format description
+    pub player     : &'static str,       // primary player for this format
+    pub title      : String,             // module title
+    pub chn        : usize,              // number of channels
+    pub speed      : usize,              // initial speed (frames per row)
+    pub tempo      : usize,              // initial tempo (frame duration)
+    pub instrument : Vec<Instrument>,
+    pub sample     : Vec<Sample>,
+    pub orders     : Box<Orders>,
+    pub patterns   : Box<Patterns>,
 }
 
 impl Module {

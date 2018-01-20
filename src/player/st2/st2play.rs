@@ -1,27 +1,24 @@
 use module::Module;
-use format::FormatPlayer;
-use player::{PlayerData, Virtual};
-use format::scream_tracker_2::{StmPatterns, StmInstrument};
+use player::{PlayerData, Virtual, FormatPlayer};
+use format::stm::{StmPatterns, StmInstrument};
 
 /// ST2Play Scream Tracker 2 replayer
 ///
 /// An oxdz player based on st2play written by Sergei "x0r" Kolzun
 
-pub struct StmPlayer {
-    name : &'static str,
+pub struct St2Play {
     state: Vec<ST2Channel>,
 }
 
-impl StmPlayer {
+impl St2Play {
     pub fn new(module: &Module) -> Self {
-        StmPlayer {
-            name : "st2play",
+        St2Play {
             state: vec![ST2Channel::new(); module.chn],
         }
     }
 }
 
-const LFO_TABLE: &'static[i16] = [
+const LFO_TABLE: &'static[i16] = &[
        0,   24,   49,   74,   97,  120,  141,  161,  180,  197,  212,  224,  235,  244,  250,  253,
      255,  253,  250,  244,  235,  224,  212,  197,  180,  161,  141,  120,   97,   74,   49,   24,
        0,  -24,  -49,  -74,  -97, -120, -141, -161, -180, -197, -212, -224, -235, -244, -250, -253,
@@ -30,11 +27,7 @@ const LFO_TABLE: &'static[i16] = [
 ];
 
 
-impl FormatPlayer for StmPlayer {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-
+impl FormatPlayer for St2Play {
     fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
     }
 

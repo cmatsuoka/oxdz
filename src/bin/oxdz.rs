@@ -43,7 +43,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     let file = try!(File::open(name));
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
-    let (module, format_player) = try!(format::load(&mmap[..]));
+    let module = try!(format::load(&mmap[..]));
     println!("Title: {}", module.title);
 
     println!("Instruments:");
@@ -58,7 +58,14 @@ fn run(name: &String) -> Result<(), Box<Error>> {
             if smp.has_loop { 'L' } else { ' ' });
     }
 
-    let mut player = player::Player::new(&module, format_player);
+    println!("Default player for this format: {}", module.player);
+    println!("Available players:");
+    for p in player::Player::list() {
+        let info = p.info();
+        println!("{:5} {:40} {:?}", info.id, info.name, info.accepts);
+    }
+
+    let mut player = player::Player::find_player(&module, module.player)?;
 
     println!("Length: {}", module.orders.num(0));
     println!("Patterns: {}", module.patterns.num());

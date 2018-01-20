@@ -1,9 +1,8 @@
 use module::Module;
-use format::FormatPlayer;
-use player::{PlayerData, Virtual};
-use format::protracker::{ModPatterns, ModInstrument, PeriodTable};
+use player::{PlayerData, Virtual, FormatPlayer};
+use format::mk::{ModPatterns, ModInstrument, PeriodTable};
 
-/// Vinterstigen PT2.1A Replayer
+/// PT2.1A Replayer
 ///
 /// An oxdz player based on the Protracker V2.1A play routine written by Peter
 /// "CRAYON" Hanning / Mushroom Studios in 1992. Original names are used whenever
@@ -17,7 +16,6 @@ use format::protracker::{ModPatterns, ModInstrument, PeriodTable};
 /// * CIA tempo support added to the original PT2.1A set speed command.
 
 pub struct ModPlayer {
-    name : &'static str,
     state: Vec<ChannelData>,
 
     mt_speed          : u8,
@@ -36,7 +34,6 @@ pub struct ModPlayer {
 impl ModPlayer {
     pub fn new(module: &Module) -> Self {
         ModPlayer {
-            name : r#""Vinterstigen" 0.1 PT2.1A replayer"#,
             state: vec![ChannelData::new(); module.chn],
 
             mt_speed          : 6,
@@ -686,10 +683,6 @@ impl ModPlayer {
 }
 
 impl FormatPlayer for ModPlayer {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-
     fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
         self.cia_tempo = data.tempo as u8;
         self.mt_speed = data.speed as u8;

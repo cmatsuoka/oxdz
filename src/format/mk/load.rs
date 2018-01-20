@@ -1,44 +1,40 @@
 use std::any::Any;
 use std::cmp::max;
 use Error;
-use format::{ModuleFormat, FormatPlayer};
-use format::scream_tracker_2::{StmPlayer, StmInstrument, StmEvent};
+use format::ModuleFormat;
+use format::mk::{ModEvent, ModInstrument};
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use module::sample::SampleType;
 use player::PlayerData;
 use util::{self, BinaryRead};
 
-/// Scream Tracker 2 module loader
-pub struct Stm {
-    name: &'static str,
-}
+/// Protracker module loader
+pub struct Mod;
 
-impl Stm {
-    pub fn new() -> Self {
-        Stm{name: "Scream Tracker 2 STM"}
-    }
-
+impl Mod {
     fn load_instrument(&self, b: &[u8], i: usize) -> Result<(Instrument, Sample), Error> {
         let mut ins = Instrument::new();
         let mut smp = Sample::new();
 
-        let ofs = 48 + i * 32;
+        let ofs = 20 + i * 30;
         ins.num = i + 1;
-        smp.num = i + 1;;
-        ins.name = b.read_string(ofs, 12)?;
-        smp.size = b.read16l(ofs + 16)? as usize;
-        smp.loop_start = b.read16l(ofs + 18)? as usize;
-        smp.loop_end = b.read16l(ofs + 20)? as usize;
-        ins.volume = b.read8(ofs + 22)? as usize;
-        smp.rate = b.read16l(ofs + 24)? as f64;
+        smp.num = i + 1;
+        ins.name = b.read_string(ofs, 22)?;
+        smp.name = ins.name.to_owned();
 
-        if smp.loop_end == 0xffff {
-            smp.loop_end = 0;
-        }
+        smp.size = b.read16b(ofs + 22)? as usize * 2;
+        smp.rate = 8287.0;
+        ins.volume = b.read8(ofs + 25)? as usize;
+        smp.loop_start = b.read16b(ofs + 26)? as usize * 2;
+        let loop_size = b.read16b(ofs + 28)?;
+        smp.loop_end = smp.loop_start + loop_size as usize * 2;
+        smp.has_loop = loop_size > 1 && smp.loop_end >= 4;
 
-        let mut sub = StmInstrument::new();
+        let mut sub = ModInstrument::new();
+        sub.finetune = (((b.read8i(ofs + 24)? << 4) as isize) >> 4) * 16;
         sub.smp_num = i;
 
+        smp.rate = util::C4_PAL_RATE;
         if smp.size > 0 {
             smp.sample_type = SampleType::Sample8;
         }
@@ -56,36 +52,26 @@ impl Stm {
     }
 }
 
-impl ModuleFormat for Stm {
+impl ModuleFormat for Mod {
     fn name(&self) -> &'static str {
-        self.name
+        "Protracker MOD"
     }
+
   
     fn probe(&self, b: &[u8]) -> Result<(), Error> {
         if b.len() < 1084 {
             return Err(Error::Format("file too short"));
         }
 
-        if b.read_string(20, 10)? == "!Scream!\x1a\x02" {
+        if b.read32b(1080)? == 0x4d2e4b2e {
             Ok(())
         } else {
             Err(Error::Format("bad magic"))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8]) -> Result<(Module, Box<FormatPlayer>), Error> {
+    fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
         let title = b.read_string(0, 20)?;
-
-        let version_major = b.read8(30)?;
-        let version_minor = b.read8(31)?;
-
-        if version_major != 2 || version_minor < 21 {
-            return Err(Error::Format("unsupported version"));
-        }
-
-        let tempo = b.read8(32)?;
-        let num_patterns = b.read8(33)? as usize;
-        let global_vol = b.read8(34)?;
 
         let mut ins_list = Vec::<Instrument>::new();
         let mut smp_list = Vec::<Sample>::new();
@@ -98,14 +84,16 @@ impl ModuleFormat for Stm {
         }
 
         // Load orders
-        let ord = StmOrders::from_slice(b.slice(1040, 128)?);
-        let len = ord.len(num_patterns);
+        let len = b.read8(950)? as usize;
+        let rst = b.read8(951)?;
+        let ord = ModOrders::from_slice(rst, b.slice(952, len)?);
+        let pat = ord.num_patterns();
 
         // Load patterns
-        let patterns = StmPatterns::from_slice(num_patterns as usize, b.slice(1168, 1024*num_patterns)?)?;
+        let patterns = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
 
-        // Load samples
-        let mut ofs = 1084 + 1024*num_patterns;
+        // Load samples (sample size is set when loading instruments)
+        let mut ofs = 1084 + 1024*pat;
         for i in 0..31 {
             let size = smp_list[i].size as usize;
             if size > 0 {
@@ -115,32 +103,32 @@ impl ModuleFormat for Stm {
         }
 
         let m = Module {
-            title     : title,
-            chn       : 4,
-            speed     : 6,
-            tempo     : 125,
-            instrument: ins_list,
-            sample    : smp_list,
-            orders    : Box::new(ord),
-            patterns  : Box::new(patterns),
+            format     : "mod",
+            description: "Protracker M.K.".to_string(),
+            player     : "pt21",
+            title      : title,
+            chn        : 4,
+            speed      : 6,
+            tempo      : 125,
+            instrument : ins_list,
+            sample     : smp_list,
+            orders     : Box::new(ord),
+            patterns   : Box::new(patterns),
         };
 
-        // Set frame player
-        let player = StmPlayer::new(&m);
-
-        Ok((m, Box::new(player)))
+        Ok(m)
     }
 }
 
 
-pub struct StmPatterns {
+pub struct ModPatterns {
     num : usize,
-    data: Vec<StmEvent>,
+    data: Vec<ModEvent>,
 }
 
-impl StmPatterns {
+impl ModPatterns {
     fn from_slice(num: usize, b: &[u8]) -> Result<Self, Error> {
-        let mut pat = StmPatterns{
+        let mut pat = ModPatterns{
             num,
             data: Vec::new(),
         };
@@ -149,7 +137,7 @@ impl StmPatterns {
             for r in 0..64 {
                 for c in 0..4 {
                     let ofs = p * 1024 + r * 16 + c * 4;
-                    let e = StmEvent::from_slice(b.slice(ofs, 4)?);
+                    let e = ModEvent::from_slice(b.slice(ofs, 4)?);
                     pat.data.push(e);
                 }
             }
@@ -158,12 +146,12 @@ impl StmPatterns {
         Ok(pat)
     }
 
-    pub fn event(&self, pat: usize, row: u8, chn: usize) -> &StmEvent {
+    pub fn event(&self, pat: usize, row: u8, chn: usize) -> &ModEvent {
         &self.data[pat * 256 + row as usize * 4 + chn]
     }
 }
 
-impl Patterns for StmPatterns {
+impl Patterns for ModPatterns {
     fn as_any(&self) -> &Any {
         self
     }
@@ -196,35 +184,34 @@ impl Patterns for StmPatterns {
         }
         let raw = &self.data[ofs];
         e.note = raw.note;
-        e.ins  = raw.smp;
-        e.vol  = raw.volume;
+        e.ins  = raw.ins;
         e.fxt  = raw.cmd;
-        e.fxp  = raw.infobyte;
+        e.fxp  = raw.cmdlo;
         e
     }
 }
 
 
-struct StmOrders {
+struct ModOrders {
+    rstpos: usize,
     orders: Vec<u8>,
     songs : Vec<u8>,  // vector of song entry points
 }
 
-impl StmOrders {
-    fn from_slice(o: &[u8]) -> Self {
-        StmOrders {
+impl ModOrders {
+    fn from_slice(r: u8, o: &[u8]) -> Self {
+        
+        let mut r = r as usize;
+
+        if r >= o.len() {
+            r = 0;
+        }
+
+        ModOrders {
+            rstpos: r,
             orders: o.to_vec(),
             songs : Vec::new(),
         }
-    }
-
-    fn len(&self, pat: usize) -> usize {
-        for (i, n) in self.orders.iter().enumerate() {
-            if *n > pat as u8 {
-                return i
-            }
-        }
-        self.orders.len()
     }
 
     fn num_patterns(&self) -> usize {
@@ -234,13 +221,13 @@ impl StmOrders {
     }
 }
 
-impl Orders for StmOrders {
+impl Orders for ModOrders {
     fn num(&self, song: usize) -> usize {
         self.orders.len()
     }
 
     fn restart_position(&mut self) -> usize {
-        0
+        self.rstpos
     }
 
     fn pattern(&self, pos: usize) -> usize {
@@ -279,3 +266,5 @@ impl Orders for StmOrders {
         data.song
     }
 }
+
+

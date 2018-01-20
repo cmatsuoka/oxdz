@@ -1,11 +1,38 @@
 mod virt;
 mod scan;
+mod protracker;
+mod st2;
 
 pub use player::virt::Virtual;
 pub use mixer::Mixer;
-use format::FormatPlayer;
-use module::Module;
 
+use std::fmt;
+use module::Module;
+use ::*;
+
+// For the player list
+
+pub struct PlayerInfo {
+    pub id         : &'static str,
+    pub name       : &'static str,
+    pub description: &'static str,
+    pub author     : &'static str,
+    pub accepts    : &'static [&'static str],
+}
+
+pub trait PlayerListEntry {
+    fn info(&self) -> PlayerInfo;
+    fn player(&self, module: &Module) -> Box<FormatPlayer>;
+}
+
+
+// Trait for format-specific players
+
+pub trait FormatPlayer {
+    // TODO: init
+    fn play(&mut self, &mut PlayerData, &Module, &mut Virtual);
+    fn reset(&mut self);
+}
 
 pub struct PlayerData {
     pub pos  : usize,
@@ -53,14 +80,33 @@ pub struct Player<'a> {
 }
 
 impl<'a> Player<'a> {
-    pub fn new(module: &'a Module, format_player: Box<FormatPlayer>) -> Self {
+    pub fn find_player(module: &'a Module, player_id: &str) -> Result<Self, Error> {
+
+        let format_player = Player::find_by_id(player_id)?.player(&module);
+
         let virt = Virtual::new(module.chn, &module.sample, false);
-        Player {
+        Ok(Player {
             data : PlayerData::new(&module),
             module,
-            format_player, //: &mut *format_player,
+            format_player,
             virt,
+        })
+    }
+
+    pub fn list() -> Vec<Box<PlayerListEntry>> {
+        vec![
+            Box::new(protracker::Pt21a),
+            Box::new(st2::St2),
+        ]
+    }
+
+    fn find_by_id(player_id: &str) -> Result<Box<PlayerListEntry>, Error> {
+        for p in Self::list() {
+            if player_id == p.info().id {
+                return Ok(p)
+            }
         }
+        Err(Error::Format("player not found"))
     }
 
     pub fn scan(&mut self) -> &Self {

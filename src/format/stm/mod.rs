@@ -1,8 +1,6 @@
 pub mod load;
-pub mod player;
 
 pub use self::load::*;
-pub use self::player::*;
 
 use std::any::Any;
 use std::fmt;
