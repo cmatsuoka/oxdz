@@ -51,8 +51,6 @@ impl ModPlayer {
     }
 
     fn mt_music(&mut self, module: &Module, mut virt: &mut Virtual) {
-        let pats = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
-
         self.mt_counter += 1;
         if self.mt_speed > self.mt_counter {
             // mt_NoNewNote
@@ -63,7 +61,7 @@ impl ModPlayer {
 
         self.mt_counter = 0;
         if self.mt_patt_del_time_2 == 0 {
-            self.mt_get_new_note(&module, &pats, &mut virt);
+            self.mt_get_new_note(&module, &mut virt);
         } else {
             self.mt_no_new_all_channels(&module, &mut virt);
         }
@@ -103,8 +101,10 @@ impl ModPlayer {
         }
     }
 
-    fn mt_get_new_note(&mut self, module: &Module, pats: &ModPatterns, mut virt: &mut Virtual) {
+    fn mt_get_new_note(&mut self, module: &Module, mut virt: &mut Virtual) {
+        let pats = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
         let p = module.orders.pattern(self.mt_song_pos as usize);
+
         for chn in 0..module.chn {
             let event = pats.event(p, self.mt_pattern_pos, chn);
             let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
