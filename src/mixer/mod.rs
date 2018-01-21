@@ -238,8 +238,8 @@ impl<'a> Mixer<'a> {
                 continue;
             }
 
-            let lps = sample.loop_start;
-            let lpe = sample.loop_end;
+            //let lps = sample.loop_start;
+            //let lpe = sample.loop_end;
 
             let mut usmp = 0;
             let mut size = self.framesize as isize;

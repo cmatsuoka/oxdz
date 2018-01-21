@@ -1,6 +1,6 @@
 use module::Module;
 use player::{PlayerData, Virtual, FormatPlayer};
-use format::stm::{StmPatterns, StmInstrument};
+use format::stm::StmPatterns;
 
 const ST2BASEFREQ      : u32 = 36072500;  // 2.21
 //const ST2BASEFREQ      : u32 = 35468950;  // 2.3
@@ -110,19 +110,20 @@ impl St2Play {
         self.frames_per_tick = self.sample_rate / (49 - ((TEMPO_MUL[self.ticks_per_row as usize] * (tempo & 0x0f)) >> 4));
     }
 
+/*
     fn update_frequency(&mut self, chn: usize) {
         let mut step = 0_u32;
-        let temp: u32;
         let ch = &mut self.channels[chn];
 
         if ch.period_current >= 551 {
-            temp = ST2BASEFREQ / ch.period_current as u32;
+            let temp = ST2BASEFREQ / ch.period_current as u32;
             step = ((temp / self.sample_rate as u32) & 0xffff) << 16;
             step |= (((temp % self.sample_rate as u32) << 16) / self.sample_rate as u32) & 0xffff;
         }
 
         ch.smp_step = step;
     }
+*/
 
     fn cmd_once(&mut self, chn: usize) {
         let cmd = self.channels[chn].event_cmd;
@@ -145,74 +146,73 @@ impl St2Play {
     fn cmd_tick(&mut self, chn: usize) {
         let cmd = self.channels[chn].event_cmd;
         let infobyte = self.channels[chn].event_infobyte;
-        let period_target = self.channels[chn].period_target;
+        let ch = &mut self.channels[chn];
 
         match cmd  {
             FX_VOLUMESLIDE => {
                 if infobyte & 0x0f != 0 {
-                    self.channels[chn].volume_current -= (infobyte & 0x0f) as i16;
-                    if self.channels[chn].volume_current <= -1 {
-                        self.channels[chn].volume_current = 0;
+                    ch.volume_current -= (infobyte & 0x0f) as i16;
+                    if ch.volume_current <= -1 {
+                        ch.volume_current = 0;
                     }
                 } else {
-                    self.channels[chn].volume_current += (infobyte >> 4) as i16;
-                    if self.channels[chn].volume_current >= 65 {
-                        self.channels[chn].volume_current = 64;
+                    ch.volume_current += (infobyte >> 4) as i16;
+                    if ch.volume_current >= 65 {
+                        ch.volume_current = 64;
                     }
                 }
             },
             FX_PORTAMENTODOWN => {
-                self.channels[chn].period_current += (FXMULT * infobyte) as i16;
-                self.update_frequency(chn);
+                ch.period_current += (FXMULT * infobyte) as i16;
+                //self.update_frequency(chn);
             }, 
             FX_PORTAMENTOUP => {
-                self.channels[chn].period_current -= (FXMULT * infobyte) as i16;
-                self.update_frequency(chn);
+                ch.period_current -= (FXMULT * infobyte) as i16;
+                //self.update_frequency(chn);
             },
             FX_TREMOR => {
-                if self.channels[chn].tremor_counter == 0 {
-                    if self.channels[chn].tremor_state == 1 {
-                        self.channels[chn].tremor_state = 0;
-                        self.channels[chn].volume_current = 0;
-                        self.channels[chn].tremor_counter = infobyte as u16 & 0x0f;
+                if ch.tremor_counter == 0 {
+                    if ch.tremor_state == 1 {
+                        ch.tremor_state = 0;
+                        ch.volume_current = 0;
+                        ch.tremor_counter = infobyte as u16 & 0x0f;
                     } else {
-                        self.channels[chn].tremor_state = 1;
-                        self.channels[chn].volume_current = self.channels[chn].volume_initial;
-                        self.channels[chn].tremor_counter = infobyte as u16 >> 4;
+                        ch.tremor_state = 1;
+                        ch.volume_current = ch.volume_initial;
+                        ch.tremor_counter = infobyte as u16 >> 4;
                     }
                 } else {
-                    self.channels[chn].tremor_counter -= 1;
+                    ch.tremor_counter -= 1;
                 }
             },
             _ => {
-                self.channels[chn].tremor_counter = 0;
-                self.channels[chn].tremor_state = 1;
+                ch.tremor_counter = 0;
+                ch.tremor_state = 1;
                 match cmd {
                     FX_TONEPORTAMENTO => {
-                        if self.channels[chn].period_current != period_target {
-                            if self.channels[chn].period_current > period_target {
-                                self.channels[chn].period_current -= (FXMULT * infobyte) as i16;
-                                if self.channels[chn].period_current < period_target {
-                                    self.channels[chn].period_current = period_target;
+                        if ch.period_current != ch.period_target {
+                            if ch.period_current > ch.period_target {
+                                ch.period_current -= (FXMULT * infobyte) as i16;
+                                if ch.period_current < ch.period_target {
+                                    ch.period_current = ch.period_target;
                                 }
                             } else {
-                                self.channels[chn].period_current += (FXMULT * infobyte) as i16;
-                                if self.channels[chn].period_current > period_target {
-                                    self.channels[chn].period_current = period_target;
+                                ch.period_current += (FXMULT * infobyte) as i16;
+                                if ch.period_current > ch.period_target {
+                                    ch.period_current = ch.period_target;
                                 }
                             }
-                            self.update_frequency(chn);
+                            //self.update_frequency(chn);
                         }
                     },
                     FX_VIBRATO => {
-                        self.channels[chn].period_current = (FXMULT as i16 * ((LFO_TABLE[self.channels[chn].vibrato_current as usize >> 1] *
-                                                            (infobyte & 0x0f) as i16) >> 6)) + period_target;
-                        self.update_frequency(chn);
-                        self.channels[chn].vibrato_current = (self.channels[chn].vibrato_current +
-                                                             ((infobyte >> 4) << 1)) & 0x7e;
+                        ch.period_current = (FXMULT as i16 * ((LFO_TABLE[ch.vibrato_current as usize >> 1] *
+                                            (infobyte & 0x0f) as i16) >> 6)) + ch.period_target;
+                        //self.update_frequency(chn);
+                        ch.vibrato_current = (ch.vibrato_current + ((infobyte >> 4) << 1)) & 0x7e;
                     },
                     _ => {
-                        self.channels[chn].vibrato_current = 0;
+                        ch.vibrato_current = 0;
                     },
                 }
             },
@@ -269,7 +269,7 @@ impl St2Play {
                 //self.channels[chn].period_current = PERIOD_TABLE[note] * 8448 / ctx->samples[smp].c2spd; /* 8448 - 2.21; 8192 - 2.3 */
                 self.channels[chn].period_current = PERIOD_TABLE[note - 36];
                 self.channels[chn].period_target = self.channels[chn].period_current;
-                self.update_frequency(chn);
+                //self.update_frequency(chn);
             }
         }
     
@@ -417,7 +417,7 @@ struct St2Channel {
     //uint16_t smp_loop_start;
     //uint16_t smp_c2spd;
     //uint32_t smp_position;
-    smp_step         : u32,
+    //smp_step         : u32,
     volume_initial   : i16,
     volume_current   : i16,
     //uint16_t volume_meter;
