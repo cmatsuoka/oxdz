@@ -60,10 +60,11 @@ impl StmEvent {
 
 impl fmt::Display for StmEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let note = if self.note == 0 {
+        let note = if self.note > 250 {
             "---".to_owned()
         } else {
-            format!("{}{}", NOTES[self.note as usize % 12], self.note / 12)
+            let n = ((self.note&0xf) + 12*(3+(self.note>>4))) as usize;
+            format!("{}{}", NOTES[n%12], n/12)
         };
 
         let smp = if self.smp == 0 {
@@ -78,7 +79,13 @@ impl fmt::Display for StmEvent {
             format!("{:02x}", self.volume)
         };
 
-        write!(f, "{} {} {} {:02X}{:02X}", note, smp, vol, self.cmd, self.infobyte)
+        let cmd = if self.cmd == 0 {
+            '.'
+        } else {
+            (64_u8 + self.cmd) as char
+        };
+
+        write!(f, "{} {} {} {}{:02X}", note, smp, vol, cmd, self.infobyte)
     }
 }
 
