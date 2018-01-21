@@ -70,13 +70,13 @@ impl fmt::Display for StmEvent {
         let smp = if self.smp == 0 {
             "--".to_owned()
         } else {
-            format!("{:02x}", self.smp)
+            format!("{:02X}", self.smp)
         };
 
         let vol = if self.volume == 65 {
             "--".to_owned()
         } else {
-            format!("{:02x}", self.volume)
+            format!("{:02X}", self.volume)
         };
 
         let cmd = if self.cmd == 0 {
@@ -89,3 +89,22 @@ impl fmt::Display for StmEvent {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_event() {
+        let e = StmEvent::from_slice(&[255, 1, 128, 0]);
+        assert_eq!(format!("{}", e), "--- -- -- .00");
+
+        let e = StmEvent::from_slice(&[34, 113, 128, 0]);
+        assert_eq!(format!("{}", e), "D 5 0E -- .00");
+
+        let e = StmEvent::from_slice(&[52, 50, 100, 204]);
+        assert_eq!(format!("{}", e), "E 6 06 32 DCC");
+
+        let e = StmEvent::from_slice(&[50, 49, 128, 0]);
+        assert_eq!(format!("{}", e), "D 6 06 -- .00");
+    }
+}

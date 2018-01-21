@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_period_to_note() {
-        assert_eq!(period_to_note(500), 58);
+        assert_eq!(period_to_note(500), 57);
     }
 
     #[test]
