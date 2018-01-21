@@ -28,7 +28,7 @@ pub trait PlayerListEntry {
 // Trait for format-specific players
 
 pub trait FormatPlayer {
-    // TODO: init
+    fn init(&mut self, &mut PlayerData, &Module);
     fn play(&mut self, &mut PlayerData, &Module, &mut Virtual);
     fn reset(&mut self);
 }

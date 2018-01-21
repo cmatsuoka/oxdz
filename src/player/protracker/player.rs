@@ -683,6 +683,9 @@ impl ModPlayer {
 }
 
 impl FormatPlayer for ModPlayer {
+    fn init(&mut self, _data: &mut PlayerData, _module: &Module) {
+    }
+
     fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
         self.cia_tempo = data.tempo as u8;
         self.mt_speed = data.speed as u8;

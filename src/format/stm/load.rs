@@ -1,11 +1,10 @@
 use std::any::Any;
-use std::cmp::max;
 use Error;
-use format::ModuleFormat;
+use format::{ModuleFormat, StdOrders};
 use format::stm::{StmInstrument, StmEvent};
 use module::{Module, Sample, Instrument, Orders, Patterns, Event};
 use module::sample::SampleType;
-use player::PlayerData;
+//use player::PlayerData;
 use util::BinaryRead;
 
 /// Scream Tracker 2 module loader
@@ -92,7 +91,7 @@ impl ModuleFormat for Stm {
         }
 
         // Load orders
-        let ord = StmOrders::from_slice(b.slice(1040, 128)?);
+        let ord = StdOrders::from_slice(0, b.slice(1040, 128)?);
         let len = ord.len(num_patterns);
 
         // Load patterns
@@ -199,19 +198,11 @@ impl Patterns for StmPatterns {
 }
 
 
-struct StmOrders {
-    orders: Vec<u8>,
-    songs : Vec<u8>,  // vector of song entry points
+trait OrdersExt {
+    fn len(&self, usize) -> usize;
 }
 
-impl StmOrders {
-    fn from_slice(o: &[u8]) -> Self {
-        StmOrders {
-            orders: o.to_vec(),
-            songs : Vec::new(),
-        }
-    }
-
+impl OrdersExt for StdOrders {
     fn len(&self, pat: usize) -> usize {
         for (i, n) in self.orders.iter().enumerate() {
             if *n > pat as u8 {
@@ -220,56 +211,5 @@ impl StmOrders {
         }
         self.orders.len()
     }
-
-    fn num_patterns(&self) -> usize {
-        let mut num = 0;
-        self.orders.iter().for_each(|x| num = max(*x as usize, num));
-        num + 1
-    }
 }
 
-impl Orders for StmOrders {
-    fn num(&self, song: usize) -> usize {
-        self.orders.len()
-    }
-
-    fn restart_position(&mut self) -> usize {
-        0
-    }
-
-    fn pattern(&self, pos: usize) -> usize {
-        self.orders[pos] as usize
-    }
-
-    fn next(&self, data: &mut PlayerData) -> usize {
-        if data.pos < self.num(data.song) - 1 {
-            data.pos += 1;
-        }
-        data.pos
-    }
-
-    fn prev(&self, data: &mut PlayerData) -> usize {
-        if data.pos > 0 {
-            data.pos -= 1;
-        }
-        data.pos
-    }
-
-    fn num_songs(&self) -> usize {
-        self.songs.len()
-    }
-
-    fn next_song(&self, data: &mut PlayerData) -> usize {
-        if data.song < self.num_songs() - 1 {
-            data.song += 1;
-        }
-        data.song
-    }
-
-    fn prev_song(&self, data: &mut PlayerData) -> usize {
-        if data.song > 0 {
-            data.song -= 1;
-        }
-        data.song
-    }
-}

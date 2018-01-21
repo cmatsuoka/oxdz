@@ -268,7 +268,7 @@ impl St2Play {
             self.change_pattern = true;
         }
 
-        if self.channels[chn].on {
+        //if self.channels[chn].on {
             {
                 let row = self.channels[chn].row;
                 let ch = &mut self.channels[chn];
@@ -286,7 +286,7 @@ impl St2Play {
             if self.channels[chn].event_cmd == FX_TREMOR {
                 self.cmd_tick(chn);
             }
-        }
+        //}
     }
 
     fn change_pattern(&mut self, module: &Module) {
@@ -337,6 +337,13 @@ impl St2Play {
 
 
 impl FormatPlayer for St2Play {
+    fn init(&mut self, _data: &mut PlayerData, module: &Module) {
+        let tempo = self.tempo as u16;
+        self.set_tempo(tempo);
+        self.current_frame = self.frames_per_tick;
+        self.change_pattern(&module);
+    }
+
     fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
     }
 
@@ -346,7 +353,7 @@ impl FormatPlayer for St2Play {
 
 #[derive(Default,Clone)]
 struct St2Channel {
-    on               : bool,
+    //on               : bool,
     empty            : bool,
     row              : u16,
     pattern_data_offs: usize,
