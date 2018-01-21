@@ -150,7 +150,7 @@ impl St2Play {
 
         match cmd  {
             FX_VOLUMESLIDE => {
-                if infobyte & 0x0f != 65 {
+                if infobyte & 0x0f != 0 {
                     ch.volume_current -= (infobyte & 0x0f) as i16;
                     if ch.volume_current <= -1 {
                         ch.volume_current = 0;
@@ -225,8 +225,8 @@ impl St2Play {
         let smp = self.channels[chn].event_smp as usize;
         let cmd = self.channels[chn].event_cmd;
     
-        if self.channels[chn].event_volume != 0 {
-            self.channels[chn].volume_current = volume - 1;
+        if self.channels[chn].event_volume != 65 {
+            self.channels[chn].volume_current = volume;
             self.channels[chn].volume_initial = self.channels[chn].volume_current;
         }
     
@@ -378,7 +378,9 @@ impl FormatPlayer for St2Play {
                 ch.trigger_note = false;
             }
             virt.set_period(chn, (ch.period_current / FXMULT as i16) as f64);
-            virt.set_volume(chn, ch.volume_mix as usize * 16);
+            if ch.volume_mix != 0 {
+                virt.set_volume(chn, (ch.volume_mix as usize - 1) * 16);
+            }
         }
 
         data.frame = ((self.ticks_per_row - self.current_tick) % self.ticks_per_row) as usize;

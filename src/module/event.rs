@@ -39,7 +39,7 @@ impl fmt::Display for Event {
         let vol = if self.vol == 0 {
             "--".to_owned()
         } else {
-            format!("{:02x}", self.vol)
+            format!("{:02x}", self.vol - 1)
         };
 
         write!(f, "{} {} {} {:02X}{:02X}", note, ins, vol, self.fxt, self.fxp)
