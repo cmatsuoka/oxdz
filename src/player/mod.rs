@@ -28,7 +28,7 @@ pub trait PlayerListEntry {
 // Trait for format-specific players
 
 pub trait FormatPlayer {
-    fn init(&mut self, &mut PlayerData, &Module);
+    fn start(&mut self, &mut PlayerData, &Module);
     fn play(&mut self, &mut PlayerData, &Module, &mut Virtual);
     fn reset(&mut self);
 }
@@ -120,6 +120,11 @@ impl<'a> Player<'a> {
         self.data.frame = 0;
         self.data.speed = self.module.speed;
         self.format_player.reset();
+        self
+    }
+
+    pub fn start(&mut self) -> &mut Self {
+        self.format_player.start(&mut self.data, &self.module);
         self
     }
 

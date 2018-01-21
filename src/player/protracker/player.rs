@@ -683,7 +683,7 @@ impl ModPlayer {
 }
 
 impl FormatPlayer for ModPlayer {
-    fn init(&mut self, _data: &mut PlayerData, _module: &Module) {
+    fn start(&mut self, _data: &mut PlayerData, _module: &Module) {
     }
 
     fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {

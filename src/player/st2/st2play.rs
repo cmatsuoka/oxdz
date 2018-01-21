@@ -150,7 +150,7 @@ impl St2Play {
 
         match cmd  {
             FX_VOLUMESLIDE => {
-                if infobyte & 0x0f != 0 {
+                if infobyte & 0x0f != 65 {
                     ch.volume_current -= (infobyte & 0x0f) as i16;
                     if ch.volume_current <= -1 {
                         ch.volume_current = 0;
@@ -225,8 +225,8 @@ impl St2Play {
         let smp = self.channels[chn].event_smp as usize;
         let cmd = self.channels[chn].event_cmd;
     
-        if self.channels[chn].event_volume != 65 {
-            self.channels[chn].volume_current = volume;
+        if self.channels[chn].event_volume != 0 {
+            self.channels[chn].volume_current = volume - 1;
             self.channels[chn].volume_initial = self.channels[chn].volume_current;
         }
     
@@ -258,16 +258,16 @@ impl St2Play {
             }*/
         }
     
-        if note != 0 {
+        if note != 255 {
             //self.channels[chn].smp_position = 0;
     
             if note == 254 {
                 /*self.channels[chn].smp_loop_end = 0;
                 self.channels[chn].smp_loop_start = 0xffff;*/
-            } else if note > 36 {
+            } else {
                 //self.channels[chn].volume_meter = self.channels[chn].volume_current >> 1;
                 //self.channels[chn].period_current = PERIOD_TABLE[note] * 8448 / ctx->samples[smp].c2spd; /* 8448 - 2.21; 8192 - 2.3 */
-                self.channels[chn].period_current = PERIOD_TABLE[note - 36];
+                self.channels[chn].period_current = PERIOD_TABLE[note];
                 self.channels[chn].period_target = self.channels[chn].period_current;
                 //self.update_frequency(chn);
             }
@@ -287,7 +287,7 @@ impl St2Play {
                 let row = self.channels[chn].row;
                 let ch = &mut self.channels[chn];
                 let pats = module.patterns.as_any().downcast_ref::<StmPatterns>().unwrap();
-                let event = pats.event(self.pattern_current, row, chn);
+                let event = pats.event(self.pattern_current, row - 1, chn);
 
                 ch.event_note     = event.note as u16;
                 ch.event_smp      = event.smp as u16;
@@ -351,7 +351,7 @@ impl St2Play {
 
 
 impl FormatPlayer for St2Play {
-    fn init(&mut self, _data: &mut PlayerData, module: &Module) {
+    fn start(&mut self, _data: &mut PlayerData, module: &Module) {
         let tempo = self.tempo as u16;
         self.set_tempo(tempo);
         self.current_frame = self.frames_per_tick;
@@ -366,7 +366,7 @@ impl FormatPlayer for St2Play {
         self.channels[1].row = data.row as u16;
         self.channels[2].row = data.row as u16;
         self.channels[3].row = data.row as u16;
-        self.current_tick = data.frame as u16;
+        self.current_tick = (self.ticks_per_row - data.frame as u16) % self.ticks_per_row;
 
         self.process_tick(&module);
         for chn in 0..4 {
@@ -377,11 +377,11 @@ impl FormatPlayer for St2Play {
                 virt.set_patch(chn, smp - 1, smp - 1, note - 1);
                 ch.trigger_note = false;
             }
-            virt.set_period(chn, ch.period_current as f64);
-            virt.set_volume(chn, ch.volume_current as usize);
+            virt.set_period(chn, (ch.period_current / FXMULT as i16) as f64);
+            virt.set_volume(chn, ch.volume_mix as usize * 16);
         }
 
-        data.frame = self.current_tick as usize;
+        data.frame = ((self.ticks_per_row - self.current_tick) % self.ticks_per_row) as usize;
         data.row = self.channels[0].row as usize;
         data.pos = self.order_next as usize;
         data.speed = self.ticks_per_row as usize;

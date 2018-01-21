@@ -27,6 +27,8 @@ impl Stm {
 
         if smp.loop_end == 0xffff {
             smp.loop_end = 0;
+        } else if smp.loop_end > 0 {
+            smp.has_loop = true;
         }
 
         let mut sub = StmInstrument::new();
@@ -98,7 +100,7 @@ impl ModuleFormat for Stm {
         let patterns = StmPatterns::from_slice(num_patterns as usize, b.slice(1168, 1024*num_patterns)?)?;
 
         // Load samples
-        let mut ofs = 1084 + 1024*num_patterns;
+        let mut ofs = 1168 + 1024*num_patterns;
         for i in 0..31 {
             let size = smp_list[i].size as usize;
             if size > 0 {
@@ -181,6 +183,9 @@ impl Patterns for StmPatterns {
         }
     }
 
+    // Transform into "cooked" event
+    // STM stores notes in octave:note format, empty notes as 255 and empty volumes
+    // as 65, so transform accordingly.
     fn event(&self, num: usize, row: usize, chn: usize) -> Event {
         let ofs = num * 256 + row * 4 + chn;
         let mut e = Event::new();
@@ -188,9 +193,9 @@ impl Patterns for StmPatterns {
             return e
         }
         let raw = &self.data[ofs];
-        e.note = raw.note;
+        e.note = if raw.note > 250 { 0 } else { (raw.note&0x0f) + 12*(3+(raw.note>>4)) };
         e.ins  = raw.smp;
-        e.vol  = raw.volume;
+        e.vol  = if raw.volume == 65 { 0 } else { raw.volume + 1 };
         e.fxt  = raw.cmd;
         e.fxp  = raw.infobyte;
         e

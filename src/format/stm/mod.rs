@@ -49,23 +49,11 @@ impl StmEvent {
 
     fn from_slice(b: &[u8]) -> Self {
         let mut e = StmEvent::new();
-
-        if b[0] != 251 && b[0] != 252 && b[0] != 253 {
-            e.note = if b[0] == 255 {
-                0
-            } else {
-                1 + (b[0]&0x0f) + 12*(3 + (b[0]>>4))
-            };
-            e.volume = (b[1] & 0x07) | (b[2] & 0xf0) >> 1;
-            if e.volume > 0x40 {
-                e.volume = 0x40;
-            } else {
-                e.volume += 1;
-            }
-            e.smp = (b[1] & 0xf8) >> 3;
-            e.cmd = b[2] & 0x0f;
-            e.infobyte = b[3];
-        }
+        e.note = b[0];
+        e.volume = (b[1] & 0x07) | (b[2] & 0xf0) >> 1;
+        e.smp = (b[1] & 0xf8) >> 3;
+        e.cmd = b[2] & 0x0f;
+        e.infobyte = b[3];
         e
     }
 }
@@ -84,7 +72,7 @@ impl fmt::Display for StmEvent {
             format!("{:02x}", self.smp)
         };
 
-        let vol = if self.volume == 0 {
+        let vol = if self.volume == 65 {
             "--".to_owned()
         } else {
             format!("{:02x}", self.volume)
