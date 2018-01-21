@@ -7,8 +7,22 @@ const ST2BASEFREQ      : u32 = 36072500;  // 2.21
 
 const FXMULT           : u16 =  0x0a;
 
+//                Pattern Command Bytes
+//                 (info bytes are in hex)
+// A - Set tempo to [INFO]. 60 normal.
+// B - Break pattern and jmp to order [INFO]
+// C - Break pattern
+// D - Slide volume; Hi-nibble=up, Lo-nibble=down
+// E - Slide down at speed [INFO]
+// F - Slide up at speed [INFO]
+// G - Slide to the note specified at speed [INFO]
+// H - Vibrato; Hi-nibble, speed (bigger is faster)
+//              Lo-nibble, size (bigger is bigger)
+// I - Tremor; Hi-nibble, ontime
+//             Lo-nibble, offtime
+// J - Arpeggio; inoperative at the moment
+
 // LMN can be entered in the editor but don't do anything
-const FX_NONE          : u16 = 0x00;
 const FX_SPEED         : u16 = 0x01;
 const FX_POSITIONJUMP  : u16 = 0x02;
 const FX_PATTERNBREAK  : u16 = 0x03;
@@ -18,9 +32,9 @@ const FX_PORTAMENTOUP  : u16 = 0x06;
 const FX_TONEPORTAMENTO: u16 = 0x07;
 const FX_VIBRATO       : u16 = 0x08;
 const FX_TREMOR        : u16 = 0x09;
-const FX_ARPEGGIO      : u16 = 0x0a;
-const FX_VIBRA_VSLIDE  : u16 = 0x0b;
-const FX_TONE_VSLIDE   : u16 = 0x0f;
+//const FX_ARPEGGIO      : u16 = 0x0a;
+//const FX_VIBRA_VSLIDE  : u16 = 0x0b;
+//const FX_TONE_VSLIDE   : u16 = 0x0f;
 
 const TEMPO_MUL: &'static [u16] = &[ 140, 50, 25, 15, 10, 7, 6, 4, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1 ];
 
@@ -205,7 +219,7 @@ impl St2Play {
         }
     }
 
-    fn trigger_note(&mut self, chn: usize, module: &Module, virt: &mut Virtual) {
+    fn trigger_note(&mut self, chn: usize, module: &Module) {
         let note = self.channels[chn].event_note as usize;
         let volume = self.channels[chn].event_volume as i16;
         let smp = self.channels[chn].event_smp as usize;
@@ -233,7 +247,7 @@ impl St2Play {
             }
     
             //self.channels[chn].smp_data_ptr = ctx->samples[smp].data;
-            virt.set_patch(chn, smp - 1, smp - 1, note - 1);
+            self.channels[chn].trigger_note = true;
     
             /*if ctx->samples[smp].loop_end != 0xffff {
                 self.channels[chn].smp_loop_end = ctx->samples[smp].loop_end;
@@ -244,16 +258,16 @@ impl St2Play {
             }*/
         }
     
-        if note != 255 {
+        if note != 0 {
             //self.channels[chn].smp_position = 0;
     
             if note == 254 {
                 /*self.channels[chn].smp_loop_end = 0;
                 self.channels[chn].smp_loop_start = 0xffff;*/
-            } else {
+            } else if note > 36 {
                 //self.channels[chn].volume_meter = self.channels[chn].volume_current >> 1;
                 //self.channels[chn].period_current = PERIOD_TABLE[note] * 8448 / ctx->samples[smp].c2spd; /* 8448 - 2.21; 8192 - 2.3 */
-                self.channels[chn].period_current = PERIOD_TABLE[note];
+                self.channels[chn].period_current = PERIOD_TABLE[note - 36];
                 self.channels[chn].period_target = self.channels[chn].period_current;
                 self.update_frequency(chn);
             }
@@ -262,7 +276,7 @@ impl St2Play {
         self.cmd_once(chn);
     }
 
-    fn process_row(&mut self, chn: usize, module: &Module, virt: &mut Virtual) {
+    fn process_row(&mut self, chn: usize, module: &Module) {
         self.channels[chn].row += 1;
         if self.channels[chn].row >= 64 {
             self.change_pattern = true;
@@ -281,7 +295,7 @@ impl St2Play {
                 ch.event_cmd      = event.cmd as u16;
                 ch.event_infobyte = event.infobyte as u16;
             }
-            self.trigger_note(chn, module, virt);
+            self.trigger_note(chn, &module);
 
             if self.channels[chn].event_cmd == FX_TREMOR {
                 self.cmd_tick(chn);
@@ -306,7 +320,7 @@ impl St2Play {
         }
     }
 
-    fn process_tick(&mut self, module: &Module, mut virt: &mut Virtual) {
+    fn process_tick(&mut self, module: &Module) {
         if self.current_tick != 0 {
             self.current_tick -= 1;
             for i in 0..4 {
@@ -320,7 +334,7 @@ impl St2Play {
                 }
 
                 for i in 0..4 {
-                    self.process_row(i, &module, &mut virt);
+                    self.process_row(i, &module);
                 }
 
                 self.current_tick = if self.ticks_per_row != 0 { self.ticks_per_row - 1 } else { 0 };
@@ -344,7 +358,35 @@ impl FormatPlayer for St2Play {
         self.change_pattern(&module);
     }
 
-    fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
+    fn play(&mut self, data: &mut PlayerData, module: &Module, virt: &mut Virtual) {
+        self.tempo = data.tempo as u8;
+        self.ticks_per_row = data.speed as u16;
+        self.order_next = data.pos as u16;
+        self.channels[0].row = data.row as u16;
+        self.channels[1].row = data.row as u16;
+        self.channels[2].row = data.row as u16;
+        self.channels[3].row = data.row as u16;
+        self.current_tick = data.frame as u16;
+
+        self.process_tick(&module);
+        for chn in 0..4 {
+            let ch = &mut self.channels[chn];
+            if ch.trigger_note {
+                let smp = ch.event_smp as usize;
+                let note = ch.event_note as usize;
+                virt.set_patch(chn, smp - 1, smp - 1, note - 1);
+                ch.trigger_note = false;
+            }
+            virt.set_period(chn, ch.period_current as f64);
+            virt.set_volume(chn, ch.volume_current as usize);
+        }
+
+        data.frame = self.current_tick as usize;
+        data.row = self.channels[0].row as usize;
+        data.pos = self.order_next as usize;
+        data.speed = self.ticks_per_row as usize;
+        data.tempo = self.tempo as usize;
+
     }
 
     fn reset(&mut self) {
@@ -368,6 +410,7 @@ struct St2Channel {
     vibrato_current  : u16,
     tremor_counter   : u16,
     tremor_state     : u16,
+    trigger_note     : bool,  // not in st2play
     //uint8_t *smp_name;
     //uint8_t *smp_data_ptr;
     //uint16_t smp_loop_end;
