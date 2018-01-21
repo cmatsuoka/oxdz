@@ -378,8 +378,8 @@ impl FormatPlayer for St2Play {
                 ch.trigger_note = false;
             }
             virt.set_period(chn, (ch.period_current / FXMULT as i16) as f64);
-            if ch.volume_mix != 0 {
-                virt.set_volume(chn, (ch.volume_mix as usize - 1) * 16);
+            if ch.volume_current != 65 {
+                virt.set_volume(chn, ch.volume_mix as usize * 16);
             }
         }
 
