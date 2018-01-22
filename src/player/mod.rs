@@ -150,7 +150,7 @@ impl<'a> Player<'a> {
         self
     }
 
-    pub fn fill_buffer(&mut self, mut out_buffer: &mut [i16], loops: usize) {
+    pub fn fill_buffer(&mut self, out_buffer: &mut [i16], loops: usize) {
         let mut filled = 0;
         let size = out_buffer.len();
 
