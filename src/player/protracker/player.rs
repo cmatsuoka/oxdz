@@ -327,7 +327,11 @@ impl ModPlayer {
             }
         } else {
             // mt_TonePortaUp
-            state.n_period -= state.n_toneportspeed as u16;
+            if state.n_period > state.n_toneportspeed as u16 {
+                state.n_period -= state.n_toneportspeed as u16;
+            } else {
+                state.n_period = 0;
+            }
             if state.n_period < state.n_wantedperiod {
                 state.n_period = state.n_wantedperiod;
                 state.n_wantedperiod = 0;
