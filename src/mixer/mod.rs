@@ -1,6 +1,7 @@
 use std::ptr;
 use module::sample::{Sample, SampleType};
 use mixer::interpolator::{Interpolator, Interpolate};
+use util::MemOpExt;
 use util;
 use ::*;
 
@@ -38,12 +39,6 @@ pub struct Mixer<'a> {
     buffer    : [i16; MAX_FRAMESIZE],
     pub interp: interpolator::Interpolator,
     sample    : &'a Vec<Sample>,
-
-    // for fill
-    wanted_bytes   : usize,
-    available_bytes: usize,
-    in_pos         : usize,
-    out_pos        : usize,
 }
 
 
@@ -59,11 +54,6 @@ impl<'a> Mixer<'a> {
             buffer   : [0; MAX_FRAMESIZE],
             interp   : Interpolator::Linear,
             sample,
-
-            wanted_bytes: 0,
-            available_bytes: 0,
-            in_pos: 0,
-            out_pos: 0,
         }
     }
 
@@ -109,6 +99,10 @@ impl<'a> Mixer<'a> {
         }
 
         num
+    }
+
+    pub fn set_tempo(&mut self, tempo: usize) {
+        self.framesize = self.rate * PAL_RATE / tempo / 100;
     }
 
     pub fn set_voice(&mut self, num: usize, chn: usize) {
@@ -218,9 +212,7 @@ impl<'a> Mixer<'a> {
 
     }
 
-    pub fn mix(&mut self, tempo: usize) {
-
-        self.framesize = self.rate * PAL_RATE / tempo / 100;
+    pub fn mix(&mut self) {
 
         let mut md = MixerData{
             pos    : 0.0_f64,
@@ -231,7 +223,7 @@ impl<'a> Mixer<'a> {
             vol_l  : 0,
         };
 
-        unsafe { ptr::write_bytes(self.buf32.as_mut_ptr(), 0, self.framesize * std::mem::size_of::<i32>() - 1); }
+        self.buf32[..].fill(0, self.framesize);
 
         for v in &mut self.voices {
             if v.period < 1.0 {
@@ -350,15 +342,6 @@ impl<'a> Mixer<'a> {
     pub fn buffer(&self) -> &[i16] {
         // *2 because we're stereo
         &self.buffer[..self.framesize*2]
-    }
-
-    pub fn fill(&mut self, out: &mut [i16], will_loop: bool) {
-        if self.wanted_bytes > self.available_bytes {
-            let a = self.available_bytes;
-            out[self.out_pos..self.out_pos+a].copy_from_slice(&self.buffer[self.in_pos..self.in_pos+a]);
-            self.out_pos += self.available_bytes;
-            
-        }
     }
 }
 

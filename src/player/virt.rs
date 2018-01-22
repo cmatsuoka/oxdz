@@ -59,6 +59,10 @@ impl<'a> Virtual<'a> {
         v
     }
 
+    pub fn set_tempo(&mut self, tempo: usize) {
+        self.mixer.set_tempo(tempo);
+    }
+
     pub fn root(&self, chn: usize) -> Option<usize> {
         let voice = match self.virt_channel[chn].map {
             Some(val) => val,
@@ -161,16 +165,12 @@ impl<'a> Virtual<'a> {
         self.mixer.set_note(voice, note);
     }
 
-    pub fn mix(&mut self, tempo: usize) {
-        self.mixer.mix(tempo)
+    pub fn mix(&mut self) {
+        self.mixer.mix()
     }
 
     pub fn buffer(&self) -> &[i16] {
         self.mixer.buffer()
-    }
-
-    pub fn fill(&mut self, out: &mut [i16], will_loop: bool) {
-        self.mixer.fill(out, will_loop)
     }
 }
 

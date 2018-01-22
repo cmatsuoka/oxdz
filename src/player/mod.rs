@@ -6,7 +6,9 @@ mod st2;
 pub use player::virt::Virtual;
 pub use mixer::Mixer;
 
+use std::cmp;
 use module::Module;
+use util::MemOpExt;
 use ::*;
 
 // For the player list
@@ -72,10 +74,18 @@ impl PlayerData {
 
 
 pub struct Player<'a> {
-    pub data  : PlayerData,
-    module: &'a Module,
+    pub data     : PlayerData,
+    module       : &'a Module,
     format_player: Box<FormatPlayer>,
-    virt  : Virtual<'a>,
+    virt         : Virtual<'a>,
+    loop_count   : usize,
+    end          : bool,
+
+    // for buffer fill
+    consumed     : usize,
+    in_pos       : usize,
+    in_size      : usize,
+    
 }
 
 impl<'a> Player<'a> {
@@ -85,10 +95,15 @@ impl<'a> Player<'a> {
 
         let virt = Virtual::new(module.chn, &module.sample, false);
         Ok(Player {
-            data : PlayerData::new(&module),
+            data      : PlayerData::new(&module),
             module,
             format_player,
             virt,
+            loop_count: 0,
+            end       : false,
+            consumed  : 0,
+            in_pos    : 0,
+            in_size   : 0,
         })
     }
 
@@ -130,8 +145,52 @@ impl<'a> Player<'a> {
 
     pub fn play_frame(&mut self) -> &mut Self {
         self.format_player.play(&mut self.data, &self.module, &mut self.virt);
-        self.virt.mix(self.data.tempo);
+        self.virt.set_tempo(self.data.tempo);
+        self.virt.mix();
         self
+    }
+
+    pub fn fill_buffer(&mut self, mut out_buffer: &mut [i16], loops: usize) {
+        let mut filled = 0;
+        let size = out_buffer.len();
+
+        // Fill buffer
+        while filled < size {
+            // Check if buffer full
+            if self.consumed == self.in_size {
+                self.play_frame();
+
+                // Check end of module
+                if self.end() || (loops > 0 && self.loop_count >= loops) {
+                    // Start of frame, return end of replay
+                    if filled == 0 {
+                        self.consumed = 0;
+                        self.in_size = 0;
+                        return;
+                    } else {
+                        self.end = false;
+                    }
+
+                    // Clear rest of the buffer
+                    out_buffer[filled..].fill(0, size - filled);
+                    //unsafe { ptr::write_bytes(out_buffer.as_mut_ptr().offset(filled), 0, (size - filled) * std::mem::size_of::<i16>() - 1); }
+                }
+
+                self.consumed = 0;
+                self.in_pos = 0;
+                self.in_size = self.buffer().len();
+            }
+
+            // Copy frame data to user buffer
+            let copy_size = cmp::min(size - filled, self.in_size - self.consumed);
+            out_buffer[filled..filled+copy_size].copy_from_slice(&self.buffer()[self.consumed..self.consumed+copy_size]);
+            self.consumed += copy_size;
+            filled += copy_size;
+        }
+    }
+
+    pub fn end(&self) -> bool {
+        self.end
     }
 
     pub fn info(&mut self, info: &mut FrameInfo) -> &mut Self {
@@ -183,10 +242,6 @@ impl<'a> Player<'a> {
 
     pub fn buffer(&self) -> &[i16] {
         self.virt.buffer()
-    }
-
-    pub fn fill_buffer(&mut self, mut out: &mut [i16], will_loop: bool) {
-        self.virt.fill(&mut out, will_loop)
     }
 }
 
