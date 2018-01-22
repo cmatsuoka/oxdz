@@ -168,5 +168,9 @@ impl<'a> Virtual<'a> {
     pub fn buffer(&self) -> &[i16] {
         self.mixer.buffer()
     }
+
+    pub fn fill(&mut self, out: &mut [i16], will_loop: bool) {
+        self.mixer.fill(out, will_loop)
+    }
 }
 

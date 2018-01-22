@@ -184,6 +184,10 @@ impl<'a> Player<'a> {
     pub fn buffer(&self) -> &[i16] {
         self.virt.buffer()
     }
+
+    pub fn fill_buffer(&mut self, mut out: &mut [i16], will_loop: bool) {
+        self.virt.fill(&mut out, will_loop)
+    }
 }
 
 
