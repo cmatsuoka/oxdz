@@ -1,4 +1,3 @@
-use std::ptr;
 use module::sample::{Sample, SampleType};
 use mixer::interpolator::{Interpolator, Interpolate};
 use util::MemOpExt;

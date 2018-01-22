@@ -2,7 +2,7 @@ use std::any::Any;
 use Error;
 use format::{ModuleFormat, StdOrders};
 use format::stm::{StmInstrument, StmEvent};
-use module::{Module, Sample, Instrument, Orders, Patterns, Event};
+use module::{Module, Sample, Instrument, Patterns, Event};
 use module::sample::SampleType;
 //use player::PlayerData;
 use util::BinaryRead;
@@ -78,7 +78,7 @@ impl ModuleFormat for Stm {
             return Err(Error::Format("unsupported version"));
         }
 
-        let tempo = b.read8(32)?;
+        let tempo = b.read8(32)? as usize;
         let num_patterns = b.read8(33)? as usize;
         let global_vol = b.read8(34)?;
 
@@ -94,7 +94,6 @@ impl ModuleFormat for Stm {
 
         // Load orders
         let ord = StdOrders::from_slice(0, b.slice(1040, 128)?);
-        let len = ord.len(num_patterns);
 
         // Load patterns
         let patterns = StmPatterns::from_slice(num_patterns as usize, b.slice(1168, 1024*num_patterns)?)?;
@@ -113,10 +112,10 @@ impl ModuleFormat for Stm {
             format     : "stm",
             description: "Scream Tracker 2 STM".to_string(),
             player     : "st2",
-            title      : title,
+            title,
             chn        : 4,
             speed      : 6,
-            tempo      : 125,
+            tempo,
             instrument : ins_list,
             sample     : smp_list,
             orders     : Box::new(ord),
@@ -201,20 +200,3 @@ impl Patterns for StmPatterns {
         e
     }
 }
-
-
-trait OrdersExt {
-    fn len(&self, usize) -> usize;
-}
-
-impl OrdersExt for StdOrders {
-    fn len(&self, pat: usize) -> usize {
-        for (i, n) in self.orders.iter().enumerate() {
-            if *n > pat as u8 {
-                return i
-            }
-        }
-        self.orders.len()
-    }
-}
-
