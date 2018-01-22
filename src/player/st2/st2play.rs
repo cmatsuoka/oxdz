@@ -310,7 +310,7 @@ impl St2Play {
             self.loop_count += 1;
         }
 
-        self.pattern_current = pat as u16;
+        self.pattern_current = module.orders.pattern(self.order_next as usize) as u16;
 //      self.order_list_ptr[self.order_next] = 99;
         self.order_current = self.order_next;
         self.order_next += 1;
