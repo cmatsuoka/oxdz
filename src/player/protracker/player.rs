@@ -141,11 +141,13 @@ impl ModPlayer {
             // mt_SetRegs
             if note != 0 {
                 match cmd {
-                    0xe => if (cmdlo & 0xf0) == 0x50 {
-                               // mt_DoSetFinetune
-                               self.mt_set_finetune(chn);
+                    0xe => {
+                               if (cmdlo & 0xf0) == 0x50 {
+                                   // mt_DoSetFinetune
+                                   self.mt_set_finetune(chn);
+                               }
                                self.mt_set_period(chn, &mut virt);
-                           },
+                           }
                     0x3 => {  // TonePortamento
                                self.mt_set_tone_porta(chn);
                                self.mt_check_more_efx(chn, &mut virt)
