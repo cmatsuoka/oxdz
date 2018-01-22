@@ -1,6 +1,7 @@
 use std::ptr;
 use module::sample::{Sample, SampleType};
 use mixer::interpolator::{Interpolator, Interpolate};
+use util::MemOpExt;
 use util;
 use ::*;
 
@@ -98,6 +99,10 @@ impl<'a> Mixer<'a> {
         }
 
         num
+    }
+
+    pub fn set_tempo(&mut self, tempo: usize) {
+        self.framesize = self.rate * PAL_RATE / tempo / 100;
     }
 
     pub fn set_voice(&mut self, num: usize, chn: usize) {
@@ -207,9 +212,7 @@ impl<'a> Mixer<'a> {
 
     }
 
-    pub fn mix(&mut self, tempo: usize) {
-
-        self.framesize = self.rate * PAL_RATE / tempo / 100;
+    pub fn mix(&mut self) {
 
         let mut md = MixerData{
             pos    : 0.0_f64,
@@ -220,7 +223,7 @@ impl<'a> Mixer<'a> {
             vol_l  : 0,
         };
 
-        unsafe { ptr::write_bytes(self.buf32.as_mut_ptr(), 0, self.framesize * std::mem::size_of::<i32>() - 1); }
+        self.buf32[..].fill(0, self.framesize);
 
         for v in &mut self.voices {
             if v.period < 1.0 {
