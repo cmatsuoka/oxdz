@@ -175,7 +175,14 @@ impl ModPlayer {
             state.n_period = period;
     
             if state.n_cmd != 0x0e || (state.n_cmdlo & 0xf0) != 0xd0 {  // !Notedelay
-                // check vibrato, tremolo wave
+                if state.n_wavecontrol & 0x04 != 0x00 {
+                    state.n_vibratopos = 0;
+                }
+                if state.n_wavecontrol & 0x40 != 0x00 {
+                    state.n_tremolopos = 0;
+                }
+                virt.set_voicepos(chn, 0.0);
+                virt.set_period(chn, state.n_period as f64);
             }
         }
 
