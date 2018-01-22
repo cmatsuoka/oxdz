@@ -29,7 +29,7 @@ pub trait PlayerListEntry {
 
 // Trait for format-specific players
 
-pub trait FormatPlayer {
+pub trait FormatPlayer: Send + Sync {
     fn start(&mut self, &mut PlayerData, &Module);
     fn play(&mut self, &mut PlayerData, &Module, &mut Virtual);
     fn reset(&mut self);

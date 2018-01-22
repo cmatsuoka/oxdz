@@ -50,7 +50,7 @@ impl Instrument {
 }
 
 
-pub trait SubInstrument: Debug {
+pub trait SubInstrument: Debug + Send + Sync {
     fn as_any(&self) -> &Any;
     fn sample_num(&self) -> usize;
 }

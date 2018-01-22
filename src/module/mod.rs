@@ -9,12 +9,13 @@ pub use self::event::Event;
 
 use std::any::Any;
 use std::fmt;
+use std::marker::{Sync, Send};
 use player::PlayerData;
 
 
 // Orders
 
-pub trait Orders {
+pub trait Orders: Send + Sync {
     fn num(&self, usize) -> usize;
     fn restart_position(&mut self) -> usize;
     fn pattern(&self, usize) -> usize;
@@ -34,7 +35,7 @@ impl fmt::Debug for Orders {
 
 // Patterns
 
-pub trait Patterns: Any {
+pub trait Patterns: Any + Send + Sync {
     fn as_any(&self) -> &Any;
     fn num(&self) -> usize;
     fn len(&self, usize) -> usize;
