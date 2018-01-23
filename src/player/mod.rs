@@ -2,6 +2,7 @@ mod virt;
 mod scan;
 mod protracker;
 mod st2;
+mod impulse;
 
 pub use player::virt::Virtual;
 pub use mixer::Mixer;
@@ -109,6 +110,7 @@ impl<'a> Player<'a> {
 
     pub fn list() -> Vec<Box<PlayerListEntry>> {
         vec![
+            Box::new(impulse::It217),
             Box::new(protracker::Pt21a),
             Box::new(st2::St2),
         ]
@@ -173,7 +175,6 @@ impl<'a> Player<'a> {
 
                     // Clear rest of the buffer
                     out_buffer[filled..].fill(0, size - filled);
-                    //unsafe { ptr::write_bytes(out_buffer.as_mut_ptr().offset(filled), 0, (size - filled) * std::mem::size_of::<i16>() - 1); }
                 }
 
                 self.consumed = 0;
