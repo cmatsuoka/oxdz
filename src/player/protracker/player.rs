@@ -762,11 +762,11 @@ impl ChannelData {
 }
 
 
-const MT_FUNK_TABLE: &'static [u8] = &[
+static MT_FUNK_TABLE: &'static [u8] = &[
     0, 5, 6, 7, 8, 10, 11, 13, 16, 19, 22, 26, 32, 43, 64, 128
 ];
 
-const MT_VIBRATO_TABLE: &'static [u8] = &[
+static MT_VIBRATO_TABLE: &'static [u8] = &[
       0,  24,  49,  74,  97, 120, 141, 161,
     180, 197, 212, 224, 235, 244, 250, 253,
     255, 253, 250, 244, 235, 224, 212, 197,

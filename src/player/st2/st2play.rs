@@ -2,6 +2,12 @@ use module::Module;
 use player::{PlayerData, Virtual, FormatPlayer};
 use format::stm::StmPatterns;
 
+/// ST2Play Scream Tracker 2 replayer
+///
+/// An oxdz player based on st2play written by Sergei "x0r" Kolzun, ported
+/// to Rust by Claudio Matsuoka
+
+
 const ST2BASEFREQ      : u32 = 36072500;  // 2.21
 //const ST2BASEFREQ      : u32 = 35468950;  // 2.3
 
@@ -36,9 +42,9 @@ const FX_TREMOR        : u16 = 0x09;
 //const FX_VIBRA_VSLIDE  : u16 = 0x0b;
 //const FX_TONE_VSLIDE   : u16 = 0x0f;
 
-const TEMPO_MUL: &'static [u16] = &[ 140, 50, 25, 15, 10, 7, 6, 4, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1 ];
+static TEMPO_MUL: &'static [u16; 18] = &[ 140, 50, 25, 15, 10, 7, 6, 4, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1 ];
 
-const PERIOD_TABLE: &'static [i16] = &[
+static PERIOD_TABLE: &'static [i16; 16*5] = &[
     17080, 16012, 15184, 14236, 13664, 12808, 12008, 11388, 10676, 10248,  9608,  9108, 0, 0, 0, 0,
      8540,  8006,  7592,  7118,  6832,  6404,  6004,  5694,  5338,  5124,  4804,  4554, 0, 0, 0, 0,
      4270,  4003,  3796,  3559,  3416,  3202,  3002,  2847,  2669,  2562,  2402,  2277, 0, 0, 0, 0,
@@ -46,7 +52,7 @@ const PERIOD_TABLE: &'static [i16] = &[
      1067,  1000,   949,   889,   854,   800,   750,   711,   667,   640,   600,   569, 0, 0, 0, 0 
 ];
 
-const LFO_TABLE: &'static [i16] = &[
+static LFO_TABLE: &'static [i16; 65] = &[
        0,   24,   49,   74,   97,  120,  141,  161,  180,  197,  212,  224,  235,  244,  250,  253,
      255,  253,  250,  244,  235,  224,  212,  197,  180,  161,  141,  120,   97,   74,   49,   24,
        0,  -24,  -49,  -74,  -97, -120, -141, -161, -180, -197, -212, -224, -235, -244, -250, -253,
@@ -54,12 +60,6 @@ const LFO_TABLE: &'static [i16] = &[
        0
 ];
 
-
-
-/// ST2Play Scream Tracker 2 replayer
-///
-/// An oxdz player based on st2play written by Sergei "x0r" Kolzun, ported
-/// to Rust by Claudio Matsuoka
 
 pub struct St2Play {
     sample_rate     : u16,
