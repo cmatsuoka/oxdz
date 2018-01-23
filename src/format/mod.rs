@@ -5,6 +5,7 @@ use player::PlayerData;
 
 pub mod mk;
 pub mod stm;
+pub mod s3m;
 
 // Trait for module formats
 

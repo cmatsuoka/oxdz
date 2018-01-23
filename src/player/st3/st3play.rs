@@ -1,5 +1,7 @@
 use module::Module;
+use module::instrument::SubInstrument;
 use player::{PlayerData, Virtual, FormatPlayer};
+use format::s3m::S3mInstrument;
 
 /// S3M replayer
 ///
@@ -113,7 +115,7 @@ pub struct St3Play {
 
     //*mseg = NULL : u8,
     //instrumentadd : u16,
-    lastachannelused : i8,
+    lastachannelused : u8, // i8,
     tracker : u8,
     oldstvib : i8,
     fastvolslide : i8,
@@ -254,15 +256,15 @@ impl St3Play {
         }
     }
 
-    fn setvol(&mut self, ch: usize) {
+    fn setvol(&mut self, ch: usize, mut virt: &mut Virtual) {
         self.chn[ch].achannelused |= 0x80;
-        self.voice_set_volume(ch, (self.chn[ch].avol as f64 / 63.0_f64) * (self.chn[ch].chanvol as f64 / 64.0_f64) *
-                                  (self.globalvol as f64 / 64.0_f64), self.chn[ch].apanpos);
+        virt.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0_f64) * (self.chn[ch].chanvol as f64 / 64.0_f64) *
+                            (self.globalvol as f64 / 64.0_f64)) as usize);
+        virt.set_pan(ch, self.chn[ch].apanpos as isize);
     }
 
-    fn setpan(&mut self, ch: usize) {
-        self.voice_set_volume(ch, (self.chn[ch].avol as f64 / 63.0_f64) * (self.chn[ch].chanvol as f64 / 64.0_f64) *
-                                  (self.globalvol as f64 / 64.0_f64), self.chn[ch].apanpos);
+    fn setpan(&mut self, ch: usize, mut virt: &mut Virtual) {
+        self.setvol(ch, &mut virt);
     }
 
     fn stnote2herz(&mut self, note: u8) -> u16 {
@@ -395,9 +397,210 @@ impl St3Play {
         }
     }
 
-
-    fn voice_set_volume(&self, voiceNumber: usize, vol: f64, pan: i16) {
+    fn getnote(&mut self) -> usize {
+        255
     }
+
+    fn doamiga(&mut self, ch: usize, module: &Module, mut virt: &mut Virtual) {
+        //uint8_t *insdat;
+        //int8_t loop;
+        //uint32_t insoffs;
+        //uint32_t inslen;
+        //uint32_t insrepbeg;
+        //uint32_t insrepend;
+    
+        let note = self.chn[ch].note;
+        let ins = self.chn[ch].ins as usize;
+        let vol = self.chn[ch].vol;
+        let cmd = self.chn[ch].cmd;
+        let info = self.chn[ch].info;
+
+        if ins != 0 {
+            self.chn[ch].lastins = ins as u8;
+            self.chn[ch].astartoffset = 0;
+    
+            if ins <= module.instrument.len() {  // added for safety reasons
+                let insdat = module.instrument[ins].subins[0].as_any().downcast_ref::<S3mInstrument>().unwrap();
+                if insdat.typ != 0 {
+                    if insdat.typ == 1 {
+                        self.chn[ch].ac2spd = insdat.c2spd;
+    
+                        if self.tracker == OPENMPT || self.tracker == BEROTRACKER {
+                            if cmd == ('S' as u8 - 64) && info & 0xF0 == 0x20 {
+                                self.chn[ch].ac2spd = XFINETUNE_AMIGA[info as usize & 0x0F] as i32;
+                            }
+                        }
+    
+                        self.chn[ch].avol = insdat.vol;
+
+                        if self.chn[ch].avol < 0 {
+                            self.chn[ch].avol = 0;
+                        } else if self.chn[ch].avol > 63 {
+                            self.chn[ch].avol = 63;
+                        }
+
+                        self.chn[ch].aorgvol = self.chn[ch].avol;
+                        self.setvol(ch, &mut virt);
+    
+/*
+                        insoffs = ((insdat[0x0D] << 16) | (insdat[0x0F] << 8) | insdat[0x0E]) * 16;
+    
+                        inslen    = *((uint32_t *)(&insdat[0x10]));
+                        insrepbeg = *((uint32_t *)(&insdat[0x14]));
+                        insrepend = *((uint32_t *)(&insdat[0x18]));
+    
+                        if (insrepbeg > inslen) insrepbeg = inslen;
+                        if (insrepend > inslen) insrepend = inslen;
+    
+                        loop = 0;
+                        if ((insdat[0x1F] & 1) && inslen && (insrepend > insrepbeg))
+                            loop = 1;
+    
+                        // This specific portion differs from what sound card driver you use in ST3...
+                        if self.soundcardtype == Soundcard::Sb || cmd != ('G' as u8 - 64) && .cmd != ('L' as u8 - 64) {
+                            self.voice_set_source(ch, (const int8_t *)(&mseg[insoffs]), inslen,
+                                insrepend - insrepbeg, insrepend, loop,
+                                insdat[0x1F] & 4, insdat[0x1F] & 2);
+                        }
+*/
+                    } else {
+                        self.chn[ch].lastins = 0;
+                    }
+                }
+            }
+        }
+    
+        // continue only if we have an active instrument on this channel
+        if self.chn[ch].lastins == 0 {
+             return
+        }
+    
+        if cmd == ('O' as u8 - 64) {
+            if info == 0 {
+                self.chn[ch].astartoffset = self.chn[ch].astartoffset00;
+            } else {
+                self.chn[ch].astartoffset   = 256 * info as u16;
+                self.chn[ch].astartoffset00 = self.chn[ch].astartoffset;
+            }
+        }
+    
+        if note != 255 {
+            if note == 254 {
+                self.chn[ch].aspd    = 0;
+                self.chn[ch].avol    = 0;
+                self.chn[ch].asldspd = 65535;
+    
+                self.setspd(ch);
+                self.setvol(ch, &mut virt);
+    
+                // shutdown channel
+                //self.voice_set_source(ch, NULL, 0, 0, 0, 0, 0, 0);
+                virt.set_voicepos(ch, 0.0);
+            } else {
+                self.chn[ch].lastnote = note;
+    
+                if cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64) {
+                    virt.set_voicepos(ch, self.chn[ch].astartoffset as f64);
+                }
+    
+/*
+                if tracker == OPENMPT || tracker == BEROTRACKER {
+                    voiceSetPlayBackwards(ch, 0);
+                    if ((chn[ch].cmd == ('S' - 64)) && (chn[ch].info == 0x9F))
+                        voiceSetReadPosToEnd(ch);
+                }
+*/
+    
+                if self.chn[ch].aorgspd == 0 || (cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64)) {
+                    let h = self.stnote2herz(note) as i32;
+                    self.chn[ch].aspd    = self.scalec2spd(ch, h);
+                    self.chn[ch].aorgspd = self.chn[ch].aspd;
+                    self.chn[ch].avibcnt = 0;
+                    self.chn[ch].apancnt = 0;
+    
+                    self.setspd(ch);
+                }
+    
+                let h = self.stnote2herz(note) as i32;
+                self.chn[ch].asldspd = self.scalec2spd(ch, h);
+            }
+        }
+    
+        if vol != 255 {
+            if vol <= 64 {
+                self.chn[ch].avol    = vol as i8;
+                self.chn[ch].aorgvol = vol as i8;
+    
+                self.setvol(ch, &mut virt);
+    
+                return;
+            }
+    
+/*
+            /* NON-ST3, but let's handle it no matter what tracker */
+            if ((chn[ch].vol >= 128) && (chn[ch].vol <= 192))
+            {
+                chn[ch].surround = 0;
+                voiceSetSurround(ch, 0);
+    
+                chn[ch].apanpos = (chn[ch].vol - 128) * 4;
+                setpan(ch);
+            }
+*/
+        }
+    }
+    
+    fn donewnote(&mut self, ch: usize, notedelayflag: bool, module: &Module, mut virt: &mut Virtual) {
+        if notedelayflag {
+            self.chn[ch].achannelused = 0x81;
+        } else {
+            if self.chn[ch].channelnum > self.lastachannelused {
+                self.lastachannelused = self.chn[ch].channelnum + 1;
+    
+                // sanity fix
+                if self.lastachannelused > 31 {
+                    self.lastachannelused = 31;
+                }
+            }
+    
+            self.chn[ch].achannelused = 0x01;
+    
+            if self.chn[ch].cmd == ('S' as u8 - 64) {
+                if (self.chn[ch].info & 0xF0) == 0xD0 {
+                    return
+                }
+            }
+        }
+    
+        self.doamiga(ch, &module, &mut virt);
+    }
+    
+    fn donotes(&mut self, module: &Module, virt: &mut Virtual) {
+        for i in 0..32 {
+            self.chn[i].note = 255;
+            self.chn[i].vol  = 255;
+            self.chn[i].ins  = 0;
+            self.chn[i].cmd  = 0;
+            self.chn[i].info = 0;
+        }
+    
+        //seekpat();
+    
+        loop {
+            let ch = self.getnote();
+            if ch == 255 {
+                break  // end of row/channels
+            }
+    
+/*
+            if self.channel_settings[ch] & 0x7F <= 15 {  // no adlib channel types yet
+                self.donewnote(ch, false, &module, &mut virt);
+            }
+*/
+        }
+    }
+    
+
 
     fn voice_set_sampling_frequency(&self, voiceNumber: usize, samplingFrequency: u32) {
     }
