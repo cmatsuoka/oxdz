@@ -2,10 +2,10 @@ use module::Module;
 use player::{PlayerData, Virtual, FormatPlayer};
 use format::stm::StmPatterns;
 
-/// ST2Play Scream Tracker 2 replayer
+/// Scream Tracker 2 replayer
 ///
 /// An oxdz player based on st2play written by Sergei "x0r" Kolzun, ported
-/// to Rust by Claudio Matsuoka
+/// to Rust by Claudio Matsuoka.
 
 
 const ST2BASEFREQ      : u32 = 36072500;  // 2.21
@@ -346,8 +346,6 @@ impl St2Play {
         }
     }
 }
-
-
 
 
 impl FormatPlayer for St2Play {

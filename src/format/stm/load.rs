@@ -78,7 +78,7 @@ impl ModuleFormat for Stm {
             return Err(Error::Format("unsupported version"));
         }
 
-        let tempo = b.read8(32)? as usize;
+        let speed = b.read8(32)? as usize;
         let num_patterns = b.read8(33)? as usize;
         let global_vol = b.read8(34)?;
 
@@ -114,8 +114,8 @@ impl ModuleFormat for Stm {
             player     : "st2",
             title,
             chn        : 4,
-            speed      : 6,
-            tempo,
+            speed,
+            tempo      : 125,
             instrument : ins_list,
             sample     : smp_list,
             orders     : Box::new(ord),
