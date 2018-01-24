@@ -4,7 +4,7 @@ use module::Module;
 use player::PlayerData;
 
 pub mod mk;
-//pub mod stm;
+pub mod stm;
 
 // Trait for module formats
 
@@ -18,7 +18,7 @@ pub trait ModuleFormat {
 pub fn list() -> Vec<Box<ModuleFormat>> {
     vec![
         Box::new(mk::ModFormat),
-        //Box::new(stm::Stm),
+        Box::new(stm::StmFormat),
     ]
 }
 

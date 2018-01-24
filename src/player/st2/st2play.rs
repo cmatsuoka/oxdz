@@ -1,6 +1,6 @@
-use module::Module;
+use module::{Module, ModuleData};
 use player::{PlayerData, Virtual, FormatPlayer};
-use format::stm::{StmPatterns, StmInstrument};
+use format::stm::{StmData, StmPatterns, StmInstrument};
 
 /// Scream Tracker 2 replayer
 ///
@@ -101,7 +101,7 @@ impl St2Play {
             tempo           : 0x60,
             global_volume   : 64,
             //play_single_note: 0,
-            channels        : vec![St2Channel::new(); module.chn],
+            channels        : vec![St2Channel::new(); module.channels()],
         }
     }
 
@@ -219,7 +219,7 @@ impl St2Play {
         }
     }
 
-    fn trigger_note(&mut self, chn: usize, module: &Module) {
+    fn trigger_note(&mut self, chn: usize, module: &StmData) {
         let note = self.channels[chn].event_note as usize;
         let volume = self.channels[chn].event_volume as i16;
         let smp = self.channels[chn].event_smp as usize;
@@ -238,7 +238,7 @@ impl St2Play {
         }
     
         if smp != 0 {
-            let instrument = &module.instrument[smp - 1].as_any().downcast_ref::<StmInstrument>().unwrap();
+            let instrument = &module.instruments[smp - 1];
 
             //self.channels[chn].smp_name = self.samples[smp].name;
             if volume == 65 {
@@ -276,7 +276,7 @@ impl St2Play {
         self.cmd_once(chn);
     }
 
-    fn process_row(&mut self, chn: usize, module: &Module) {
+    fn process_row(&mut self, chn: usize, module: &StmData) {
         self.channels[chn].row += 1;
         if self.channels[chn].row >= 64 {
             self.change_pattern = true;
@@ -286,8 +286,7 @@ impl St2Play {
             {
                 let row = self.channels[chn].row;
                 let ch = &mut self.channels[chn];
-                let pats = module.patterns.as_any().downcast_ref::<StmPatterns>().unwrap();
-                let event = pats.event(self.pattern_current, row - 1, chn);
+                let event = module.patterns.event(self.pattern_current, row - 1, chn);
 
                 ch.event_note     = event.note as u16;
                 ch.event_smp      = event.smp as u16;
@@ -303,14 +302,14 @@ impl St2Play {
         //}
     }
 
-    fn change_pattern(&mut self, module: &Module) {
-        let pat = module.orders.pattern(self.order_next as usize);
+    fn change_pattern(&mut self, module: &StmData) {
+        let pat = module.orders[self.order_next as usize];
         if pat == 98 || pat == 99 {
             self.order_next = if pat == 99 { self.order_first } else { 0 };
             self.loop_count += 1;
         }
 
-        self.pattern_current = module.orders.pattern(self.order_next as usize) as u16;
+        self.pattern_current = module.orders[self.order_next as usize] as u16;
 //      self.order_list_ptr[self.order_next] = 99;
         self.order_current = self.order_next;
         self.order_next += 1;
@@ -320,7 +319,7 @@ impl St2Play {
         }
     }
 
-    fn process_tick(&mut self, module: &Module) {
+    fn process_tick(&mut self, module: &StmData) {
         if self.current_tick != 0 {
             self.current_tick -= 1;
             for i in 0..4 {
@@ -349,14 +348,23 @@ impl St2Play {
 
 
 impl FormatPlayer for St2Play {
-    fn start(&mut self, _data: &mut PlayerData, module: &Module) {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData) {
+
+        let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
+
+        data.speed = module.speed as usize;
+        data.tempo = 125;
+
         let tempo = self.tempo as u16;
         self.set_tempo(tempo);
         self.current_frame = self.frames_per_tick;
         self.change_pattern(&module);
     }
 
-    fn play(&mut self, data: &mut PlayerData, module: &Module, virt: &mut Virtual) {
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, virt: &mut Virtual) {
+
+        let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
+
         self.tempo = data.tempo as u8;
         self.ticks_per_row = data.speed as u16;
         self.order_next = data.pos as u16;
