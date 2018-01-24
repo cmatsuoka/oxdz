@@ -1,18 +1,16 @@
-use std::any::Any;
-use Error;
-use format::{ModuleFormat, StdOrders};
-use format::stm::{StmInstrument, StmEvent};
-use module::{Module, Sample, Instrument, Patterns, Event};
+use format::Loader;
+use format::stm::{StmData, StmPatterns, StmInstrument};
+use module::{Module, Sample};
 use module::sample::SampleType;
-//use player::PlayerData;
 use util::BinaryRead;
+use ::*;
 
 /// Scream Tracker 2 module loader
-pub struct Stm;
+pub struct StmLoader;
 
-impl Stm {
-    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(Instrument, Sample), Error> {
-        let mut ins = Instrument::new();
+impl StmLoader {
+    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(StmInstrument, Sample), Error> {
+        let mut ins = StmInstrument::new();
         let mut smp = Sample::new();
 
         let ofs = 48 + i * 32;
@@ -31,14 +29,10 @@ impl Stm {
             smp.has_loop = true;
         }
 
-        let mut sub = StmInstrument::new();
-        sub.smp_num = i;
-
         if smp.size > 0 {
             smp.sample_type = SampleType::Sample8;
         }
 
-        ins.subins.push(Box::new(sub));
         Ok((ins, smp))
     }
 
@@ -51,7 +45,7 @@ impl Stm {
     }
 }
 
-impl ModuleFormat for Stm {
+impl Loader for StmLoader {
     fn name(&self) -> &'static str {
         "Scream Tracker 2 STM"
     }
@@ -69,7 +63,7 @@ impl ModuleFormat for Stm {
     }
 
     fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
-        let title = b.read_string(0, 20)?;
+        let name = b.read_string(0, 20)?;
 
         let version_major = b.read8(30)?;
         let version_minor = b.read8(31)?;
@@ -78,125 +72,57 @@ impl ModuleFormat for Stm {
             return Err(Error::Format("unsupported version"));
         }
 
-        let tempo = b.read8(32)? as usize;
-        let num_patterns = b.read8(33)? as usize;
+        let speed = b.read8(32)?;
+        let num_patterns = b.read8(33)?;
         let global_vol = b.read8(34)?;
 
-        let mut ins_list = Vec::<Instrument>::new();
-        let mut smp_list = Vec::<Sample>::new();
+        let mut instruments = Vec::<StmInstrument>::new();
+        let mut samples = Vec::<Sample>::new();
 
         // Load instruments
         for i in 0..31 {
             let (ins, smp) = try!(self.load_instrument(b, i));
-            ins_list.push(ins);
-            smp_list.push(smp);
+            instruments.push(ins);
+            samples.push(smp);
         }
 
         // Load orders
-        let ord = StdOrders::from_slice(0, b.slice(1040, 128)?);
+        let orders = b.slice(1040, 128)?;
 
         // Load patterns
-        let patterns = StmPatterns::from_slice(num_patterns as usize, b.slice(1168, 1024*num_patterns)?)?;
+        let patterns = StmPatterns::from_slice(num_patterns as usize, b.slice(1168, 1024*num_patterns as usize)?)?;
 
         // Load samples
-        let mut ofs = 1168 + 1024*num_patterns;
+        let mut ofs = 1168 + 1024*num_patterns as usize;
         for i in 0..31 {
-            let size = smp_list[i].size as usize;
+            let size = samples[i].size as usize;
             if size > 0 {
-                smp_list = try!(self.load_sample(b.slice(ofs, size)?, smp_list, i));
+                samples = try!(self.load_sample(b.slice(ofs, size)?, samples, i));
                 ofs += size;
             }
         }
 
+        let mut data = StmData{
+            name,
+            speed,
+            num_patterns,
+            global_vol,
+            instruments,
+            orders: [0; 128],
+            patterns,
+            samples,
+        };
+
+        data.orders.copy_from_slice(orders);
+
         let m = Module {
             format     : "stm",
-            description: "Scream Tracker 2 STM".to_string(),
+            description: "Scream Tracker 2 STM",
             player     : "st2",
-            title,
-            chn        : 4,
-            speed      : 6,
-            tempo,
-            instrument : ins_list,
-            sample     : smp_list,
-            orders     : Box::new(ord),
-            patterns   : Box::new(patterns),
+            data       : Box::new(data),
         };
 
         Ok(m)
     }
 }
 
-
-pub struct StmPatterns {
-    num : usize,
-    data: Vec<StmEvent>,
-}
-
-impl StmPatterns {
-    fn from_slice(num: usize, b: &[u8]) -> Result<Self, Error> {
-        let mut pat = StmPatterns{
-            num,
-            data: Vec::new(),
-        };
-
-        for p in 0..num {
-            for r in 0..64 {
-                for c in 0..4 {
-                    let ofs = p * 1024 + r * 16 + c * 4;
-                    let e = StmEvent::from_slice(b.slice(ofs, 4)?);
-                    pat.data.push(e);
-                }
-            }
-        }
-
-        Ok(pat)
-    }
-
-    pub fn event(&self, pat: u16, row: u16, chn: usize) -> &StmEvent {
-        &self.data[pat as usize * 256 + row as usize * 4 + chn]
-    }
-}
-
-impl Patterns for StmPatterns {
-    fn as_any(&self) -> &Any {
-        self
-    }
-
-    fn num(&self) -> usize {
-        self.num 
-    }
-
-    fn len(&self, pat: usize) -> usize {
-        if pat >= self.num {
-            0
-        } else {
-            64
-        }
-    }
-
-    fn rows(&self, pat: usize) -> usize {
-        if pat >= self.num() {
-            0
-        } else {
-            64
-        }
-    }
-
-    // Transform into "cooked" event
-    // STM stores notes in octave:note format, empty notes as 255 and empty volumes
-    // as 65, so transform accordingly.
-    fn event(&self, num: usize, row: usize, chn: usize) -> Event {
-        let ofs = num * 256 + row * 4 + chn;
-        let mut e = Event::new();
-        if ofs >= self.data.len() {
-            return e
-        }
-        let raw = &self.data[ofs];
-        e.note = if raw.note > 250 { 0 } else { (raw.note&0x0f) + 12*(3+(raw.note>>4)) };
-        e.ins  = raw.smp;
-        e.vol  = if raw.volume == 65 { 0 } else { raw.volume + 1 };
-        e.fxt  = raw.cmd;
-        e.fxp  = raw.infobyte;
-        e
-    }
-}

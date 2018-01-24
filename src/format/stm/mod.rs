@@ -4,30 +4,109 @@ pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
-use module::SubInstrument;
-use util::NOTES;
+use module::{ModuleData, Event, Sample};
+use util::{NOTES, BinaryRead};
+use ::*;
 
-/// StmInstrument defines extra instrument fields used in Protracker instruments.
-#[derive(Debug)]
-pub struct StmInstrument {
-    pub smp_num : usize,
+
+pub struct StmData {
+    pub name: String,
+    pub speed: u8,
+    pub num_patterns: u8,
+    pub global_vol: u8,
+    pub instruments: Vec<StmInstrument>,
+    pub orders: [u8; 128],
+    pub patterns: StmPatterns,
+    pub samples: Vec<Sample>,
 }
 
-impl StmInstrument {
-    pub fn new() -> Self {
-        StmInstrument {
-            smp_num : 0,
-        }
-    }
-}
-
-impl SubInstrument for StmInstrument {
+impl ModuleData for StmData {
     fn as_any(&self) -> &Any {
         self
     }
 
-    fn sample_num(&self) -> usize {
-        self.smp_num
+    fn title(&self) -> &str {
+        &self.name
+    }
+
+    fn channels(&self) -> usize {
+        4
+    }
+
+    fn patterns(&self) -> usize {
+        self.num_patterns as usize
+    }
+
+    fn len(&self) -> usize {
+        for i in 0..128 {
+            if self.orders[i] >= self.num_patterns {
+                return i
+            }
+        }
+        128
+    }
+
+
+    fn pattern_in_position(&self, pos: usize) -> Option<usize> {
+        if pos >= self.orders.len() {
+            None
+        } else {
+            Some(self.orders[pos] as usize)
+        }
+    }
+
+    fn next_position(&self, _pos: usize) -> usize {
+        0
+    }
+
+    fn prev_position(&self, _pos: usize) -> usize {
+        0
+    }
+
+    fn instruments(&self) -> Vec<String> {
+        self.instruments.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>()
+    }
+
+    fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event> {
+        if num >= self.num_patterns as usize || row >= 64 || chn >= 4 {
+           return None
+        } else {
+           let p = &self.patterns.data[num*256 + row*4 + chn];
+           Some(Event{
+               note: if p.note > 250 { 0 } else { (p.note&0x0f) + 12*(3+(p.note>>4)) },
+               ins : p.smp,
+               vol : if p.volume == 65 { 0 } else { p.volume + 1 },
+               fxt : p.cmd,
+               fxp : p.infobyte,
+           })
+        }
+
+    }
+
+    fn rows(&self, pat: usize) -> usize {
+        if pat >= self.num_patterns as usize {
+            0
+        } else {
+            64
+        }
+    }
+
+    fn samples(&self) -> &Vec<Sample> {
+        &self.samples
+    }
+}
+
+/// StmInstrument defines extra instrument fields used in Protracker instruments.
+#[derive(Debug,Default)]
+pub struct StmInstrument {
+    pub num   : usize,
+    pub name  : String,
+    pub volume: usize,
+}
+
+impl StmInstrument {
+    pub fn new() -> Self {
+        Default::default()
     }
 }
 
@@ -88,6 +167,36 @@ impl fmt::Display for StmEvent {
         write!(f, "{} {} {} {}{:02X}", note, smp, vol, cmd, self.infobyte)
     }
 }
+
+
+pub struct StmPatterns {
+    data: Vec<StmEvent>,
+}
+
+impl StmPatterns {
+    fn from_slice(num: usize, b: &[u8]) -> Result<Self, Error> {
+        let mut pat = StmPatterns{
+            data: Vec::new(),
+        };
+
+        for p in 0..num {
+            for r in 0..64 {
+                for c in 0..4 {
+                    let ofs = p * 1024 + r * 16 + c * 4;
+                    let e = StmEvent::from_slice(b.slice(ofs, 4)?);
+                    pat.data.push(e);
+                }
+            }
+        }
+
+        Ok(pat)
+    }
+
+    pub fn event(&self, pat: u16, row: u16, chn: usize) -> &StmEvent {
+        &self.data[pat as usize * 256 + row as usize * 4 + chn]
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

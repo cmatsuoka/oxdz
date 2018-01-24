@@ -4,32 +4,103 @@ pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
-use module::SubInstrument;
-use util::NOTES;
+use module::{ModuleData, Event, Sample};
+use util::{NOTES, BinaryRead};
+use ::*;
 
-/// ModInstrument defines extra instrument fields used in Protracker instruments.
-#[derive(Debug)]
-pub struct ModInstrument {
-    pub finetune: isize,
-    pub smp_num : usize,
+
+pub struct ModData {
+    pub song_name: String,
+    pub instruments: Vec<ModInstrument>,
+    pub song_length: usize,
+    pub restart: u8,  // Noisetracker restart
+    pub orders: [u8; 128],
+    pub magic: [u8; 4],
+    pub patterns: ModPatterns,
+    pub samples: Vec<Sample>,
 }
 
-impl ModInstrument {
-    pub fn new() -> Self {
-        ModInstrument {
-            finetune: 0,
-            smp_num : 0,
-        }
-    }
-}
-
-impl SubInstrument for ModInstrument {
+impl ModuleData for ModData {
     fn as_any(&self) -> &Any {
         self
     }
 
-    fn sample_num(&self) -> usize {
-        self.smp_num
+    fn title(&self) -> &str {
+        &self.song_name
+    }
+
+    fn channels(&self) -> usize {
+        4
+    }
+
+    fn patterns(&self) -> usize {
+        self.patterns.num()
+    }
+
+    fn len(&self) -> usize {
+        self.song_length
+    }
+
+    fn pattern_in_position(&self, pos: usize) -> Option<usize> {
+        if pos >= self.orders.len() {
+            None
+        } else {
+            Some(self.orders[pos] as usize)
+        }
+    }
+
+    fn next_position(&self, _pos: usize) -> usize {
+        0
+    }
+
+    fn prev_position(&self, _pos: usize) -> usize {
+        0
+    }
+
+    fn instruments(&self) -> Vec<String> {
+        self.instruments.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>()
+    }
+
+    fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event> {
+        if num >= self.patterns.num() || row >= 64 || chn >= 4 {
+           return None
+        } else {
+           let p = &self.patterns.data[num*256 + row*4 + chn];
+           Some(Event{
+               note: p.note,
+               ins : p.ins,
+               vol : 0,
+               fxt : p.cmd,
+               fxp : p.cmdlo,
+           })
+        }
+
+    }
+
+    fn rows(&self, pat: usize) -> usize {
+        if pat >= self.patterns.num() {
+            0
+        } else {
+            64
+        }
+    }
+
+    fn samples(&self) -> &Vec<Sample> {
+        &self.samples
+    }
+}
+
+
+#[derive(Debug,Default)]
+pub struct ModInstrument {
+    pub name    : String,
+    pub volume  : usize,
+    pub finetune: isize,
+}
+
+impl ModInstrument {
+    pub fn new() -> Self {
+        Default::default()
     }
 }
 
@@ -68,6 +139,41 @@ impl fmt::Display for ModEvent {
         };
 
         write!(f, "{} {} {:02X}{:02X}", note, ins, self.cmd, self.cmdlo)
+    }
+}
+
+
+pub struct ModPatterns {
+    num : usize,
+    data: Vec<ModEvent>,
+}
+
+impl ModPatterns {
+    fn from_slice(num: usize, b: &[u8]) -> Result<Self, Error> {
+        let mut pat = ModPatterns{
+            num,
+            data: Vec::new(),
+        };
+
+        for p in 0..num {
+            for r in 0..64 {
+                for c in 0..4 {
+                    let ofs = p * 1024 + r * 16 + c * 4;
+                    let e = ModEvent::from_slice(b.slice(ofs, 4)?);
+                    pat.data.push(e);
+                }
+            }
+        }
+        
+        Ok(pat)
+    }
+
+    pub fn num(&self) -> usize {
+        self.num
+    }
+
+    pub fn event(&self, pat: usize, row: u8, chn: usize) -> &ModEvent {
+        &self.data[pat * 256 + row as usize * 4 + chn]
     }
 }
 
