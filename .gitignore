@@ -1,3 +1,10 @@
 /target/
 **/*.rs.bk
 Cargo.lock
+*.swp
+*.wav
+*.mod
+*.s3m
+*.xm
+*.stm
+

@@ -1,7 +1,6 @@
-use module::Module;
-use module::instrument::SubInstrument;
+use module::{Module, ModuleData};
 use player::{PlayerData, Virtual, FormatPlayer};
-use format::s3m::S3mInstrument;
+use format::s3m::S3mData;
 
 /// S3M replayer
 ///
@@ -373,19 +372,19 @@ impl St3Play {
         return newspd;
     }
 
-    fn neworder(&mut self, module: &Module) -> i16 {
+    fn neworder(&mut self, module: &S3mData) -> i16 {
         loop {
             self.np_ord += 1;
 
-            if module.orders.pattern(self.np_ord - 1) == 255 || self.np_ord > module.orders.num(0) {  // end
+            if module.orders[self.np_ord - 1] == 255 || self.np_ord > module.ord_num as usize {  // end
                 self.np_ord = 1;
             }
 
-            if module.orders.pattern(self.np_ord - 1) == 254 {  // skip
+            if module.orders[self.np_ord - 1] == 254 {  // skip
                 continue;  // goto newOrderSkip;
             }
 
-            self.np_pat       = module.orders.pattern(self.np_ord - 1) as i16;
+            self.np_pat       = module.orders[self.np_ord - 1] as i16;
             self.np_patoff    = -1;  // force reseek
             self.np_row       = self.startrow as i16;
             self.startrow     = 0;
@@ -401,7 +400,7 @@ impl St3Play {
         255
     }
 
-    fn doamiga(&mut self, ch: usize, module: &Module, mut virt: &mut Virtual) {
+    fn doamiga(&mut self, ch: usize, module: &S3mData, mut virt: &mut Virtual) {
         //uint8_t *insdat;
         //int8_t loop;
         //uint32_t insoffs;
@@ -419,11 +418,11 @@ impl St3Play {
             self.chn[ch].lastins = ins as u8;
             self.chn[ch].astartoffset = 0;
     
-            if ins <= module.instrument.len() {  // added for safety reasons
-                let insdat = module.instrument[ins].subins[0].as_any().downcast_ref::<S3mInstrument>().unwrap();
+            if ins <= module.ins_num as usize {  // added for safety reasons
+                let insdat = &module.instruments[ins];
                 if insdat.typ != 0 {
                     if insdat.typ == 1 {
-                        self.chn[ch].ac2spd = insdat.c2spd;
+                        self.chn[ch].ac2spd = insdat.c2spd as i32;
     
                         if self.tracker == OPENMPT || self.tracker == BEROTRACKER {
                             if cmd == ('S' as u8 - 64) && info & 0xF0 == 0x20 {
@@ -550,7 +549,7 @@ impl St3Play {
         }
     }
     
-    fn donewnote(&mut self, ch: usize, notedelayflag: bool, module: &Module, mut virt: &mut Virtual) {
+    fn donewnote(&mut self, ch: usize, notedelayflag: bool, module: &S3mData, mut virt: &mut Virtual) {
         if notedelayflag {
             self.chn[ch].achannelused = 0x81;
         } else {
@@ -575,7 +574,7 @@ impl St3Play {
         self.doamiga(ch, &module, &mut virt);
     }
     
-    fn donotes(&mut self, module: &Module, virt: &mut Virtual) {
+    fn donotes(&mut self, module: &S3mData, virt: &mut Virtual) {
         for i in 0..32 {
             self.chn[i].note = 255;
             self.chn[i].vol  = 255;
@@ -607,10 +606,10 @@ impl St3Play {
 }
 
 impl FormatPlayer for St3Play {
-    fn start(&mut self, _data: &mut PlayerData, module: &Module) {
+    fn start(&mut self, _data: &mut PlayerData, mdata: &ModuleData) {
     }
 
-    fn play(&mut self, data: &mut PlayerData, module: &Module, virt: &mut Virtual) {
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, virt: &mut Virtual) {
     }
 
     fn reset(&mut self) {
