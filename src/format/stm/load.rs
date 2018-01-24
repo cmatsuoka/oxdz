@@ -1,15 +1,15 @@
 use std::any::Any;
 use Error;
-use format::ModuleFormat;
+use format::Loader;
 use format::stm::{StmData, StmPatterns, StmInstrument, StmEvent};
 use module::{Module, Sample, Instrument, Event};
 use module::sample::SampleType;
 use util::BinaryRead;
 
 /// Scream Tracker 2 module loader
-pub struct StmFormat;
+pub struct StmLoader;
 
-impl StmFormat {
+impl StmLoader {
     fn load_instrument(&self, b: &[u8], i: usize) -> Result<(StmInstrument, Sample), Error> {
         let mut ins = StmInstrument::new();
         let mut smp = Sample::new();
@@ -46,7 +46,7 @@ impl StmFormat {
     }
 }
 
-impl ModuleFormat for StmFormat {
+impl Loader for StmLoader {
     fn name(&self) -> &'static str {
         "Scream Tracker 2 STM"
     }

@@ -1,16 +1,16 @@
 use std::any::Any;
 use std::cmp;
 use Error;
-use format::ModuleFormat;
+use format::Loader;
 use format::mk::{ModData, ModPatterns, ModEvent, ModInstrument};
 use module::{Module, Sample, Instrument, Event};
 use module::sample::SampleType;
 use util::{self, BinaryRead};
 
 /// Protracker module loader
-pub struct ModFormat;
+pub struct ModLoader;
 
-impl ModFormat {
+impl ModLoader {
     fn load_instrument(&self, b: &[u8], i: usize) -> Result<(ModInstrument, Sample), Error> {
         let mut ins = ModInstrument::new();
         let mut smp = Sample::new();
@@ -45,7 +45,7 @@ impl ModFormat {
     }
 }
 
-impl ModuleFormat for ModFormat {
+impl Loader for ModLoader {
     fn name(&self) -> &'static str {
         "Protracker MOD"
     }

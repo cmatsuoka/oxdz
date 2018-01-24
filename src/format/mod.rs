@@ -8,17 +8,17 @@ pub mod stm;
 
 // Trait for module formats
 
-pub trait ModuleFormat {
+pub trait Loader {
     fn name(&self) -> &'static str;
     fn probe(&self, &[u8]) -> Result<(), Error>;
     fn load(self: Box<Self>, &[u8]) -> Result<Module, Error>;
 }
 
 
-pub fn list() -> Vec<Box<ModuleFormat>> {
+pub fn list() -> Vec<Box<Loader>> {
     vec![
-        Box::new(mk::ModFormat),
-        Box::new(stm::StmFormat),
+        Box::new(mk::ModLoader),
+        Box::new(stm::StmLoader),
     ]
 }
 
