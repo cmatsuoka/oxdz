@@ -44,15 +44,17 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
     let module = try!(format::load(&mmap[..]));
-    println!("Title: {}", module.title);
+    println!("Title: {}", module.title());
 
     println!("Instruments:");
-    for ins in &module.instrument {
-        println!("{:3}: {:30} {:2}", ins.num(), ins.name(), ins.volume());
+    let mut i = 0;
+    for ins in module.instruments() {
+        println!("{:3}: {:30}", i + 1, ins);
+        i += 1;
     }
 
     println!("Samples:");
-    for smp in &module.sample {
+    for smp in module.samples() {
         println!("{:3}: {:30} {:5} {:5} {:5} {}",
             smp.num, smp.name, smp.size, smp.loop_start, smp.loop_end,
             if smp.has_loop { 'L' } else { ' ' });
@@ -67,9 +69,9 @@ fn run(name: &String) -> Result<(), Box<Error>> {
 
     let mut player = player::Player::find_player(&module, module.player)?;
 
-    println!("Length: {}", module.orders.num(0));
-    println!("Patterns: {}", module.patterns.num());
-    println!("Position: {} ({})", player.position(), module.orders.pattern(player.data.pos));
+    println!("Length: {}", module.len());
+    println!("Patterns: {}", module.patterns());
+    println!("Position: {} ({})", player.position(), module.pattern_in_position(player.data.pos).unwrap());
 
     show_pattern(&module, 2);
 
@@ -96,10 +98,10 @@ fn run(name: &String) -> Result<(), Box<Error>> {
 
 fn show_pattern(module: &module::Module, num: usize) {
     println!("Pattern {}:", num);
-    for r in 0..module.patterns.rows(num) {
+    for r in 0..module.rows(num) {
         print!("{:3}: ", r);
-        for c in 0..module.chn {
-            print!("{}  ", module.patterns.event(num, r, c))
+        for c in 0..module.channels() {
+            print!("{}  ", module.event(num, r, c).unwrap())
         }
         println!();
     }

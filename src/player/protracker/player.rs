@@ -1,6 +1,6 @@
-use module::Module;
+use module::{Module, ModuleData};
 use player::{PlayerData, Virtual, FormatPlayer};
-use format::mk::{ModPatterns, ModInstrument, PeriodTable};
+use format::mk::{ModData, ModInstrument, PeriodTable};
 
 /// PT2.1A Replayer
 ///
@@ -16,7 +16,7 @@ use format::mk::{ModPatterns, ModInstrument, PeriodTable};
 /// * CIA tempo support added to the original PT2.1A set speed command.
 
 pub struct ModPlayer {
-    state: Vec<ChannelData>,
+    state : Vec<ChannelData>,
 
     mt_speed          : u8,
     mt_counter        : u8,
@@ -34,7 +34,7 @@ pub struct ModPlayer {
 impl ModPlayer {
     pub fn new(module: &Module) -> Self {
         ModPlayer {
-            state: vec![ChannelData::new(); module.chn],
+            state: vec![ChannelData::new(); module.data.channels()],
 
             mt_speed          : 6,
             mt_counter        : 0,
@@ -50,7 +50,7 @@ impl ModPlayer {
         }
     }
 
-    fn mt_music(&mut self, module: &Module, mut virt: &mut Virtual) {
+    fn mt_music(&mut self, module: &ModData, mut virt: &mut Virtual) {
         self.mt_counter += 1;
         if self.mt_speed > self.mt_counter {
             // mt_NoNewNote
@@ -95,18 +95,20 @@ impl ModPlayer {
         self.mt_no_new_pos_yet(&module);
     }
 
-    fn mt_no_new_all_channels(&mut self, module: &Module, mut virt: &mut Virtual) {
-        for chn in 0..module.chn {
+    fn mt_no_new_all_channels(&mut self, module: &ModData, mut virt: &mut Virtual) {
+        for chn in 0..module.channels() {
             self.mt_check_efx(chn, &mut virt);
         }
     }
 
-    fn mt_get_new_note(&mut self, module: &Module, mut virt: &mut Virtual) {
-        let pats = module.patterns.as_any().downcast_ref::<ModPatterns>().unwrap();
-        let p = module.orders.pattern(self.mt_song_pos as usize);
+    fn mt_get_new_note(&mut self, module: &ModData, mut virt: &mut Virtual) {
+        let p = match module.pattern_in_position(self.mt_song_pos as usize) {
+            Some(val) => val,
+            None      => return,
+        };
 
-        for chn in 0..module.chn {
-            let event = pats.event(p, self.mt_pattern_pos, chn);
+        for chn in 0..module.channels() {
+            let event = module.patterns.event(p, self.mt_pattern_pos, chn);
             let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
             // mt_PlayVoice
@@ -124,7 +126,7 @@ impl ModPlayer {
                 state.n_cmdlo = cmdlo;
 
                 if ins != 0 {
-                    let instrument = &module.instrument[ins as usize - 1].as_any().downcast_ref::<ModInstrument>().unwrap();
+                    let instrument = &module.instruments[ins as usize - 1];
                     //let sample = &module.sample[ins as usize];
                     //state.n_start = sample.loop_start;
                     //state.n_length = sample.size;
@@ -190,18 +192,18 @@ impl ModPlayer {
         self.mt_check_more_efx(chn, &mut virt);
     }
 
-    fn mt_next_position(&mut self, module: &Module) {
+    fn mt_next_position(&mut self, module: &ModData) {
         self.mt_pattern_pos = self.mt_pbreak_pos;
         self.mt_pbreak_pos = 0;
         self.mt_pos_jump_flag = false;
         self.mt_song_pos = self.mt_song_pos.wrapping_add(1);
         self.mt_song_pos &= 0x7f;
-        if self.mt_song_pos as usize >= module.len(0) {
+        if self.mt_song_pos as usize >= module.len() {
             self.mt_song_pos = 0;
         }
     }
 
-    fn mt_no_new_pos_yet(&mut self, module: &Module) {
+    fn mt_no_new_pos_yet(&mut self, module: &ModData) {
         if self.mt_pos_jump_flag {
             self.mt_next_position(&module);
             self.mt_no_new_pos_yet(&module);
@@ -695,10 +697,15 @@ impl ModPlayer {
 }
 
 impl FormatPlayer for ModPlayer {
-    fn start(&mut self, _data: &mut PlayerData, _module: &Module) {
+    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData) {
+        data.speed = 6;
+        data.tempo = 125;
     }
 
-    fn play(&mut self, data: &mut PlayerData, module: &Module, mut virt: &mut Virtual) {
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut virt: &mut Virtual) {
+
+        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
+
         self.cia_tempo = data.tempo as u8;
         self.mt_speed = data.speed as u8;
         self.mt_song_pos = data.pos as u8;

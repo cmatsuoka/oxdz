@@ -1,8 +1,8 @@
 use std::any::Any;
 use Error;
-use format::{ModuleFormat, StdOrders};
+use format::ModuleFormat;
 use format::stm::{StmInstrument, StmEvent};
-use module::{Module, Sample, Instrument, Patterns, Event};
+use module::{Module, Sample, Instrument, Event};
 use module::sample::SampleType;
 //use player::PlayerData;
 use util::BinaryRead;

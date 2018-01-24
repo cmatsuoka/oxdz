@@ -1,13 +1,13 @@
 mod virt;
 mod scan;
 mod protracker;
-mod st2;
+//mod st2;
 
 pub use player::virt::Virtual;
 pub use mixer::Mixer;
 
 use std::cmp;
-use module::Module;
+use module::{Module, ModuleData};
 use util::MemOpExt;
 use ::*;
 
@@ -30,11 +30,12 @@ pub trait PlayerListEntry {
 // Trait for format-specific players
 
 pub trait FormatPlayer: Send + Sync {
-    fn start(&mut self, &mut PlayerData, &Module);
-    fn play(&mut self, &mut PlayerData, &Module, &mut Virtual);
+    fn start(&mut self, &mut PlayerData, &ModuleData);
+    fn play(&mut self, &mut PlayerData, &ModuleData, &mut Virtual);
     fn reset(&mut self);
 }
 
+#[derive(Default)]
 pub struct PlayerData {
     pub pos  : usize,
     pub row  : usize,
@@ -48,18 +49,8 @@ pub struct PlayerData {
 }
 
 impl PlayerData {
-    pub fn new(module: &Module) -> Self {
-        PlayerData {
-            pos  : 0,
-            row  : 0,
-            frame: 0,
-            song : 0,
-            speed: module.speed,
-            tempo: module.tempo,
-
-            initial_speed: module.speed,
-            initial_tempo: module.tempo,
-        }
+    pub fn new() -> Self {
+        Default::default()
     }
 
     pub fn reset(&mut self) {
@@ -75,7 +66,7 @@ impl PlayerData {
 
 pub struct Player<'a> {
     pub data     : PlayerData,
-    module       : &'a Module,
+    module       : &'a Module<'a>,
     format_player: Box<FormatPlayer>,
     virt         : Virtual<'a>,
     loop_count   : usize,
@@ -93,9 +84,9 @@ impl<'a> Player<'a> {
 
         let format_player = Player::find_by_id(player_id)?.player(&module);
 
-        let virt = Virtual::new(module.chn, &module.sample, false);
+        let virt = Virtual::new(module.data.channels(), &module.data.samples(), false);
         Ok(Player {
-            data      : PlayerData::new(&module),
+            data      : PlayerData::new(),
             module,
             format_player,
             virt,
@@ -110,7 +101,7 @@ impl<'a> Player<'a> {
     pub fn list() -> Vec<Box<PlayerListEntry>> {
         vec![
             Box::new(protracker::Pt21a),
-            Box::new(st2::St2),
+            //Box::new(st2::St2),
         ]
     }
 
@@ -128,23 +119,25 @@ impl<'a> Player<'a> {
         self
     }
 
+/*
     pub fn restart(&mut self) -> &Self {
         self.data.pos = 0;
         self.data.row = 0;
         self.data.song = 0;
         self.data.frame = 0;
-        self.data.speed = self.module.speed;
+        self.data.speed = 6;
         self.format_player.reset();
         self
     }
+*/
 
     pub fn start(&mut self) -> &mut Self {
-        self.format_player.start(&mut self.data, &self.module);
+        self.format_player.start(&mut self.data, &*self.module.data);
         self
     }
 
     pub fn play_frame(&mut self) -> &mut Self {
-        self.format_player.play(&mut self.data, &self.module, &mut self.virt);
+        self.format_player.play(&mut self.data, &*self.module.data, &mut self.virt);
         self.virt.set_tempo(self.data.tempo);
         self.virt.mix();
         self

@@ -1,10 +1,10 @@
 use std::cmp;
 use Error;
-use module::{Module, Orders};
+use module::Module;
 use player::PlayerData;
 
 pub mod mk;
-pub mod stm;
+//pub mod stm;
 
 // Trait for module formats
 
@@ -17,8 +17,8 @@ pub trait ModuleFormat {
 
 pub fn list() -> Vec<Box<ModuleFormat>> {
     vec![
-        Box::new(mk::Mod),
-        Box::new(stm::Stm),
+        Box::new(mk::ModFormat),
+        //Box::new(stm::Stm),
     ]
 }
 
@@ -36,6 +36,7 @@ pub fn load(b: &[u8]) -> Result<Module, Error> {
 }
 
 
+/*
 /// Standard order processor
 ///
 /// Formats with non-standard order processing should implement their own
@@ -115,3 +116,4 @@ impl Orders for StdOrders {
         data.song
     }
 }
+*/

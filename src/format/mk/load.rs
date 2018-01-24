@@ -1,22 +1,21 @@
 use std::any::Any;
+use std::cmp;
 use Error;
-use format::{ModuleFormat, StdOrders};
-use format::mk::{ModEvent, ModInstrument};
-use module::{Module, Sample, Instrument, Patterns, Event};
+use format::ModuleFormat;
+use format::mk::{ModData, ModPatterns, ModEvent, ModInstrument};
+use module::{Module, Sample, Instrument, Event};
 use module::sample::SampleType;
 use util::{self, BinaryRead};
 
 /// Protracker module loader
-pub struct Mod;
+pub struct ModFormat;
 
-impl Mod {
-    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(Box<Instrument>, Sample), Error> {
+impl ModFormat {
+    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(ModInstrument, Sample), Error> {
         let mut ins = ModInstrument::new();
         let mut smp = Sample::new();
 
         let ofs = 20 + i * 30;
-        ins.num = i + 1;
-        smp.num = i + 1;
         ins.name = b.read_string(ofs, 22)?;
         smp.name = ins.name.to_owned();
 
@@ -34,7 +33,7 @@ impl Mod {
             smp.sample_type = SampleType::Sample8;
         }
 
-        Ok((Box::new(ins), smp))
+        Ok((ins, smp))
     }
 
     fn load_sample(&self, b: &[u8], mut smp_list: Vec<Sample>, i: usize) -> Result<Vec<Sample>, Error> {
@@ -46,7 +45,7 @@ impl Mod {
     }
 }
 
-impl ModuleFormat for Mod {
+impl ModuleFormat for ModFormat {
     fn name(&self) -> &'static str {
         "Protracker MOD"
     }
@@ -64,23 +63,26 @@ impl ModuleFormat for Mod {
     }
 
     fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
-        let title = b.read_string(0, 20)?;
-
-        let mut ins_list = Vec::<Box<Instrument>>::new();
-        let mut smp_list = Vec::<Sample>::new();
+        let song_name = b.read_string(0, 20)?;
 
         // Load instruments
+        let mut instruments: Vec<ModInstrument> = Vec::new();
+        let mut samples: Vec<Sample> = Vec::new();
         for i in 0..31 {
             let (ins, smp) = try!(self.load_instrument(b, i));
-            ins_list.push(ins);
-            smp_list.push(smp);
+            instruments.push(ins);
+            samples.push(smp);
         }
 
         // Load orders
-        let len = b.read8(950)? as usize;
-        let rst = b.read8(951)?;
-        let ord = StdOrders::from_slice(rst, b.slice(952, len)?);
-        let pat = ord.num_patterns();
+        let song_length = b.read8(950)? as usize;
+        let restart = b.read8(951)?;
+        let orders = b.slice(952, 128)?;
+        let magic = b.slice(1080, 4)?;
+
+        let mut pat = 0_usize;
+        orders[..song_length].iter().for_each(|x| { pat = cmp::max(pat, *x as usize); } );
+        pat += 1;
 
         // Load patterns
         let patterns = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
@@ -88,98 +90,35 @@ impl ModuleFormat for Mod {
         // Load samples (sample size is set when loading instruments)
         let mut ofs = 1084 + 1024*pat;
         for i in 0..31 {
-            let size = smp_list[i].size as usize;
+            let size = samples[i].size as usize;
             if size > 0 {
-                smp_list = try!(self.load_sample(b.slice(ofs, size)?, smp_list, i));
+                samples = try!(self.load_sample(b.slice(ofs, size)?, samples, i));
                 ofs += size;
             }
         }
 
+        let mut data = ModData{
+            song_name,
+            instruments,
+            song_length,
+            restart,
+            orders: [0; 128],
+            magic: [0; 4],
+            patterns,
+            samples,
+        };
+
+        data.orders.copy_from_slice(orders);
+        data.magic.copy_from_slice(magic);
+
         let m = Module {
             format     : "mod",
-            description: "Protracker M.K.".to_string(),
+            description: "Protracker M.K.",
             player     : "pt21",
-            title      : title,
-            chn        : 4,
-            speed      : 6,
-            tempo      : 125,
-            instrument : ins_list,
-            sample     : smp_list,
-            orders     : Box::new(ord),
-            patterns   : Box::new(patterns),
+            data       : Box::new(data),
         };
 
         Ok(m)
     }
 }
 
-
-pub struct ModPatterns {
-    num : usize,
-    data: Vec<ModEvent>,
-}
-
-impl ModPatterns {
-    fn from_slice(num: usize, b: &[u8]) -> Result<Self, Error> {
-        let mut pat = ModPatterns{
-            num,
-            data: Vec::new(),
-        };
-
-        for p in 0..num {
-            for r in 0..64 {
-                for c in 0..4 {
-                    let ofs = p * 1024 + r * 16 + c * 4;
-                    let e = ModEvent::from_slice(b.slice(ofs, 4)?);
-                    pat.data.push(e);
-                }
-            }
-        }
-
-        Ok(pat)
-    }
-
-    pub fn event(&self, pat: usize, row: u8, chn: usize) -> &ModEvent {
-        &self.data[pat * 256 + row as usize * 4 + chn]
-    }
-}
-
-impl Patterns for ModPatterns {
-    fn as_any(&self) -> &Any {
-        self
-    }
-
-    fn num(&self) -> usize {
-        self.num 
-    }
-
-    fn len(&self, pat: usize) -> usize {
-        if pat >= self.num {
-            0
-        } else {
-            64
-        }
-    }
-
-    fn rows(&self, pat: usize) -> usize {
-        if pat >= self.num() {
-            0
-        } else {
-            64
-        }
-    }
-
-    fn event(&self, num: usize, row: usize, chn: usize) -> Event {
-        let ofs = num * 256 + row * 4 + chn;
-        let mut e = Event::new();
-        if ofs >= self.data.len() {
-            return e
-        }
-        let raw = &self.data[ofs];
-        e.note = raw.note;
-        e.ins  = raw.ins;
-        e.fxt  = raw.cmd;
-        e.fxp  = raw.cmdlo;
-        e
-    }
-}
