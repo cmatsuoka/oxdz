@@ -1,7 +1,5 @@
-use std::cmp;
-use Error;
 use module::Module;
-use player::PlayerData;
+use ::*;
 
 pub mod mk;
 pub mod stm;

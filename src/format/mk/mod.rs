@@ -4,7 +4,7 @@ pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
-use module::{ModuleData, Event, Instrument, Sample};
+use module::{ModuleData, Event, Sample};
 use util::{NOTES, BinaryRead};
 use ::*;
 

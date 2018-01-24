@@ -1,6 +1,6 @@
 use module::{Module, ModuleData};
 use player::{PlayerData, Virtual, FormatPlayer};
-use format::stm::{StmData, StmPatterns, StmInstrument};
+use format::stm::StmData;
 
 /// Scream Tracker 2 replayer
 ///

@@ -1,6 +1,6 @@
 use module::{Module, ModuleData};
 use player::{PlayerData, Virtual, FormatPlayer};
-use format::mk::{ModData, ModInstrument, PeriodTable};
+use format::mk::{ModData, PeriodTable};
 
 /// PT2.1A Replayer
 ///

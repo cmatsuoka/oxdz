@@ -1,6 +1,6 @@
 mod player;
 
-use module::{Module, ModuleData};
+use module::Module;
 use player::{PlayerListEntry, PlayerInfo, FormatPlayer};
 
 pub struct Pt21a;

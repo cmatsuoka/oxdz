@@ -1,14 +1,11 @@
-pub mod instrument;
 pub mod sample;
 pub mod event;
 
 pub use self::sample::Sample;
-pub use self::instrument::Instrument;
 pub use self::event::Event;
 
 use std::any::Any;
 use std::marker::{Sync, Send};
-use player::PlayerData;
 
 
 // Module

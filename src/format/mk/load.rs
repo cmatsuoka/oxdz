@@ -1,11 +1,10 @@
-use std::any::Any;
 use std::cmp;
-use Error;
 use format::Loader;
-use format::mk::{ModData, ModPatterns, ModEvent, ModInstrument};
-use module::{Module, Sample, Instrument, Event};
+use format::mk::{ModData, ModPatterns, ModInstrument};
+use module::{Module, Sample};
 use module::sample::SampleType;
 use util::{self, BinaryRead};
+use ::*;
 
 /// Protracker module loader
 pub struct ModLoader;

@@ -1,10 +1,9 @@
-use std::any::Any;
-use Error;
 use format::Loader;
-use format::stm::{StmData, StmPatterns, StmInstrument, StmEvent};
-use module::{Module, Sample, Instrument, Event};
+use format::stm::{StmData, StmPatterns, StmInstrument};
+use module::{Module, Sample};
 use module::sample::SampleType;
 use util::BinaryRead;
+use ::*;
 
 /// Scream Tracker 2 module loader
 pub struct StmLoader;
