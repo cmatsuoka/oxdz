@@ -48,7 +48,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
 
     println!("Instruments:");
     for ins in &module.instrument {
-        println!("{:3}: {:30} {:2}", ins.num, ins.name, ins.volume);
+        println!("{:3}: {:30} {:2}", ins.num(), ins.name(), ins.volume());
     }
 
     println!("Samples:");

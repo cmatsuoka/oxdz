@@ -18,13 +18,11 @@ impl SampleMap {
 }
 
 
-#[derive(Debug)]
-pub struct Instrument {
-    pub num   : usize,
-    pub name  : String,
-    pub volume: usize,
-    pub keymap: Keymap<SampleMap>,
-    pub subins: Vec<Box<SubInstrument>>,
+pub trait Instrument: Debug + Send + Sync {
+    fn as_any(&self) -> &Any;
+    fn num(&self) -> usize;
+    fn name(&self) -> &str;
+    fn volume(&self) -> usize;
 }
 
 pub struct Keymap<T> {
@@ -35,22 +33,4 @@ impl<T: fmt::Debug> fmt::Debug for Keymap<T> {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         self.map[..].fmt(formatter)
     }
-}
-
-impl Instrument {
-    pub fn new() -> Instrument {
-        Instrument {
-            num   : 0,
-            name  : "".to_owned(),
-            volume: 0,
-            keymap: Keymap{map: [SampleMap::new(); MAX_KEYS]},
-            subins: Vec::new(),
-        }
-    }
-}
-
-
-pub trait SubInstrument: Debug + Send + Sync {
-    fn as_any(&self) -> &Any;
-    fn sample_num(&self) -> usize;
 }

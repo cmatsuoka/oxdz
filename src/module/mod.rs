@@ -4,7 +4,6 @@ pub mod event;
 
 pub use self::sample::Sample;
 pub use self::instrument::Instrument;
-pub use self::instrument::SubInstrument;
 pub use self::event::Event;
 
 use std::any::Any;
@@ -61,7 +60,7 @@ pub struct Module {
     pub chn        : usize,              // number of channels
     pub speed      : usize,              // initial speed (frames per row)
     pub tempo      : usize,              // initial tempo (frame duration)
-    pub instrument : Vec<Instrument>,
+    pub instrument : Vec<Box<Instrument>>,
     pub sample     : Vec<Sample>,
     pub orders     : Box<Orders>,
     pub patterns   : Box<Patterns>,

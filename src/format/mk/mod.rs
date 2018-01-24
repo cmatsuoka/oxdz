@@ -4,32 +4,40 @@ pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
-use module::SubInstrument;
+use module::Instrument;
 use util::NOTES;
 
 /// ModInstrument defines extra instrument fields used in Protracker instruments.
-#[derive(Debug)]
+#[derive(Debug,Default)]
 pub struct ModInstrument {
+    pub num     : usize,
+    pub name    : String,
+    pub volume  : usize,
     pub finetune: isize,
     pub smp_num : usize,
 }
 
 impl ModInstrument {
     pub fn new() -> Self {
-        ModInstrument {
-            finetune: 0,
-            smp_num : 0,
-        }
+        Default::default()
     }
 }
 
-impl SubInstrument for ModInstrument {
+impl Instrument for ModInstrument {
     fn as_any(&self) -> &Any {
         self
     }
 
-    fn sample_num(&self) -> usize {
-        self.smp_num
+    fn num(&self) -> usize {
+        self.num
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn volume(&self) -> usize {
+        self.volume
     }
 }
 

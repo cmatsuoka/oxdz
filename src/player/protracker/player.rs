@@ -124,13 +124,12 @@ impl ModPlayer {
                 state.n_cmdlo = cmdlo;
 
                 if ins != 0 {
-                    let instrument = &module.instrument[ins as usize - 1];
-                    let subins = instrument.subins[0].as_any().downcast_ref::<ModInstrument>().unwrap();
+                    let instrument = &module.instrument[ins as usize - 1].as_any().downcast_ref::<ModInstrument>().unwrap();
                     //let sample = &module.sample[ins as usize];
                     //state.n_start = sample.loop_start;
                     //state.n_length = sample.size;
                     //state.n_reallength = sample.size;
-                    state.n_finetune = subins.finetune as i8;
+                    state.n_finetune = instrument.finetune as i8;
                     //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
                     state.n_volume = instrument.volume as u8;
                     virt.set_patch(chn, ins as usize - 1, ins as usize - 1, note as usize);

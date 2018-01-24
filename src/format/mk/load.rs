@@ -10,8 +10,8 @@ use util::{self, BinaryRead};
 pub struct Mod;
 
 impl Mod {
-    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(Instrument, Sample), Error> {
-        let mut ins = Instrument::new();
+    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(Box<Instrument>, Sample), Error> {
+        let mut ins = ModInstrument::new();
         let mut smp = Sample::new();
 
         let ofs = 20 + i * 30;
@@ -27,18 +27,14 @@ impl Mod {
         let loop_size = b.read16b(ofs + 28)?;
         smp.loop_end = smp.loop_start + loop_size as usize * 2;
         smp.has_loop = loop_size > 1 && smp.loop_end >= 4;
-
-        let mut sub = ModInstrument::new();
-        sub.finetune = (((b.read8i(ofs + 24)? << 4) as isize) >> 4) * 16;
-        sub.smp_num = i;
+        ins.finetune = (((b.read8i(ofs + 24)? << 4) as isize) >> 4) * 16;
 
         smp.rate = util::C4_PAL_RATE;
         if smp.size > 0 {
             smp.sample_type = SampleType::Sample8;
         }
 
-        ins.subins.push(Box::new(sub));
-        Ok((ins, smp))
+        Ok((Box::new(ins), smp))
     }
 
     fn load_sample(&self, b: &[u8], mut smp_list: Vec<Sample>, i: usize) -> Result<Vec<Sample>, Error> {
@@ -70,7 +66,7 @@ impl ModuleFormat for Mod {
     fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
         let title = b.read_string(0, 20)?;
 
-        let mut ins_list = Vec::<Instrument>::new();
+        let mut ins_list = Vec::<Box<Instrument>>::new();
         let mut smp_list = Vec::<Sample>::new();
 
         // Load instruments

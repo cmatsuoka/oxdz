@@ -11,8 +11,8 @@ use util::BinaryRead;
 pub struct Stm;
 
 impl Stm {
-    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(Instrument, Sample), Error> {
-        let mut ins = Instrument::new();
+    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(Box<Instrument>, Sample), Error> {
+        let mut ins = StmInstrument::new();
         let mut smp = Sample::new();
 
         let ofs = 48 + i * 32;
@@ -31,15 +31,11 @@ impl Stm {
             smp.has_loop = true;
         }
 
-        let mut sub = StmInstrument::new();
-        sub.smp_num = i;
-
         if smp.size > 0 {
             smp.sample_type = SampleType::Sample8;
         }
 
-        ins.subins.push(Box::new(sub));
-        Ok((ins, smp))
+        Ok((Box::new(ins), smp))
     }
 
     fn load_sample(&self, b: &[u8], mut smp_list: Vec<Sample>, i: usize) -> Result<Vec<Sample>, Error> {
@@ -82,7 +78,7 @@ impl ModuleFormat for Stm {
         let num_patterns = b.read8(33)? as usize;
         let global_vol = b.read8(34)?;
 
-        let mut ins_list = Vec::<Instrument>::new();
+        let mut ins_list = Vec::<Box<Instrument>>::new();
         let mut smp_list = Vec::<Sample>::new();
 
         // Load instruments

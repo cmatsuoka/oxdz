@@ -1,6 +1,6 @@
 use module::Module;
 use player::{PlayerData, Virtual, FormatPlayer};
-use format::stm::StmPatterns;
+use format::stm::{StmPatterns, StmInstrument};
 
 /// Scream Tracker 2 replayer
 ///
@@ -238,7 +238,7 @@ impl St2Play {
         }
     
         if smp != 0 {
-            let instrument = &module.instrument[smp - 1];
+            let instrument = &module.instrument[smp - 1].as_any().downcast_ref::<StmInstrument>().unwrap();
 
             //self.channels[chn].smp_name = self.samples[smp].name;
             if volume == 65 {
