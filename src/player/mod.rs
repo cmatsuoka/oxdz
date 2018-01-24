@@ -166,7 +166,6 @@ impl<'a> Player<'a> {
 
                     // Clear rest of the buffer
                     out_buffer[filled..].fill(0, size - filled);
-                    //unsafe { ptr::write_bytes(out_buffer.as_mut_ptr().offset(filled), 0, (size - filled) * std::mem::size_of::<i16>() - 1); }
                 }
 
                 self.consumed = 0;
