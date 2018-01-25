@@ -219,7 +219,7 @@ impl St2Play {
         }
     }
 
-    fn trigger_note(&mut self, chn: usize, module: &StmData) {
+    fn trigger_note(&mut self, chn: usize, module: &StmData, virt: &mut Virtual) {
         let note = self.channels[chn].event_note as usize;
         let volume = self.channels[chn].event_volume as i16;
         let smp = self.channels[chn].event_smp as usize;
@@ -247,7 +247,9 @@ impl St2Play {
             }
     
             //self.channels[chn].smp_data_ptr = ctx->samples[smp].data;
-            self.channels[chn].trigger_note = true;
+            let note = self.channels[chn].event_note as usize;
+            let smp = self.channels[chn].event_smp as usize;
+            virt.set_patch(chn, smp - 1, smp - 1, note - 1);
     
             /*if ctx->samples[smp].loop_end != 0xffff {
                 self.channels[chn].smp_loop_end = ctx->samples[smp].loop_end;
@@ -260,6 +262,7 @@ impl St2Play {
     
         if note != 255 {
             //self.channels[chn].smp_position = 0;
+            virt.set_voicepos(chn, 0.0);
     
             if note == 254 {
                 /*self.channels[chn].smp_loop_end = 0;
@@ -276,7 +279,7 @@ impl St2Play {
         self.cmd_once(chn);
     }
 
-    fn process_row(&mut self, chn: usize, module: &StmData) {
+    fn process_row(&mut self, chn: usize, module: &StmData, mut virt: &mut Virtual) {
         self.channels[chn].row += 1;
         if self.channels[chn].row >= 64 {
             self.change_pattern = true;
@@ -294,7 +297,7 @@ impl St2Play {
                 ch.event_cmd      = event.cmd as u16;
                 ch.event_infobyte = event.infobyte as u16;
             }
-            self.trigger_note(chn, &module);
+            self.trigger_note(chn, &module, &mut virt);
 
             if self.channels[chn].event_cmd == FX_TREMOR {
                 self.cmd_tick(chn);
@@ -319,7 +322,7 @@ impl St2Play {
         }
     }
 
-    fn process_tick(&mut self, module: &StmData) {
+    fn process_tick(&mut self, module: &StmData, mut virt: &mut Virtual) {
         if self.current_tick != 0 {
             self.current_tick -= 1;
             for i in 0..4 {
@@ -333,7 +336,7 @@ impl St2Play {
                 }
 
                 for i in 0..4 {
-                    self.process_row(i, &module);
+                    self.process_row(i, &module, &mut virt);
                 }
 
                 self.current_tick = if self.ticks_per_row != 0 { self.ticks_per_row - 1 } else { 0 };
@@ -361,7 +364,7 @@ impl FormatPlayer for St2Play {
         self.change_pattern(&module);
     }
 
-    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, virt: &mut Virtual) {
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut virt: &mut Virtual) {
 
         let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
 
@@ -374,15 +377,9 @@ impl FormatPlayer for St2Play {
         self.channels[3].row = data.row as u16;
         self.current_tick = (self.ticks_per_row - data.frame as u16) % self.ticks_per_row;
 
-        self.process_tick(&module);
+        self.process_tick(&module, &mut virt);
         for chn in 0..4 {
             let ch = &mut self.channels[chn];
-            if ch.trigger_note {
-                let smp = ch.event_smp as usize;
-                let note = ch.event_note as usize;
-                virt.set_patch(chn, smp - 1, smp - 1, note - 1);
-                ch.trigger_note = false;
-            }
             virt.set_period(chn, (ch.period_current / FXMULT as i16) as f64);
             if ch.volume_current != 65 {
                 virt.set_volume(chn, ch.volume_mix as usize * 16);
@@ -418,7 +415,6 @@ struct St2Channel {
     vibrato_current  : u16,
     tremor_counter   : u16,
     tremor_state     : u16,
-    trigger_note     : bool,  // not in st2play
     //uint8_t *smp_name;
     //uint8_t *smp_data_ptr;
     //uint16_t smp_loop_end;
