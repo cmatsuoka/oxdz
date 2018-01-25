@@ -305,11 +305,13 @@ impl ModPlayer {
     fn mt_set_tone_porta(&mut self, chn: usize) {
         let state = &mut self.state[chn];
         state.n_wantedperiod = PeriodTable::note_to_period(state.n_note, state.n_finetune);
-        state.n_toneportdirec = state.n_period < state.n_wantedperiod;
-    }
-
-    fn mt_clear_tone_porta(&mut self, chn: usize) {
-        self.state[chn].n_wantedperiod = 0;
+        state.n_toneportdirec = false;
+        if state.n_period == state.n_wantedperiod {
+            // mt_ClearTonePorta
+            state.n_wantedperiod = 0;
+        } else if state.n_period < state.n_wantedperiod {
+            state.n_toneportdirec = true;
+        }
     }
 
     fn mt_tone_portamento(&mut self, chn: usize, mut virt: &mut Virtual) {
