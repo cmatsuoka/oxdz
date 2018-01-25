@@ -66,7 +66,7 @@ impl PlayerData {
 
 pub struct Player<'a> {
     pub data     : PlayerData,
-    module       : &'a Module<'a>,
+    module       : &'a Module,
     format_player: Box<FormatPlayer>,
     virt         : Virtual<'a>,
     loop_count   : usize,

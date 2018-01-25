@@ -57,7 +57,8 @@ impl Loader for StmLoader {
             return Err(Error::Format("file too short"));
         }
 
-        if b.read_string(20, 10)? == "!Scream!\x1a\x02" {
+        let magic = b.read_string(20, 10)?;
+        if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" {
             Ok(())
         } else {
             Err(Error::Format("bad magic"))
@@ -77,6 +78,8 @@ impl Loader for StmLoader {
         let speed = b.read8(32)?;
         let num_patterns = b.read8(33)?;
         let global_vol = b.read8(34)?;
+        let origin = b.read_string(20, 8)?;
+
 
         let mut instruments = Vec::<StmInstrument>::new();
         let mut samples = Vec::<Sample>::new();
@@ -119,7 +122,7 @@ impl Loader for StmLoader {
 
         let m = Module {
             format     : "stm",
-            description: "Scream Tracker 2 STM",
+            description: format!("Scream Tracker 2 STM ({})", origin),
             player     : "st2",
             data       : Box::new(data),
         };

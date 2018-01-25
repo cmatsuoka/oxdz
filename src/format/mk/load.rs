@@ -114,7 +114,7 @@ impl Loader for ModLoader {
 
         let m = Module {
             format     : "mod",
-            description: "Protracker M.K.",
+            description: "Protracker M.K.".to_owned(),
             player     : "pt21",
             data       : Box::new(data),
         };
