@@ -32,6 +32,8 @@ impl ModLoader {
             smp.sample_type = SampleType::Sample8;
         }
 
+        smp.sanity_check();
+
         Ok((ins, smp))
     }
 

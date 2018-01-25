@@ -1,4 +1,4 @@
-use module::Module;
+use module::{Module, Sample};
 use ::*;
 
 pub mod mk;
