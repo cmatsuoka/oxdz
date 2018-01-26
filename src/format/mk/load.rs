@@ -113,8 +113,9 @@ impl Loader for ModLoader {
         data.magic.copy_from_slice(magic);
 
         let m = Module {
-            format     : "mod",
-            description: "Protracker M.K.".to_owned(),
+            format_id  : "mod",
+            description: "M.K.".to_owned(),
+            creator    : "Protracker".to_owned(),  // TODO: tracker fingerprinting
             player     : "pt21",
             data       : Box::new(data),
         };

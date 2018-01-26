@@ -121,8 +121,14 @@ impl Loader for StmLoader {
         data.orders.copy_from_slice(orders);
 
         let m = Module {
-            format     : "stm",
-            description: format!("Scream Tracker 2 STM ({})", origin),
+            format_id  : "stm",
+            description: format!("Scream Tracker 2 STM"),
+            creator    : match origin.as_ref() {
+                             "!Scream!" => format!("Scream Tracker {}.{}", version_major, version_minor),
+                             "BMOD2STM" => "BMOD2STM".to_owned(),
+                             "WUZAMOD!" => "WUZAMOD".to_owned(),
+                             _          => "unknown".to_owned(),
+                         },
             player     : "st2",
             data       : Box::new(data),
         };

@@ -11,8 +11,9 @@ use std::marker::{Sync, Send};
 // Module
 
 pub struct Module {
-    pub format     : &'static str,       // format identifier
+    pub format_id  : &'static str,       // format identifier
     pub description: String,             // format description
+    pub creator    : String,             // tracker name
     pub player     : &'static str,       // primary player for this format
     pub data       : Box<ModuleData>     //
 }
