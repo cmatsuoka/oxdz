@@ -1,12 +1,11 @@
-//pub mod load;
+pub mod load;
 
-//pub use self::load::*;
+pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
 use module::{ModuleData, Event, Sample};
-use util::{NOTES, BinaryRead};
-use ::*;
+use util::NOTES;
 
 //                                S3M Module header
 //          0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
@@ -40,13 +39,14 @@ pub struct S3mData {
     pub flags      : u16,
     pub cwt_v      : u16,
     pub ffi        : u16,
-    pub gv         : u8,
-    pub is         : u8,
-    pub it         : u8,
-    pub mv         : u8,
-    pub dp         : u8,
+    pub g_v        : u8,
+    pub i_s        : u8,
+    pub i_t        : u8,
+    pub m_v        : u8,
+    pub d_p        : u8,
     pub ch_settings: [u8; 32],
     pub orders     : Vec<u8>,
+    pub instrum_ptr: Vec<usize>,
     pub pattern_ptr: Vec<usize>,
     pub ch_pan     : [u8; 32],
     pub instruments: Vec<S3mInstrument>,
@@ -149,7 +149,7 @@ impl ModuleData for S3mData {
 #[derive(Debug)]
 pub struct S3mInstrument {
     pub typ    : u8,
-    pub c2spd  : u16,
+    pub c2spd  : u32,
     pub vol    : i8,
 }
 
