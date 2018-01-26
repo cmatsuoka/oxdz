@@ -33,6 +33,8 @@ impl StmLoader {
             smp.sample_type = SampleType::Sample8;
         }
 
+        smp.sanity_check();
+
         Ok((ins, smp))
     }
 
@@ -55,7 +57,8 @@ impl Loader for StmLoader {
             return Err(Error::Format("file too short"));
         }
 
-        if b.read_string(20, 10)? == "!Scream!\x1a\x02" {
+        let magic = b.read_string(20, 10)?;
+        if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {
             Ok(())
         } else {
             Err(Error::Format("bad magic"))
@@ -75,6 +78,8 @@ impl Loader for StmLoader {
         let speed = b.read8(32)?;
         let num_patterns = b.read8(33)?;
         let global_vol = b.read8(34)?;
+        let origin = b.read_string(20, 8)?;
+
 
         let mut instruments = Vec::<StmInstrument>::new();
         let mut samples = Vec::<Sample>::new();
@@ -116,8 +121,14 @@ impl Loader for StmLoader {
         data.orders.copy_from_slice(orders);
 
         let m = Module {
-            format     : "stm",
-            description: "Scream Tracker 2 STM",
+            format_id  : "stm",
+            description: format!("Scream Tracker 2 STM"),
+            creator    : match origin.as_ref() {
+                             "!Scream!" => format!("Scream Tracker {}.{}", version_major, version_minor),
+                             "BMOD2STM" => "BMOD2STM".to_owned(),
+                             "WUZAMOD!" => "WUZAMOD".to_owned(),
+                             _          => "unknown".to_owned(),
+                         },
             player     : "st2",
             data       : Box::new(data),
         };

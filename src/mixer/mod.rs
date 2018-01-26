@@ -44,30 +44,29 @@ pub struct Mixer<'a> {
 impl<'a> Mixer<'a> {
 
     pub fn new(num: usize, sample: &'a Vec<Sample>) -> Self {
-        Mixer {
+        let mut mixer = Mixer {
             rate     : 44100,
             mute     : false,
-            voices   : Vec::new(),
+            voices   : vec![Voice::new(); num],
             framesize: 0,
             buf32    : [0; MAX_FRAMESIZE],
             buffer   : [0; MAX_FRAMESIZE],
             interp   : Interpolator::Linear,
             sample,
+        };
+
+        for i in 0..num {
+            mixer.voices[i].num = i;
         }
+
+        mixer
     }
 
     pub fn num_voices(&self) -> usize {
         self.voices.len()
     }
 
-    pub fn create_voices(&mut self, num: usize) {
-        self.voices = vec![Voice::new(); num];
-
-        for i in 0..self.voices.len() {
-            self.voices[i].num = i;
-        }
-    }
-
+/*
     pub fn find_free_voice(&self) -> Option<usize> {
         for (i, v) in self.voices.iter().enumerate() {
             if v.chn == None {
@@ -99,7 +98,7 @@ impl<'a> Mixer<'a> {
 
         num
     }
-
+*/
     pub fn set_tempo(&mut self, tempo: usize) {
         self.framesize = self.rate * PAL_RATE / tempo / 100;
     }
@@ -110,11 +109,12 @@ impl<'a> Mixer<'a> {
         self.voices[num].root = Some(chn);
     }
 
+/*
     pub fn voice_root(&self, voice: usize) -> Option<usize> {
         try_voice!(voice, self.voices, None);
         self.voices[voice].root
     }
-
+*/
     pub fn voice_chn(&self, voice: usize) -> Option<usize> {
         try_voice!(voice, self.voices, None);
         self.voices[voice].chn
@@ -136,7 +136,7 @@ impl<'a> Mixer<'a> {
         v.pos
     }
 
-    pub fn set_voicepos(&mut self, voice: usize, pos: f64, ac: bool) {
+    pub fn set_voicepos(&mut self, voice: usize, pos: f64) {
         try_voice!(voice, self.voices);
 
         let v = &mut self.voices[voice];
@@ -156,9 +156,9 @@ impl<'a> Mixer<'a> {
 
         // TODO: handle bidirectional loop
 
-        if ac {
-            v.anticlick();
-        }
+        //if ac {
+        //    v.anticlick();
+        //}
     }
 
     pub fn set_note(&mut self, voice: usize, mut note: usize) {
@@ -189,10 +189,10 @@ impl<'a> Mixer<'a> {
         self.voices[voice].period = period;
     }
 
-    pub fn set_patch(&mut self, voice: usize, ins: usize, smp: usize, ac: bool) {
+    pub fn set_patch(&mut self, voice: usize, ins: usize, smp: usize) {
         try_voice!(voice, self.voices);
 
-        self.set_voicepos(voice, 0.0, ac);
+        self.set_voicepos(voice, 0.0);
 
         let v = &mut self.voices[voice];
         v.ins = ins;

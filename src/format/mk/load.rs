@@ -32,6 +32,8 @@ impl ModLoader {
             smp.sample_type = SampleType::Sample8;
         }
 
+        smp.sanity_check();
+
         Ok((ins, smp))
     }
 
@@ -111,8 +113,9 @@ impl Loader for ModLoader {
         data.magic.copy_from_slice(magic);
 
         let m = Module {
-            format     : "mod",
-            description: "Protracker M.K.",
+            format_id  : "mod",
+            description: "M.K.".to_owned(),
+            creator    : "Protracker".to_owned(),  // TODO: tracker fingerprinting
             player     : "pt21",
             data       : Box::new(data),
         };

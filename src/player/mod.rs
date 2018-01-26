@@ -1,10 +1,8 @@
-mod virt;
 mod scan;
 mod protracker;
 mod st2;
 mod st3;
 
-pub use player::virt::Virtual;
 pub use mixer::Mixer;
 
 use std::cmp;
@@ -32,7 +30,7 @@ pub trait PlayerListEntry {
 
 pub trait FormatPlayer: Send + Sync {
     fn start(&mut self, &mut PlayerData, &ModuleData);
-    fn play(&mut self, &mut PlayerData, &ModuleData, &mut Virtual);
+    fn play(&mut self, &mut PlayerData, &ModuleData, &mut Mixer);
     fn reset(&mut self);
 }
 
@@ -67,9 +65,9 @@ impl PlayerData {
 
 pub struct Player<'a> {
     pub data     : PlayerData,
-    module       : &'a Module<'a>,
+    module       : &'a Module,
     format_player: Box<FormatPlayer>,
-    virt         : Virtual<'a>,
+    mixer        : Mixer<'a>,
     loop_count   : usize,
     end          : bool,
 
@@ -85,12 +83,12 @@ impl<'a> Player<'a> {
 
         let format_player = Player::find_by_id(player_id)?.player(&module);
 
-        let virt = Virtual::new(module.data.channels(), &module.data.samples(), false);
+        let mixer = Mixer::new(module.data.channels(), &module.data.samples());
         Ok(Player {
             data      : PlayerData::new(),
             module,
             format_player,
-            virt,
+            mixer,
             loop_count: 0,
             end       : false,
             consumed  : 0,
@@ -139,9 +137,9 @@ impl<'a> Player<'a> {
     }
 
     pub fn play_frame(&mut self) -> &mut Self {
-        self.format_player.play(&mut self.data, &*self.module.data, &mut self.virt);
-        self.virt.set_tempo(self.data.tempo);
-        self.virt.mix();
+        self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
+        self.mixer.set_tempo(self.data.tempo);
+        self.mixer.mix();
         self
     }
 
@@ -235,7 +233,7 @@ impl<'a> Player<'a> {
     }
 
     pub fn buffer(&self) -> &[i16] {
-        self.virt.buffer()
+        self.mixer.buffer()
     }
 }
 

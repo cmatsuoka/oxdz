@@ -10,14 +10,15 @@ use std::marker::{Sync, Send};
 
 // Module
 
-pub struct Module<'a> {
-    pub format     : &'static str,       // format identifier
-    pub description: &'a str,            // format description
+pub struct Module {
+    pub format_id  : &'static str,       // format identifier
+    pub description: String,             // format description
+    pub creator    : String,             // tracker name
     pub player     : &'static str,       // primary player for this format
     pub data       : Box<ModuleData>     //
 }
 
-impl<'a> Module<'a> {
+impl Module {
     pub fn title(&self) -> &str {
         self.data.title()
     }

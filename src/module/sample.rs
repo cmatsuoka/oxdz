@@ -69,5 +69,14 @@ impl Sample {
             slice::from_raw_parts(self.data.as_ptr() as *const i16, self.size + 2 * GUARD_SIZE as usize)
         }
     }
+
+    pub fn sanity_check(&mut self) {
+        if self.loop_start > self.size {
+            self.has_loop = false;
+        }
+        if self.loop_end > self.size {
+            self.loop_end = self.size;
+        }
+    }
 }
 
