@@ -47,6 +47,7 @@ pub struct S3mData {
     pub dp         : u8,
     pub ch_settings: [u8; 32],
     pub orders     : Vec<u8>,
+    pub pattern_ptr: Vec<usize>,
     pub ch_pan     : [u8; 32],
     pub instruments: Vec<S3mInstrument>,
     pub patterns   : S3mPatterns,
@@ -105,13 +106,13 @@ impl ModuleData for S3mData {
         if num >= self.pat_num as usize || row >= 64 || chn >= 4 {
            return None
         } else {
-           let p = &self.patterns.data[num*256 + row*4 + chn];
+           let p = self.patterns.event(num as u16, row as u16, chn);
            Some(Event{
                note: p.note,
-               ins : p.smp,
+               ins : p.ins,
                vol : p.volume,
                fxt : p.cmd,
-               fxp : p.cmdinfo,
+               fxp : p.info,
            })
         }
     }
@@ -155,11 +156,11 @@ pub struct S3mInstrument {
 
 #[derive(Default)]
 pub struct S3mEvent {
-    pub note   : u8,
-    pub volume : u8,
-    pub smp    : u8,
-    pub cmd    : u8,
-    pub cmdinfo: u8,
+    pub note  : u8,
+    pub volume: u8,
+    pub ins   : u8,
+    pub cmd   : u8,
+    pub info  : u8,
 }
 
 impl S3mEvent {
@@ -177,10 +178,10 @@ impl fmt::Display for S3mEvent {
             format!("{}{}", NOTES[n%12], n/12)
         };
 
-        let smp = if self.smp == 0 {
+        let ins = if self.ins == 0 {
             "--".to_owned()
         } else {
-            format!("{:02X}", self.smp)
+            format!("{:02X}", self.ins)
         };
 
         let vol = if self.volume == 65 {
@@ -195,18 +196,19 @@ impl fmt::Display for S3mEvent {
             (64_u8 + self.cmd) as char
         };
 
-        write!(f, "{} {} {} {}{:02X}", note, smp, vol, cmd, self.cmdinfo)
+        write!(f, "{} {} {} {}{:02X}", note, ins, vol, cmd, self.info)
     }
 }
 
 
 pub struct S3mPatterns {
-    data: Vec<S3mEvent>,
+    pub data: Vec<u8>,
 }
 
 impl S3mPatterns {
-    pub fn event(&self, pat: u16, row: u16, chn: usize) -> &S3mEvent {
-        &self.data[pat as usize * 256 + row as usize * 4 + chn]
+    pub fn event(&self, pat: u16, row: u16, chn: usize) -> S3mEvent {
+        //&self.data[pat as usize * 256 + row as usize * 4 + chn]
+        S3mEvent::new()
     }
 }
 

@@ -1,6 +1,7 @@
 use module::{Module, ModuleData};
-use player::{PlayerData, Virtual, FormatPlayer};
+use player::{PlayerData, FormatPlayer};
 use format::s3m::S3mData;
+use mixer::Mixer;
 
 /// S3M replayer
 ///
@@ -87,7 +88,7 @@ pub struct St3Play {
     patmusicrand      : u16,
     aspdmax           : i32,
     aspdmin           : i32,
-    np_patseg         : u32,
+    np_patseg         : usize,  // u32,
     chn               : [Chn; 32],
     soundcardtype     : u8,
     soundBufferSize   : i32,
@@ -112,7 +113,6 @@ pub struct St3Play {
     //MusicPaused : i8,
     //Playing : i8,
 
-    //*mseg = NULL : u8,
     //instrumentadd : u16,
     lastachannelused : u8, // i8,
     tracker : u8,
@@ -255,15 +255,15 @@ impl St3Play {
         }
     }
 
-    fn setvol(&mut self, ch: usize, mut virt: &mut Virtual) {
+    fn setvol(&mut self, ch: usize, mut mixer: &mut Mixer) {
         self.chn[ch].achannelused |= 0x80;
-        virt.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0_f64) * (self.chn[ch].chanvol as f64 / 64.0_f64) *
+        mixer.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0_f64) * (self.chn[ch].chanvol as f64 / 64.0_f64) *
                             (self.globalvol as f64 / 64.0_f64)) as usize);
-        virt.set_pan(ch, self.chn[ch].apanpos as isize);
+        mixer.set_pan(ch, self.chn[ch].apanpos as isize);
     }
 
-    fn setpan(&mut self, ch: usize, mut virt: &mut Virtual) {
-        self.setvol(ch, &mut virt);
+    fn setpan(&mut self, ch: usize, mut mixer: &mut Mixer) {
+        self.setvol(ch, &mut mixer);
     }
 
     fn stnote2herz(&mut self, note: u8) -> u16 {
@@ -396,11 +396,83 @@ impl St3Play {
         }
     }
 
-    fn getnote(&mut self) -> usize {
-        255
+    // updates np_patseg and np_patoff
+    fn seekpat(&mut self, module: &S3mData) {
+        if self.np_patoff == -1 {  // seek must be done
+            self.np_patseg = module.pattern_ptr[self.np_pat as usize] * 16;
+            if self.np_patseg != 0 {
+                let mut j = 2;  // skip packed pat len flag
+    
+                // increase np_patoff on patbreak
+                if self.np_row != 0 {
+                    let mut i = self.np_row;
+                    while i != 0 {
+                        let dat = module.patterns.data[self.np_patseg + j]; j += 1;
+                        if dat == 0 {
+                            i -= 1;
+                        } else {
+                            // skip ch data
+                            if dat & 0x20 != 0 { j += 2 }
+                            if dat & 0x40 != 0 { j += 1 }
+                            if dat & 0x80 != 0 { j += 2 }
+                        }
+                    }
+                }
+    
+                self.np_patoff = j as i16;
+            }
+        }
     }
 
-    fn doamiga(&mut self, ch: usize, module: &S3mData, mut virt: &mut Virtual) {
+    fn getnote(&mut self, module: &S3mData) -> usize {
+        if self.np_patseg == 0 || self.np_patseg >= 32 /*self.mseg_len*/ || self.np_pat >= module.pat_num as i16 {
+            return 255
+        }
+
+        let mut ch = 255_usize;
+        let mut dat = 0_u8;
+        let mut i = self.np_patoff as usize;
+        loop {
+            dat = module.patterns.data[self.np_patseg + i]; i += 1;
+            if dat == 0 {  // end of row
+                self.np_patoff = i as i16;
+                return 255;
+            }
+    
+            if module.ch_settings[dat as usize & 0x1F] & 0x80 == 0 {
+                ch = dat as usize & 0x1F;  // channel to trigger
+                break
+            }
+    
+            // channel is off, skip data
+            if dat & 0x20 != 0 { i += 2 }
+            if dat & 0x40 != 0 { i += 1 }
+            if dat & 0x80 != 0 { i += 2 }
+        }
+    
+        if dat & 0x20 != 0 {
+            self.chn[ch].note = module.patterns.data[self.np_patseg + i]; i += 1;
+            self.chn[ch].ins  = module.patterns.data[self.np_patseg + i]; i += 1;
+    
+            if self.chn[ch].note != 255 { self.chn[ch].lastnote = self.chn[ch].note }
+            if self.chn[ch].ins  != 0   { self.chn[ch].lastins  = self.chn[ch].ins  }
+        }
+    
+        if dat & 0x40 != 0 {
+             self.chn[ch].vol = module.patterns.data[self.np_patseg + i]; i += 1;
+        }
+    
+        if dat & 0x80 != 0 {
+            self.chn[ch].cmd  = module.patterns.data[self.np_patseg + i]; i += 1;
+            self.chn[ch].info = module.patterns.data[self.np_patseg + i]; i += 1;
+        }
+    
+        self.np_patoff = i as i16;
+
+        ch
+    }
+
+    fn doamiga(&mut self, ch: usize, module: &S3mData, mut mixer: &mut Mixer) {
         //uint8_t *insdat;
         //int8_t loop;
         //uint32_t insoffs;
@@ -439,7 +511,7 @@ impl St3Play {
                         }
 
                         self.chn[ch].aorgvol = self.chn[ch].avol;
-                        self.setvol(ch, &mut virt);
+                        self.setvol(ch, &mut mixer);
     
 /*
                         insoffs = ((insdat[0x0D] << 16) | (insdat[0x0F] << 8) | insdat[0x0E]) * 16;
@@ -490,16 +562,16 @@ impl St3Play {
                 self.chn[ch].asldspd = 65535;
     
                 self.setspd(ch);
-                self.setvol(ch, &mut virt);
+                self.setvol(ch, &mut mixer);
     
                 // shutdown channel
                 //self.voice_set_source(ch, NULL, 0, 0, 0, 0, 0, 0);
-                virt.set_voicepos(ch, 0.0);
+                mixer.set_voicepos(ch, 0.0);
             } else {
                 self.chn[ch].lastnote = note;
     
                 if cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64) {
-                    virt.set_voicepos(ch, self.chn[ch].astartoffset as f64);
+                    mixer.set_voicepos(ch, self.chn[ch].astartoffset as f64);
                 }
     
 /*
@@ -530,7 +602,7 @@ impl St3Play {
                 self.chn[ch].avol    = vol as i8;
                 self.chn[ch].aorgvol = vol as i8;
     
-                self.setvol(ch, &mut virt);
+                self.setvol(ch, &mut mixer);
     
                 return;
             }
@@ -549,7 +621,7 @@ impl St3Play {
         }
     }
     
-    fn donewnote(&mut self, ch: usize, notedelayflag: bool, module: &S3mData, mut virt: &mut Virtual) {
+    fn donewnote(&mut self, ch: usize, notedelayflag: bool, module: &S3mData, mut mixer: &mut Mixer) {
         if notedelayflag {
             self.chn[ch].achannelused = 0x81;
         } else {
@@ -571,10 +643,10 @@ impl St3Play {
             }
         }
     
-        self.doamiga(ch, &module, &mut virt);
+        self.doamiga(ch, &module, &mut mixer);
     }
     
-    fn donotes(&mut self, module: &S3mData, virt: &mut Virtual) {
+    fn donotes(&mut self, module: &S3mData, mixer: &mut Mixer) {
         for i in 0..32 {
             self.chn[i].note = 255;
             self.chn[i].vol  = 255;
@@ -586,14 +658,14 @@ impl St3Play {
         //seekpat();
     
         loop {
-            let ch = self.getnote();
+            let ch = self.getnote(&module);
             if ch == 255 {
                 break  // end of row/channels
             }
     
 /*
             if self.channel_settings[ch] & 0x7F <= 15 {  // no adlib channel types yet
-                self.donewnote(ch, false, &module, &mut virt);
+                self.donewnote(ch, false, &module, &mut mixer);
             }
 */
         }
@@ -601,7 +673,7 @@ impl St3Play {
     
 
 
-    fn voice_set_sampling_frequency(&self, voiceNumber: usize, samplingFrequency: u32) {
+    fn voice_set_sampling_frequency(&self, voiceNumber: usize, sampling_frequency: u32) {
     }
 }
 
@@ -609,7 +681,7 @@ impl FormatPlayer for St3Play {
     fn start(&mut self, _data: &mut PlayerData, mdata: &ModuleData) {
     }
 
-    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, virt: &mut Virtual) {
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
     }
 
     fn reset(&mut self) {
