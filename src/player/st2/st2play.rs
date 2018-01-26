@@ -1,6 +1,7 @@
 use module::{Module, ModuleData};
-use player::{PlayerData, Virtual, FormatPlayer};
+use player::{PlayerData, FormatPlayer};
 use format::stm::StmData;
+use mixer::Mixer;
 
 /// Scream Tracker 2 replayer
 ///
@@ -219,7 +220,7 @@ impl St2Play {
         }
     }
 
-    fn trigger_note(&mut self, chn: usize, module: &StmData, virt: &mut Virtual) {
+    fn trigger_note(&mut self, chn: usize, module: &StmData, mixer: &mut Mixer) {
         let note = self.channels[chn].event_note as usize;
         let volume = self.channels[chn].event_volume as i16;
         let smp = self.channels[chn].event_smp as usize;
@@ -247,9 +248,7 @@ impl St2Play {
             }
     
             //self.channels[chn].smp_data_ptr = ctx->samples[smp].data;
-            let note = self.channels[chn].event_note as usize;
-            let smp = self.channels[chn].event_smp as usize;
-            virt.set_patch(chn, smp - 1, smp - 1, note - 1);
+            mixer.set_patch(chn, smp - 1, smp - 1);
     
             /*if ctx->samples[smp].loop_end != 0xffff {
                 self.channels[chn].smp_loop_end = ctx->samples[smp].loop_end;
@@ -262,7 +261,7 @@ impl St2Play {
     
         if note != 255 {
             //self.channels[chn].smp_position = 0;
-            virt.set_voicepos(chn, 0.0);
+            mixer.set_voicepos(chn, 0.0);
     
             if note == 254 {
                 /*self.channels[chn].smp_loop_end = 0;
@@ -279,7 +278,7 @@ impl St2Play {
         self.cmd_once(chn);
     }
 
-    fn process_row(&mut self, chn: usize, module: &StmData, mut virt: &mut Virtual) {
+    fn process_row(&mut self, chn: usize, module: &StmData, mut mixer: &mut Mixer) {
         self.channels[chn].row += 1;
         if self.channels[chn].row >= 64 {
             self.change_pattern = true;
@@ -297,7 +296,7 @@ impl St2Play {
                 ch.event_cmd      = event.cmd as u16;
                 ch.event_infobyte = event.infobyte as u16;
             }
-            self.trigger_note(chn, &module, &mut virt);
+            self.trigger_note(chn, &module, &mut mixer);
 
             if self.channels[chn].event_cmd == FX_TREMOR {
                 self.cmd_tick(chn);
@@ -322,7 +321,7 @@ impl St2Play {
         }
     }
 
-    fn process_tick(&mut self, module: &StmData, mut virt: &mut Virtual) {
+    fn process_tick(&mut self, module: &StmData, mut mixer: &mut Mixer) {
         if self.current_tick != 0 {
             self.current_tick -= 1;
             for i in 0..4 {
@@ -336,7 +335,7 @@ impl St2Play {
                 }
 
                 for i in 0..4 {
-                    self.process_row(i, &module, &mut virt);
+                    self.process_row(i, &module, &mut mixer);
                 }
 
                 self.current_tick = if self.ticks_per_row != 0 { self.ticks_per_row - 1 } else { 0 };
@@ -364,7 +363,7 @@ impl FormatPlayer for St2Play {
         self.change_pattern(&module);
     }
 
-    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut virt: &mut Virtual) {
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
 
@@ -377,12 +376,12 @@ impl FormatPlayer for St2Play {
         self.channels[3].row = data.row as u16;
         self.current_tick = (self.ticks_per_row - data.frame as u16) % self.ticks_per_row;
 
-        self.process_tick(&module, &mut virt);
+        self.process_tick(&module, &mut mixer);
         for chn in 0..4 {
             let ch = &mut self.channels[chn];
-            virt.set_period(chn, (ch.period_current / FXMULT as i16) as f64);
+            mixer.set_period(chn, (ch.period_current / FXMULT as i16) as f64);
             if ch.volume_current != 65 {
-                virt.set_volume(chn, ch.volume_mix as usize * 16);
+                mixer.set_volume(chn, ch.volume_mix as usize * 16);
             }
         }
 
