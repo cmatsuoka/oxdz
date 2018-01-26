@@ -58,7 +58,7 @@ impl Loader for StmLoader {
         }
 
         let magic = b.read_string(20, 10)?;
-        if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" {
+        if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {
             Ok(())
         } else {
             Err(Error::Format("bad magic"))
