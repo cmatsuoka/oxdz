@@ -833,9 +833,23 @@ impl FormatPlayer for St3Play {
 
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as usize;
+
+        self.np_ord = 0;
+        self.neworder(&module);
     }
 
-    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<S3mData>().unwrap();
+
+        self.dorow(&module, &mut mixer);
+
+        data.frame = self.musiccount as usize;
+        data.row = self.np_row as usize;
+        data.pos = self.np_ord - 1 as usize;
+
+        data.speed = self.musicmax as usize;
+        data.tempo = self.tempo as usize;
     }
 
     fn reset(&mut self) {

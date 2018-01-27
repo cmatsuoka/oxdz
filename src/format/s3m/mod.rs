@@ -4,7 +4,7 @@ pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
-use module::{ModuleData, Sample};
+use module::{event, ModuleData, Sample};
 use util::NOTES;
 
 //                                S3M Module header
@@ -111,7 +111,38 @@ impl ModuleData for S3mData {
     }
 
     fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
-        0
+
+        let p = &self.patterns[pat].data;
+
+        let mut row = 0;
+        let mut ch = 0;
+        let mut i = 0;
+        loop {
+            let index = row * self.channels() + ch;
+            if index >= num {
+                break
+            }
+            let ofs = 6 * index;
+
+            let b = p[i]; i += 1;
+            if b == 0 { row += 1; continue }
+            ch = (b & 0x1f) as usize;
+            if b & 0x20 != 0 {
+                buffer[ofs] |= event::HAS_NOTE | event::HAS_INS;
+                buffer[ofs + 1] = p[i]; i += 1;
+                buffer[ofs + 2] = p[i]; i += 1;
+            }
+            if b & 0x40 != 0 {
+                buffer[ofs] |= event::HAS_VOL;
+                buffer[ofs + 3] = p[i]; i += 1;
+            }
+            if b & 0x80 != 0 {
+                buffer[ofs] |= event::HAS_CMD;
+                buffer[ofs + 4] = p[i]; i += 1;
+                buffer[ofs + 5] = p[i]; i += 1;
+            }
+        }
+        num
     }
 
     fn samples(&self) -> &Vec<Sample> {
@@ -144,5 +175,6 @@ pub struct S3mInstrument {
 
 
 pub struct S3mPattern {
+    pub size: usize,
     pub data: Vec<u8>,
 }
