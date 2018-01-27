@@ -75,12 +75,12 @@ impl ModuleData for StmData {
         }
     }
 
-    fn pattern_data(&self, pat: usize, num: usize, mut buffer: &mut [u8]) -> usize {
+    fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
         let mut i = 0;
         for _ in 0..num {
             let (row, ch) = (i / 4, i % 4);
             let ofs = i * 6;
-            let e = &self.patterns.data[num*256 + row*4 + ch];
+            let e = &self.patterns.data[pat*256 + row*4 + ch];
 
             let mut flags = 0;
             if e.note != 255 { flags |= event::HAS_NOTE; buffer[ofs+1] = e.note }

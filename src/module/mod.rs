@@ -3,10 +3,9 @@ pub mod sample;
 
 pub use self::sample::Sample;
 
-use std::fmt;
 use std::any::Any;
 use std::marker::{Sync, Send};
-use util::{NOTES, MemOpExt};
+use util::MemOpExt;
 
 
 // Module
@@ -78,6 +77,6 @@ pub trait ModuleData: Send + Sync {
     fn prev_position(&self, usize) -> usize;
     fn instruments(&self) -> Vec<String>;
     fn rows(&self, pat: usize) -> usize;  // number of rows in pattern
-    fn pattern_data(&self, pat: usize, num: usize, mut buffer: &mut [u8]) -> usize;
+    fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize;
     fn samples(&self) -> &Vec<Sample>;
 }

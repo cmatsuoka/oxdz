@@ -69,7 +69,7 @@ impl ModuleData for ModData {
         }
     }
 
-    fn pattern_data(&self, pat: usize, num: usize, mut buffer: &mut [u8]) -> usize {
+    fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
         let mut i = 0;
         for _ in 0..num {
             let (row, ch) = (i / 4, i % 4);

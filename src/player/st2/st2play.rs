@@ -9,7 +9,7 @@ use mixer::Mixer;
 /// to Rust by Claudio Matsuoka.
 
 
-const ST2BASEFREQ      : u32 = 36072500;  // 2.21
+//const ST2BASEFREQ      : u32 = 36072500;  // 2.21
 //const ST2BASEFREQ      : u32 = 35468950;  // 2.3
 
 const FXMULT           : u16 =  0x0a;
@@ -353,7 +353,7 @@ impl St2Play {
 
 
 impl FormatPlayer for St2Play {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
 
