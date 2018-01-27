@@ -1,5 +1,5 @@
 use format::Loader;
-use format::s3m::{S3mData, S3mPatterns, S3mInstrument};
+use format::s3m::{S3mData, S3mPattern, S3mInstrument};
 use module::{Module, Sample};
 use module::sample::SampleType;
 use util::BinaryRead;
@@ -35,7 +35,8 @@ impl S3mLoader {
         }
 
         smp.sanity_check();
-        smp.store(b.slice(0x50, if flags & 0x04 != 0 { smp.size*2 } else { smp.size })?);
+        let sample_size = if flags & 0x04 != 0 { smp.size*2 } else { smp.size };
+        smp.store(b.slice(0x50, sample_size)?);
 
         let ins = S3mInstrument {
             typ,
@@ -94,28 +95,32 @@ impl Loader for S3mLoader {
 
         // Instrument parapointers
         let mut ofs = 0x60_usize + ord_num as usize;
-        let instrum_ptr = Vec::<usize>::new();
-        for _ in 0..ins_num { instrum_ptr.push(b.read16l(ofs)? as usize * 16); ofs += 2; }
+        let mut instrum_pp = Vec::<usize>::new();
+        for _ in 0..ins_num { instrum_pp.push(b.read16l(ofs)? as usize * 16); ofs += 2; }
 
         // Pattern parapointers
-        let pattern_ptr = Vec::<usize>::new();
-        for _ in 0..pat_num { pattern_ptr.push(b.read16l(ofs)? as usize * 16); ofs += 2; }
+        let mut pattern_pp = Vec::<usize>::new();
+        for _ in 0..pat_num { pattern_pp.push(b.read16l(ofs)? as usize * 16); ofs += 2; }
  
         // Channel pan positions
         let ch_pan = b.slice(ofs, 32)?;
 
+        // Load instruments
         let mut instruments = Vec::<S3mInstrument>::new();
         let mut samples = Vec::<Sample>::new();
-
-        // Load instruments
         for i in 0..ins_num as usize {
-            let (ins, smp) = try!(self.load_instrument(b, i, instrum_ptr[i]));
+            let (ins, smp) = try!(self.load_instrument(b, i, instrum_pp[i]));
             instruments.push(ins);
             samples.push(smp);
         }
 
         // Load patterns
-        let patterns = b.slice(ofs, 1024*pat_num as usize)?.to_vec();
+        let mut patterns = Vec::<S3mPattern>::new();
+        for i in 0..pat_num as usize {
+            let ofs = pattern_pp[i];
+            let plen = b.read16l(ofs)? as usize;
+            patterns.push(S3mPattern{ data: b.slice(ofs + 2, plen)?.to_vec() });
+        }
 
         let mut data = S3mData{
             song_name,
@@ -132,8 +137,8 @@ impl Loader for S3mLoader {
             d_p,
             ch_settings: [0; 32],
             orders,
-            instrum_ptr,
-            pattern_ptr,
+            instrum_pp,
+            pattern_pp,
             ch_pan: [0; 32],
             instruments,
             patterns,

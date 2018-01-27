@@ -4,7 +4,7 @@ pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
-use module::{ModuleData, Event, Sample};
+use module::{ModuleData, Sample};
 use util::NOTES;
 
 //                                S3M Module header
@@ -46,11 +46,11 @@ pub struct S3mData {
     pub d_p        : u8,
     pub ch_settings: [u8; 32],
     pub orders     : Vec<u8>,
-    pub instrum_ptr: Vec<usize>,
-    pub pattern_ptr: Vec<usize>,
+    pub instrum_pp : Vec<usize>,
+    pub pattern_pp : Vec<usize>,
     pub ch_pan     : [u8; 32],
     pub instruments: Vec<S3mInstrument>,
-    pub patterns   : S3mPatterns,
+    pub patterns   : Vec<S3mPattern>,
     pub samples    : Vec<Sample>,
 }
 
@@ -102,6 +102,7 @@ impl ModuleData for S3mData {
         self.samples.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>()
     }
 
+/*
     fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event> {
         if num >= self.pat_num as usize || row >= 64 || chn >= 4 {
            return None
@@ -116,6 +117,7 @@ impl ModuleData for S3mData {
            })
         }
     }
+*/
 
     fn rows(&self, pat: usize) -> usize {
         if pat >= self.pat_num as usize {
@@ -201,14 +203,7 @@ impl fmt::Display for S3mEvent {
 }
 
 
-pub struct S3mPatterns {
+pub struct S3mPattern {
     pub data: Vec<u8>,
-}
-
-impl S3mPatterns {
-    pub fn event(&self, pat: u16, row: u16, chn: usize) -> S3mEvent {
-        //&self.data[pat as usize * 256 + row as usize * 4 + chn]
-        S3mEvent::new()
-    }
 }
 

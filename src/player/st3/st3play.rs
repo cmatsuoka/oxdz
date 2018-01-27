@@ -399,7 +399,7 @@ impl St3Play {
     // updates np_patseg and np_patoff
     fn seekpat(&mut self, module: &S3mData) {
         if self.np_patoff == -1 {  // seek must be done
-            self.np_patseg = module.pattern_ptr[self.np_pat as usize] * 16;
+            self.np_patseg = module.pattern_pp[self.np_pat as usize] * 16;
             if self.np_patseg != 0 {
                 let mut j = 2;  // skip packed pat len flag
     
@@ -407,7 +407,7 @@ impl St3Play {
                 if self.np_row != 0 {
                     let mut i = self.np_row;
                     while i != 0 {
-                        let dat = module.patterns.data[self.np_patseg + j]; j += 1;
+                        let dat = module.patterns[self.np_patseg].data[j]; j += 1;
                         if dat == 0 {
                             i -= 1;
                         } else {
@@ -432,8 +432,9 @@ impl St3Play {
         let mut ch = 255_usize;
         let mut dat = 0_u8;
         let mut i = self.np_patoff as usize;
+        let pat = &module.patterns[self.np_pat as usize];
         loop {
-            dat = module.patterns.data[self.np_patseg + i]; i += 1;
+            dat = pat.data[i]; i += 1;
             if dat == 0 {  // end of row
                 self.np_patoff = i as i16;
                 return 255;
@@ -451,20 +452,20 @@ impl St3Play {
         }
     
         if dat & 0x20 != 0 {
-            self.chn[ch].note = module.patterns.data[self.np_patseg + i]; i += 1;
-            self.chn[ch].ins  = module.patterns.data[self.np_patseg + i]; i += 1;
+            self.chn[ch].note = pat.data[i]; i += 1;
+            self.chn[ch].ins  = pat.data[i]; i += 1;
     
             if self.chn[ch].note != 255 { self.chn[ch].lastnote = self.chn[ch].note }
             if self.chn[ch].ins  != 0   { self.chn[ch].lastins  = self.chn[ch].ins  }
         }
     
         if dat & 0x40 != 0 {
-             self.chn[ch].vol = module.patterns.data[self.np_patseg + i]; i += 1;
+             self.chn[ch].vol = pat.data[i]; i += 1;
         }
     
         if dat & 0x80 != 0 {
-            self.chn[ch].cmd  = module.patterns.data[self.np_patseg + i]; i += 1;
-            self.chn[ch].info = module.patterns.data[self.np_patseg + i]; i += 1;
+            self.chn[ch].cmd  = pat.data[i]; i += 1;
+            self.chn[ch].info = pat.data[i]; i += 1;
         }
     
         self.np_patoff = i as i16;
@@ -655,7 +656,7 @@ impl St3Play {
             self.chn[i].info = 0;
         }
     
-        //seekpat();
+        self.seekpat(&module);
     
         loop {
             let ch = self.getnote(&module);
