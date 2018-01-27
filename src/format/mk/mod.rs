@@ -4,7 +4,7 @@ pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
-use module::{ModuleData, Sample};
+use module::{event, ModuleData, Sample};
 use util::{NOTES, BinaryRead};
 use ::*;
 
@@ -61,30 +61,30 @@ impl ModuleData for ModData {
         self.instruments.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>()
     }
 
-/*
-    fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event> {
-        if num >= self.patterns.num() || row >= 64 || chn >= 4 {
-           return None
-        } else {
-           let p = &self.patterns.data[num*256 + row*4 + chn];
-           Some(Event{
-               note: p.note,
-               ins : p.ins,
-               vol : 0,
-               fxt : p.cmd,
-               fxp : p.cmdlo,
-           })
-        }
-
-    }
-*/
-
     fn rows(&self, pat: usize) -> usize {
         if pat >= self.patterns.num() {
             0
         } else {
             64
         }
+    }
+
+    fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
+        let mut i = 0;
+        for _ in 0..num {
+            let (row, ch) = (i / 4, i % 4);
+            let ofs = i * 6;
+            let e = &self.patterns.data[pat*256 + row*4 + ch];
+
+            let mut flags = 0;
+            if e.note != 0 { flags |= event::HAS_NOTE; buffer[ofs+1] = e.note }
+            if e.ins  != 0 { flags |= event::HAS_INS ; buffer[ofs+2] = e.ins  }
+            if e.cmd != 0 || e.cmdlo != 0 { flags |= event::HAS_CMD; buffer[ofs+4] = e.cmd; buffer[ofs+5] = e.cmdlo }
+            buffer[ofs] = flags;
+
+            i += 1;
+        }
+        i
     }
 
     fn samples(&self) -> &Vec<Sample> {

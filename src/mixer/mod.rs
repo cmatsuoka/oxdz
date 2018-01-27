@@ -6,7 +6,7 @@ use ::*;
 
 mod interpolator;
 
-const PAL_RATE     : usize = 250;
+const PAL_RATE     : f64 = 250.0;
 const C4_PERIOD    : f64 = 428.0;
 const SMIX_SHIFT   : usize = 16;
 const SMIX_MASK    : usize = 0xffff;
@@ -29,8 +29,8 @@ macro_rules! try_voice {
 
 
 pub struct Mixer<'a> {
-
-    pub rate  : usize,
+    pub rate  : u32,
+    pub factor: f64,  // tempo factor multiplier
     mute      : bool,
     voices    : Vec<Voice>,
     framesize : usize,
@@ -46,6 +46,7 @@ impl<'a> Mixer<'a> {
     pub fn new(num: usize, sample: &'a Vec<Sample>) -> Self {
         let mut mixer = Mixer {
             rate     : 44100,
+            factor   : 1.0,
             mute     : false,
             voices   : vec![Voice::new(); num],
             framesize: 0,
@@ -100,7 +101,7 @@ impl<'a> Mixer<'a> {
     }
 */
     pub fn set_tempo(&mut self, tempo: usize) {
-        self.framesize = self.rate * PAL_RATE / tempo / 100;
+        self.framesize = ((self.rate as f64 * PAL_RATE) / (self.factor * tempo as f64 * 100.0)) as usize;
     }
 
     pub fn set_voice(&mut self, num: usize, chn: usize) {

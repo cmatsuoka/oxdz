@@ -23,7 +23,6 @@ pub const MAX_FRAMESIZE: usize = (5 * MAX_RATE / MIN_BPM) as usize;
 pub const MAX_KEYS     : usize = 128;
 pub const MAX_CHANNELS : usize = 64;
 
-
 #[derive(Debug)]
 pub enum PeriodType {
     Linear,
