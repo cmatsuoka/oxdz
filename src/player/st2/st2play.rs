@@ -63,13 +63,14 @@ static LFO_TABLE: &'static [i16; 65] = &[
 
 
 pub struct St2Play {
-    sample_rate     : u16,
+    //sample_rate     : u16,
     pattern_current : u16,
     change_pattern  : bool,
     current_tick    : u16,
     ticks_per_row   : u16,
-    current_frame   : u16,
-    frames_per_tick : u16,
+    //current_frame   : u16,
+    //frames_per_tick : u16,
+    tempo_factor    : u16,  // not in st2play
     loop_count      : u16,
     order_first     : u16,
     order_next      : u16,
@@ -88,13 +89,14 @@ pub struct St2Play {
 impl St2Play {
     pub fn new(module: &Module) -> Self {
         St2Play {
-            sample_rate     : 15909,
+            //sample_rate     : 15909,
             pattern_current : 0,
             change_pattern  : false,
             current_tick    : 0,
             ticks_per_row   : 0,
-            current_frame   : 1,
-            frames_per_tick : 1,
+            //current_frame   : 1,
+            //frames_per_tick : 1,
+            tempo_factor    : 0,
             loop_count      : 0,
             order_first     : 0,
             order_next      : 0,
@@ -108,7 +110,8 @@ impl St2Play {
 
     fn set_tempo(&mut self, tempo: u16) {
         self.ticks_per_row = tempo >> 4;
-        self.frames_per_tick = self.sample_rate / (49 - ((TEMPO_MUL[self.ticks_per_row as usize] * (tempo & 0x0f)) >> 4));
+        //self.frames_per_tick = self.sample_rate / (49 - ((TEMPO_MUL[self.ticks_per_row as usize] * (tempo & 0x0f)) >> 4));
+        self.tempo_factor = 49 - ((TEMPO_MUL[self.ticks_per_row as usize] * (tempo & 0x0f)) >> 4);
     }
 
 /*
@@ -350,16 +353,19 @@ impl St2Play {
 
 
 impl FormatPlayer for St2Play {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData) {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
 
+        self.tempo = 0x60;
+        // sr/x = (sr*250)/(T*100) => T = 25*x/10
+        mixer.factor = 250; // 2.5x multiplier
+        data.tempo = self.tempo_factor as usize;
         data.speed = module.speed as usize;
-        data.tempo = 125;
 
-        let tempo = self.tempo as u16;
-        self.set_tempo(tempo);
-        self.current_frame = self.frames_per_tick;
+        let t = self.tempo as u16;
+        self.set_tempo(t);
+        //self.current_frame = self.frames_per_tick;
         self.change_pattern(&module);
     }
 
@@ -367,7 +373,7 @@ impl FormatPlayer for St2Play {
 
         let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
 
-        self.tempo = data.tempo as u8;
+        self.tempo_factor = data.tempo as u16;
         self.ticks_per_row = data.speed as u16;
         self.order_next = data.pos as u16;
         self.channels[0].row = data.row as u16;
@@ -389,8 +395,7 @@ impl FormatPlayer for St2Play {
         data.row = self.channels[0].row as usize;
         data.pos = self.order_next as usize;
         data.speed = self.ticks_per_row as usize;
-        data.tempo = self.tempo as usize;
-
+        data.tempo = self.tempo_factor as usize;
     }
 
     fn reset(&mut self) {

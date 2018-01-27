@@ -700,7 +700,7 @@ impl ModPlayer {
 }
 
 impl FormatPlayer for ModPlayer {
-    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData) {
+    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, _mixer: &mut Mixer) {
         data.speed = 6;
         data.tempo = 125;
     }

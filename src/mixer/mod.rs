@@ -29,8 +29,8 @@ macro_rules! try_voice {
 
 
 pub struct Mixer<'a> {
-
     pub rate  : usize,
+    pub factor: usize,  // tempo factor multiplier
     mute      : bool,
     voices    : Vec<Voice>,
     framesize : usize,
@@ -46,6 +46,7 @@ impl<'a> Mixer<'a> {
     pub fn new(num: usize, sample: &'a Vec<Sample>) -> Self {
         let mut mixer = Mixer {
             rate     : 44100,
+            factor   : 100,
             mute     : false,
             voices   : vec![Voice::new(); num],
             framesize: 0,
@@ -100,7 +101,7 @@ impl<'a> Mixer<'a> {
     }
 */
     pub fn set_tempo(&mut self, tempo: usize) {
-        self.framesize = self.rate * PAL_RATE / tempo / 100;
+        self.framesize = self.rate * PAL_RATE / (self.factor * tempo);
     }
 
     pub fn set_voice(&mut self, num: usize, chn: usize) {

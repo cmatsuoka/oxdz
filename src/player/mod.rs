@@ -28,7 +28,7 @@ pub trait PlayerListEntry {
 // Trait for format-specific players
 
 pub trait FormatPlayer: Send + Sync {
-    fn start(&mut self, &mut PlayerData, &ModuleData);
+    fn start(&mut self, &mut PlayerData, &ModuleData, &mut Mixer);
     fn play(&mut self, &mut PlayerData, &ModuleData, &mut Mixer);
     fn reset(&mut self);
 }
@@ -130,7 +130,7 @@ impl<'a> Player<'a> {
 */
 
     pub fn start(&mut self) -> &mut Self {
-        self.format_player.start(&mut self.data, &*self.module.data);
+        self.format_player.start(&mut self.data, &*self.module.data, &mut self.mixer);
         self
     }
 
