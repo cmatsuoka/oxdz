@@ -373,8 +373,6 @@ impl FormatPlayer for St2Play {
 
         let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
 
-        self.tempo_factor = data.tempo as u16;
-        self.ticks_per_row = data.speed as u16;
         self.order_next = data.pos as u16;
         self.channels[0].row = data.row as u16;
         self.channels[1].row = data.row as u16;
