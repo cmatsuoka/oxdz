@@ -26,7 +26,7 @@ impl S3mLoader {
         let mut smp = Sample::new();
         let flags = b.read8(ofs)?;
         let typ = b.read8(ofs)?;
-        let vol = b.read8(ofs + 22)?;
+        let vol = b.read8(ofs + 0x1c)?;
 
         let c2spd      = b.read16l_lo_hi(ofs + 0x20)?;
         smp.name       = b.read_string(ofs + 0x30, 28)?;
