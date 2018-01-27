@@ -359,7 +359,7 @@ impl FormatPlayer for St2Play {
 
         self.tempo = 0x60;
         // sr/x = (sr*250)/(T*100) => T = 25*x/10
-        mixer.factor = 250; // 2.5x multiplier
+        mixer.factor = 2.5;  // 2.5x multiplier
         data.tempo = self.tempo_factor as usize;
         data.speed = module.speed as usize;
 
