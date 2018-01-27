@@ -257,8 +257,8 @@ impl St3Play {
 
     fn setvol(&mut self, ch: usize, mixer: &mut Mixer) {
         self.chn[ch].achannelused |= 0x80;
-        mixer.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0_f64) * (self.chn[ch].chanvol as f64 / 64.0_f64) *
-                            (self.globalvol as f64 / 64.0_f64)) as usize);
+        mixer.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0) * (self.chn[ch].chanvol as f64 / 64.0) *
+                              (self.globalvol as f64 / 64.0) * 1024.0) as usize);
         mixer.set_pan(ch, self.chn[ch].apanpos as isize);
     }
 
@@ -425,7 +425,7 @@ impl St3Play {
     }
 
     fn getnote(&mut self, module: &S3mData) -> usize {
-        if self.np_patseg == 0 || self.np_patseg >= 32 /*self.mseg_len*/ || self.np_pat >= module.pat_num as i16 {
+        if self.np_patseg == 0 /*|| self.np_patseg >= self.mseg_len*/ || self.np_pat >= module.pat_num as i16 {
             return 255
         }
 
@@ -513,6 +513,8 @@ impl St3Play {
 
                         self.chn[ch].aorgvol = self.chn[ch].avol;
                         self.setvol(ch, &mut mixer);
+
+                        mixer.set_patch(ch, ins - 1, ins - 1);
     
 /*
                         insoffs = ((insdat[0x0D] << 16) | (insdat[0x0F] << 8) | insdat[0x0E]) * 16;
@@ -830,6 +832,14 @@ impl FormatPlayer for St3Play {
         let module = mdata.as_any().downcast_ref::<S3mData>().unwrap();
 
         self.loadheaderparms(&module);
+
+        for i in 0..32 {
+            self.chn[i].channelnum   = i as u8;
+            self.chn[i].achannelused = 0x80;
+            self.chn[i].chanvol      = 0x40;
+        }
+
+        self.lastachannelused = 1;
 
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as usize;
