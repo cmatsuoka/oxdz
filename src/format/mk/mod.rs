@@ -4,7 +4,7 @@ pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
-use module::{ModuleData, Event, Sample};
+use module::{ModuleData, Sample};
 use util::{NOTES, BinaryRead};
 use ::*;
 
@@ -61,6 +61,7 @@ impl ModuleData for ModData {
         self.instruments.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>()
     }
 
+/*
     fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event> {
         if num >= self.patterns.num() || row >= 64 || chn >= 4 {
            return None
@@ -76,6 +77,7 @@ impl ModuleData for ModData {
         }
 
     }
+*/
 
     fn rows(&self, pat: usize) -> usize {
         if pat >= self.patterns.num() {

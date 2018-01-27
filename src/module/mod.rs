@@ -1,11 +1,11 @@
 pub mod sample;
-pub mod event;
 
 pub use self::sample::Sample;
-pub use self::event::Event;
 
+use std::fmt;
 use std::any::Any;
 use std::marker::{Sync, Send};
+use util::NOTES;
 
 
 // Module
@@ -51,9 +51,11 @@ impl Module {
         self.data.instruments()
     }
 
+/*
     pub fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event> {
         self.data.event(num, row, chn)
     }
+*/
 
     pub fn rows(&self, pat: usize) -> usize {
         self.data.rows(pat)
@@ -74,8 +76,57 @@ pub trait ModuleData: Send + Sync {
     fn next_position(&self, usize) -> usize;
     fn prev_position(&self, usize) -> usize;
     fn instruments(&self) -> Vec<String>;
-    fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event>;
+    //fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event>;
     fn rows(&self, pat: usize) -> usize;  // number of rows in pattern
     fn samples(&self) -> &Vec<Sample>;
 }
 
+
+/*
+// Event
+
+#[derive(Debug)]
+pub struct Event {
+    pub note: u8,  // note number (255 = no note, 60 = C5)
+    pub ins : u8,  // instrument number (0 = no instrument)
+    pub vol : u8,
+    pub cmd : u8,
+    pub info: u8,
+}
+
+impl Event {
+    pub fn new() -> Self {
+        Event {
+            note: 0,
+            ins : 0,
+            vol : 0,
+            fxt : 0,
+            fxp : 0,
+        }
+    }
+}
+
+impl fmt::Display for Event {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let note = if self.note == 255 {
+            "---".to_owned()
+        } else {
+            format!("{}{}", NOTES[self.note as usize % 12], self.note / 12)
+        };
+
+        let ins = if self.ins == 0 {
+            "--".to_owned()
+        } else {
+            format!("{:02x}", self.ins)
+        };
+
+        let vol = if self.vol == 0 {
+            "--".to_owned()
+        } else {
+            format!("{:02x}", self.vol - 1)
+        };
+
+        write!(f, "{} {} {} {:02X}{:02X}", note, ins, vol, self.cmd, self.info)
+    }
+}
+*/
