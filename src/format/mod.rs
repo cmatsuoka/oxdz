@@ -17,6 +17,7 @@ pub trait Loader {
 pub fn list() -> Vec<Box<Loader>> {
     vec![
         Box::new(mk::ModLoader),
+        Box::new(s3m::S3mLoader),
         Box::new(stm::StmLoader),
     ]
 }

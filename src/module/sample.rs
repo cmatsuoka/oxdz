@@ -77,6 +77,9 @@ impl Sample {
         if self.loop_end > self.size {
             self.loop_end = self.size;
         }
+        if self.loop_end <= self.loop_start {
+            self.has_loop = false;
+        }
     }
 }
 

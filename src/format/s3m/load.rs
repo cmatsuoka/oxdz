@@ -5,6 +5,19 @@ use module::sample::SampleType;
 use util::BinaryRead;
 use ::*;
 
+pub trait BinaryReadExt {
+    fn read16l_lo_hi(&self, ofs: usize) -> Result<u32, Error>;
+}
+
+impl<'a> BinaryReadExt for &'a [u8] {
+    fn read16l_lo_hi(&self, ofs: usize) -> Result<u32, Error> {
+        let lo = self.read16l(ofs)? as u32;
+        let hi = self.read16l(ofs + 2)? as u32;
+        Ok((hi << 16) | lo)
+    }
+    
+}
+
 /// Scream Tracker 2 module loader
 pub struct S3mLoader;
 
@@ -15,19 +28,17 @@ impl S3mLoader {
         let typ = b.read8(ofs)?;
         let vol = b.read8(ofs + 22)?;
 
-        let c2spd      = (b.read16l(ofs + 0x22)? as u32) << 16 + b.read16l(ofs + 0x20)?;
-        smp.name       = b.read_string(ofs, 28)?;
-        smp.size       = (b.read16l(ofs + 0x12)? as usize) << 16 + b.read16l(ofs + 0x10)?;
-        smp.loop_start = (b.read16l(ofs + 0x16)? as usize) << 16 + b.read16l(ofs + 0x14)?;
-        smp.loop_end   = (b.read16l(ofs + 0x1a)? as usize) << 16 + b.read16l(ofs + 0x18)?;
+        let c2spd      = b.read16l_lo_hi(ofs + 0x20)?;
+        smp.name       = b.read_string(ofs + 0x30, 28)?;
+        smp.size       = b.read16l_lo_hi(ofs + 0x10)? as usize;
+        smp.loop_start = b.read16l_lo_hi(ofs + 0x14)? as usize;
+        smp.loop_end   = b.read16l_lo_hi(ofs + 0x18)? as usize;
         smp.rate       = c2spd as f64;
         smp.num        = i + 1;
         smp.has_loop   = flags & 0x01 != 0;
 
         if smp.loop_end == 0xffff {
             smp.loop_end = 0;
-        } else if smp.loop_end > 0 {
-            smp.has_loop = true;
         }
 
         if smp.size > 0 {
@@ -45,14 +56,6 @@ impl S3mLoader {
         };
 
         Ok((ins, smp))
-    }
-
-    fn load_sample(&self, b: &[u8], mut smp_list: Vec<Sample>, i: usize) -> Result<Vec<Sample>, Error> {
-        if i >= smp_list.len() {
-            return Err(Error::Load("invalid sample number"))
-        }
-        smp_list[i].store(b);
-        Ok(smp_list)
     }
 }
 

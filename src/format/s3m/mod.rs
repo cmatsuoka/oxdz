@@ -102,29 +102,16 @@ impl ModuleData for S3mData {
         self.samples.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>()
     }
 
-/*
-    fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event> {
-        if num >= self.pat_num as usize || row >= 64 || chn >= 4 {
-           return None
-        } else {
-           let p = self.patterns.event(num as u16, row as u16, chn);
-           Some(Event{
-               note: p.note,
-               ins : p.ins,
-               vol : p.volume,
-               fxt : p.cmd,
-               fxp : p.info,
-           })
-        }
-    }
-*/
-
     fn rows(&self, pat: usize) -> usize {
         if pat >= self.pat_num as usize {
             0
         } else {
             64
         }
+    }
+
+    fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
+        0
     }
 
     fn samples(&self) -> &Vec<Sample> {
@@ -156,54 +143,6 @@ pub struct S3mInstrument {
 }
 
 
-#[derive(Default)]
-pub struct S3mEvent {
-    pub note  : u8,
-    pub volume: u8,
-    pub ins   : u8,
-    pub cmd   : u8,
-    pub info  : u8,
-}
-
-impl S3mEvent {
-    fn new() -> Self {
-        Default::default()
-    }
-}
-
-impl fmt::Display for S3mEvent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let note = if self.note > 250 {
-            "---".to_owned()
-        } else {
-            let n = ((self.note&0xf) + 12*(3+(self.note>>4))) as usize;
-            format!("{}{}", NOTES[n%12], n/12)
-        };
-
-        let ins = if self.ins == 0 {
-            "--".to_owned()
-        } else {
-            format!("{:02X}", self.ins)
-        };
-
-        let vol = if self.volume == 65 {
-            "--".to_owned()
-        } else {
-            format!("{:02X}", self.volume)
-        };
-
-        let cmd = if self.cmd == 0 {
-            '.'
-        } else {
-            (64_u8 + self.cmd) as char
-        };
-
-        write!(f, "{} {} {} {}{:02X}", note, ins, vol, cmd, self.info)
-    }
-}
-
-
 pub struct S3mPattern {
     pub data: Vec<u8>,
 }
-

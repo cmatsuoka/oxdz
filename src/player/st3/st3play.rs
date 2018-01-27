@@ -116,8 +116,8 @@ pub struct St3Play {
     //instrumentadd : u16,
     lastachannelused : u8, // i8,
     tracker : u8,
-    oldstvib : i8,
-    fastvolslide : i8,
+    oldstvib : bool,
+    fastvolslide : bool,
     amigalimits : bool,
     musicmax : u8,
     numChannels : u8,
@@ -255,7 +255,7 @@ impl St3Play {
         }
     }
 
-    fn setvol(&mut self, ch: usize, mut mixer: &mut Mixer) {
+    fn setvol(&mut self, ch: usize, mixer: &mut Mixer) {
         self.chn[ch].achannelused |= 0x80;
         mixer.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0_f64) * (self.chn[ch].chanvol as f64 / 64.0_f64) *
                             (self.globalvol as f64 / 64.0_f64)) as usize);
@@ -647,7 +647,7 @@ impl St3Play {
         self.doamiga(ch, &module, &mut mixer);
     }
     
-    fn donotes(&mut self, module: &S3mData, mixer: &mut Mixer) {
+    fn donotes(&mut self, module: &S3mData, mut mixer: &mut Mixer) {
         for i in 0..32 {
             self.chn[i].note = 255;
             self.chn[i].vol  = 255;
@@ -664,22 +664,175 @@ impl St3Play {
                 break  // end of row/channels
             }
     
-/*
-            if self.channel_settings[ch] & 0x7F <= 15 {  // no adlib channel types yet
+            if module.ch_settings[ch] & 0x7F <= 15 {  // no adlib channel types yet
                 self.donewnote(ch, false, &module, &mut mixer);
             }
-*/
         }
     }
     
+    fn docmd1(&mut self, module: &S3mData, mixer: &mut Mixer) {
+    }
 
+    fn docmd2(&mut self, module: &S3mData, mixer: &mut Mixer) {
+    }
+
+    // periodically called from mixer
+    fn dorow(&mut self, module: &S3mData, mut mixer: &mut Mixer) {
+        self.patmusicrand = ((((self.patmusicrand as u32 * 0xCDEF) >> 16) as u16).wrapping_add(0x1727)) & 0x0000FFFF;
+    
+        if self.musiccount == 0 {
+            if self.patterndelay != 0 {
+                self.np_row -= 1;
+                self.docmd1(&module, &mut mixer);
+                self.patterndelay -= 1;
+            } else {
+                self.donotes(&module, &mut mixer);
+                self.docmd1(&module, &mut mixer);
+            }
+        } else {
+            self.docmd2(&module, &mut mixer);
+        }
+    
+        self.musiccount += 1;
+        if self.musiccount >= self.musicmax + self.tickdelay as u8 {
+            self.tickdelay = 0;
+            self.np_row += 1;
+    
+            if self.jumptorow != -1 {
+                self.np_row = self.jumptorow;
+                self.jumptorow = -1;
+            }
+    
+            // np_row = 0..63, 64 = get new pat
+            if self.np_row >= 64 || (self.patloopcount == 0 && self.breakpat != 0) {
+                if self.breakpat == 255 {
+                    self.breakpat = 0;
+                    //self.Playing  = 0;
+    
+                    return;
+                }
+    
+                self.breakpat = 0;
+                self.np_row = self.neworder(&module);  // if breakpat, np_row = break row
+            }
+    
+            self.musiccount = 0;
+        }
+    }
+
+    fn loadheaderparms(&mut self, module: &S3mData) {
+        //uint8_t *insdat;
+        //uint16_t insnum;
+        //uint32_t i;
+        //uint32_t j;
+        //uint32_t inslen;
+        //uint32_t insoff;
+    
+        // set to init defaults first
+        self.oldstvib = false;
+        self.setspeed(6);
+        self.settempo(125);
+        self.aspdmin = 64;
+        self.aspdmax = 32767;
+        self.globalvol = 64;
+        self.amigalimits = false;
+        self.fastvolslide = false;
+        //self.setStereoMode(0);
+        //self.setMasterVolume(48);
+    
+        self.tracker = (module.cwt_v >> 12) as u8;
+    
+        if module.m_v != 0 {
+            if module.m_v & 0x80 != 0 {
+                //self.setStereoMode(1);
+            }
+    
+            if module.m_v & 0x7F != 0 {
+                if module.m_v & 0x7F < 16 {
+                    //setMasterVolume(16);
+                } else {
+                    //setMasterVolume(mseg[0x33] & 0x7F);
+                }
+            }
+        }
+    
+        if module.i_t != 0 {
+            self.settempo(module.i_t as u16);
+        }
+    
+        if module.i_s != 255 {
+            self.setspeed(module.i_s);
+        }
+    
+        if module.g_v != 255 {
+            self.globalvol = module.g_v as i16;
+            if self.globalvol > 64 {
+                self.globalvol = 64;
+            }
+        }
+    
+        if module.flags & 0xff != 255 {
+            self.amigalimits  = module.flags & 0x10 != 0;
+            self.fastvolslide = module.flags & 0x40 != 0;
+    
+            if self.amigalimits {
+                self.aspdmax = 1712 * 2;
+                self.aspdmin =  907 / 2;
+            }
+        }
+    
+        // force fastvolslide if ST3.00
+        if module.cwt_v == 0x1300 {
+            self.fastvolslide = true;
+        }
+    
+        self.oldstvib = module.flags & 0x01 != 0;
+    
+        if module.ffi != 0 {
+            // we have unsigned samples, convert to signed
+    
+            for i in 0..module.ins_num {
+/*
+                insdat = &mseg[*((uint16_t *)(&mseg[instrumentadd + (i * 2)])) * 16];
+                insoff = ((insdat[0x0D] << 16) | (insdat[0x0F] << 8) | insdat[0x0E]) * 16;
+    
+                if (insoff && (insdat[0] == 1))
+                {
+                    inslen = *((uint32_t *)(&insdat[0x10]));
+    
+                    if (insdat[0x1F] & 2) inslen *= 2; /* stereo */
+    
+                    if (insdat[0x1F] & 4)
+                    {
+                        /* 16-bit */
+                        for (j = 0; j < inslen; ++j)
+                            *((int16_t *)(&mseg[insoff + (j * 2)])) = *((uint16_t *)(&mseg[insoff + (j * 2)])) - 0x8000;
+                    }
+                    else
+                    {
+                        /* 8-bit */
+                        for (j = 0; j < inslen; ++j)
+                            mseg[insoff + j] = mseg[insoff + j] - 0x80;
+                    }
+                }
+*/
+            }
+        }
+    }
 
     fn voice_set_sampling_frequency(&self, voiceNumber: usize, sampling_frequency: u32) {
     }
 }
 
 impl FormatPlayer for St3Play {
-    fn start(&mut self, _data: &mut PlayerData, mdata: &ModuleData) {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, _mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<S3mData>().unwrap();
+
+        self.loadheaderparms(&module);
+
+        data.speed = self.musicmax as usize;
+        data.tempo = self.tempo as usize;
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
