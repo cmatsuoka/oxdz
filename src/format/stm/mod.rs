@@ -4,7 +4,7 @@ pub use self::load::*;
 
 use std::any::Any;
 use std::fmt;
-use module::{ModuleData, Sample};
+use module::{event, ModuleData, Sample};
 use util::{NOTES, BinaryRead};
 use ::*;
 
@@ -67,30 +67,30 @@ impl ModuleData for StmData {
         self.instruments.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>()
     }
 
-/*
-    fn event(&self, num: usize, row: usize, chn: usize) -> Option<Event> {
-        if num >= self.num_patterns as usize || row >= 64 || chn >= 4 {
-           return None
-        } else {
-           let p = &self.patterns.data[num*256 + row*4 + chn];
-           Some(Event{
-               note: if p.note > 250 { 0 } else { (p.note&0x0f) + 12*(3+(p.note>>4)) },
-               ins : p.smp,
-               vol : if p.volume == 65 { 0 } else { p.volume + 1 },
-               fxt : p.cmd,
-               fxp : p.infobyte,
-           })
-        }
-
-    }
-*/
-
     fn rows(&self, pat: usize) -> usize {
         if pat >= self.num_patterns as usize {
             0
         } else {
             64
         }
+    }
+
+    fn pattern_data(&self, pat: usize, num: usize, mut buffer: &mut [u8]) -> usize {
+        let mut i = 0;
+        for _ in 0..num {
+            let (row, ch) = (i / 4, i % 4);
+            let ofs = i * 6;
+            let e = &self.patterns.data[num*256 + row*4 + ch];
+
+            let mut flags = 0;
+            if e.note != 255 { flags |= event::HAS_NOTE; buffer[ofs+1] = e.note }
+            if e.smp  != 0   { flags |= event::HAS_INS ; buffer[ofs+2] = e.smp  }
+            if e.cmd  != 0   { flags |= event::HAS_CMD ; buffer[ofs+4] = e.cmd; buffer[ofs+5] = e.infobyte }
+            buffer[ofs] = flags;
+
+            i += 1;
+        }
+        i
     }
 
     fn samples(&self) -> &Vec<Sample> {

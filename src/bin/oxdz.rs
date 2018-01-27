@@ -9,7 +9,8 @@ use std::fs::File;
 use std::io::BufWriter;
 use getopts::Options;
 use memmap::Mmap;
-use oxdz::{format, module, player, FrameInfo};
+use oxdz::{format, player, FrameInfo};
+use oxdz::module::{self, event};
 use riff_wave::WaveWriter;
 
 fn main() {
@@ -73,7 +74,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     println!("Patterns: {}", module.patterns());
     println!("Position: {} ({})", player.position(), module.pattern_in_position(player.data.pos).unwrap());
 
-    //show_pattern(&module, 2);
+    show_pattern(&module, 2);
 
     let mut frame_info = FrameInfo::new();
 
@@ -96,15 +97,21 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     Ok(())
 }
 
-/*
 fn show_pattern(module: &module::Module, num: usize) {
     println!("Pattern {}:", num);
-    for r in 0..module.rows(num) {
+    let rows = module.rows(num);
+    let ch = module.channels();
+    let mut buffer = vec![0_u8; 6 * rows * ch];
+
+    module.pattern_data(0, &mut buffer);
+
+    let mut ofs = 0;
+    for r in 0..rows {
         print!("{:3}: ", r);
-        for c in 0..module.channels() {
-            print!("{}  ", module.event(num, r, c).unwrap())
+        for _ in 0..ch {
+            print!("{}  ", event::format(&buffer[ofs..ofs+6]));
+            ofs += 6;
         }
         println!();
     }
 }
-*/
