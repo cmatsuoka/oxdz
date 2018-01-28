@@ -3,9 +3,7 @@ pub mod load;
 pub use self::load::*;
 
 use std::any::Any;
-use std::fmt;
 use module::{event, ModuleData, Sample};
-use util::NOTES;
 
 //                                S3M Module header
 //          0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
@@ -118,18 +116,17 @@ impl ModuleData for S3mData {
         let mut ch = 0;
         let mut i = 0;
         loop {
-            let index = row * self.channels() + ch;
-            if index >= num {
-                break
-            }
-            let ofs = 6 * index;
-
             let b = p[i]; i += 1;
             if b == 0 { row += 1; continue }
             ch = (b & 0x1f) as usize;
+
+            let index = row * self.channels() + ch;
+            if index >= num { break }
+            let ofs = 6 * index;
+
             if b & 0x20 != 0 {
                 buffer[ofs] |= event::HAS_NOTE | event::HAS_INS;
-                buffer[ofs + 1] = p[i]; i += 1;
+                buffer[ofs + 1] = (p[i]>>4)*12+(p[i]&0x0f); i += 1;
                 buffer[ofs + 2] = p[i]; i += 1;
             }
             if b & 0x40 != 0 {

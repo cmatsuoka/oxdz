@@ -22,13 +22,13 @@ impl<'a> BinaryReadExt for &'a [u8] {
 pub struct S3mLoader;
 
 impl S3mLoader {
-    fn load_instrument(&self, b: &[u8], i: usize, ofs: usize) -> Result<(S3mInstrument, Sample), Error> {
+    fn load_instrument(&self, b: &[u8], i: usize, ofs: usize, cvt: bool) -> Result<(S3mInstrument, Sample), Error> {
         let mut smp = Sample::new();
         let flags = b.read8(ofs)?;
         let typ = b.read8(ofs)?;
         let vol = b.read8(ofs + 0x1c)?;
 
-        let c2spd      = b.read16l_lo_hi(ofs + 0x20)?;
+        let c2spd      = 8363; // b.read16l_lo_hi(ofs + 0x20)?;
         smp.name       = b.read_string(ofs + 0x30, 28)?;
         smp.size       = b.read16l_lo_hi(ofs + 0x10)? as usize;
         smp.loop_start = b.read16l_lo_hi(ofs + 0x14)? as usize;
@@ -46,8 +46,12 @@ impl S3mLoader {
         }
 
         smp.sanity_check();
+        let sample_offset = b.read16l(ofs + 0x0e)? as usize * 16;
         let sample_size = if flags & 0x04 != 0 { smp.size*2 } else { smp.size };
-        smp.store(b.slice(0x50, sample_size)?);
+        smp.store(b.slice(sample_offset, sample_size)?);
+        if cvt {
+            smp.to_signed();
+        }
 
         let ins = S3mInstrument {
             typ,
@@ -112,7 +116,7 @@ impl Loader for S3mLoader {
         let mut instruments = Vec::<S3mInstrument>::new();
         let mut samples = Vec::<Sample>::new();
         for i in 0..ins_num as usize {
-            let (ins, smp) = try!(self.load_instrument(b, i, instrum_pp[i]));
+            let (ins, smp) = try!(self.load_instrument(b, i, instrum_pp[i], ffi != 1));
             instruments.push(ins);
             samples.push(smp);
         }

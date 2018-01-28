@@ -208,7 +208,7 @@ impl St3Play {
         }
     }
 
-    fn setspd(&mut self, ch: usize) {
+    fn setspd(&mut self, ch: usize, mixer: &mut Mixer) {
         self.chn[ch].achannelused |= 0x80;
         let mut tmpspd = self.chn[ch].aspd;
 
@@ -237,7 +237,7 @@ impl St3Play {
 
         if tmpspd == 0 {
             // cut channel
-            self.voice_set_sampling_frequency(ch, 0);
+            //self.voice_set_sampling_frequency(ch, 0);
             return;
         }
 
@@ -251,7 +251,8 @@ impl St3Play {
 
         // ST3 actually uses 14317056 (3.579264MHz * 4) instead of 14317456 (1712*8363)
         if tmpspd > 0 {
-            self.voice_set_sampling_frequency(ch, 14317056 / tmpspd as u32);
+            //self.voice_set_sampling_frequency(ch, 14317056 / tmpspd as u32);
+            mixer.set_period(ch, tmpspd as f64 / 4.0);
         }
     }
 
@@ -564,7 +565,7 @@ impl St3Play {
                 self.chn[ch].avol    = 0;
                 self.chn[ch].asldspd = 65535;
     
-                self.setspd(ch);
+                self.setspd(ch, &mut mixer);
                 self.setvol(ch, &mut mixer);
     
                 // shutdown channel
@@ -592,7 +593,7 @@ impl St3Play {
                     self.chn[ch].avibcnt = 0;
                     self.chn[ch].apancnt = 0;
     
-                    self.setspd(ch);
+                    self.setspd(ch, &mut mixer);
                 }
     
                 let h = self.stnote2herz(note) as i32;
@@ -790,11 +791,11 @@ impl St3Play {
     
         self.oldstvib = module.flags & 0x01 != 0;
     
+/*
         if module.ffi != 0 {
             // we have unsigned samples, convert to signed
     
             for i in 0..module.ins_num {
-/*
                 insdat = &mseg[*((uint16_t *)(&mseg[instrumentadd + (i * 2)])) * 16];
                 insoff = ((insdat[0x0D] << 16) | (insdat[0x0F] << 8) | insdat[0x0E]) * 16;
     
@@ -817,12 +818,9 @@ impl St3Play {
                             mseg[insoff + j] = mseg[insoff + j] - 0x80;
                     }
                 }
-*/
             }
         }
-    }
-
-    fn voice_set_sampling_frequency(&self, voiceNumber: usize, sampling_frequency: u32) {
+*/
     }
 }
 

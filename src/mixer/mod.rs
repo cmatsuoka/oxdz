@@ -201,7 +201,7 @@ impl<'a> Mixer<'a> {
         v.vol = 0;
         v.pan = 0; 
         v.has_loop = false;
-	v.sample_end = true;
+	    v.sample_end = true;
 
         let sample = &self.sample[v.smp];
 
