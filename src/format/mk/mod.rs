@@ -95,13 +95,12 @@ impl ModuleData for ModData {
 
 #[derive(Debug,Default)]
 pub struct ModInstrument {
-    pub name      : String,
-    pub volume    : u8,
-    pub finetune  : i8,
-    pub size      : u32,
-    pub loop_start: u32,
-    pub loop_end  : u32,
-    pub has_loop  : bool,
+    pub name    : String,
+    pub volume  : u8,
+    pub finetune: i8,
+    pub size    : u16,
+    pub repeat  : u16,
+    pub replen  : u16,
 }
 
 impl ModInstrument {
