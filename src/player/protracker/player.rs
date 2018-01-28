@@ -102,73 +102,94 @@ impl ModPlayer {
         }
     }
 
+    // mt_GetNewNote
     fn mt_get_new_note(&mut self, module: &ModData, mut mixer: &mut Mixer) {
-        let p = match module.pattern_in_position(self.mt_song_pos as usize) {
+        let pat = match module.pattern_in_position(self.mt_song_pos as usize) {
             Some(val) => val,
             None      => return,
         };
 
         for chn in 0..module.channels() {
-            let event = module.patterns.event(p, self.mt_pattern_pos, chn);
-            let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
+            self.mt_play_voice(pat, chn, &module, &mut mixer);
+        }
+    }
 
-            // mt_PlayVoice
-            if { let e = &self.state[chn]; e.n_note | e.n_ins | e.n_cmd | e.n_cmdlo == 0 } {  // TST.L   (A6)
-                self.per_nop(chn, &mut mixer);
-            }
+    // mt_PlayVoice
+    fn mt_play_voice(&mut self, pat: usize, chn: usize, module: &ModData, mut mixer: &mut Mixer) {
+        let event = module.patterns.event(pat, self.mt_pattern_pos, chn);
+        let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
-            {
-                let state = &mut self.state[chn];
+        // mt_PlayVoice
+        if { let e = &self.state[chn]; e.n_note | e.n_ins | e.n_cmd | e.n_cmdlo == 0 } {  // TST.L   (A6)
+            self.per_nop(chn, &mut mixer);
+        }
 
-                // mt_plvskip
-                state.n_note = note;
-                state.n_ins = ins;
-                state.n_cmd = cmd;
-                state.n_cmdlo = cmdlo;
+        {
+            let state = &mut self.state[chn];
 
-                if ins != 0 {
-                    let instrument = &module.instruments[ins as usize - 1];
-                    //let sample = &module.sample[ins as usize];
-                    //state.n_start = sample.loop_start;
-                    //state.n_length = sample.size;
-                    //state.n_reallength = sample.size;
-                    state.n_finetune = instrument.finetune as i8;
-                    //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
-                    state.n_volume = instrument.volume as u8;
-                    mixer.set_patch(chn, ins as usize - 1, ins as usize - 1);
-                    mixer.set_volume(chn, instrument.volume << 4);  // MOVE.W  D0,8(A5)        ; Set volume
+            // mt_plvskip
+            state.n_note = note;
+            state.n_ins = ins;
+            state.n_cmd = cmd;
+            state.n_cmdlo = cmdlo;
+
+            if ins != 0 {
+                let instrument = &module.instruments[ins as usize - 1];
+                state.n_length = instrument.size;
+                //state.n_reallength = instrument.size;
+                state.n_finetune = instrument.finetune as i8;
+                state.n_volume = instrument.volume as u8;
+                mixer.set_patch(chn, ins as usize - 1, ins as usize - 1);
+                mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
+                if instrument.replen > 1 {
+                    state.n_loopstart = instrument.repeat as u32;
+                    state.n_wavestart = instrument.repeat as u32;
+                    state.n_length = instrument.repeat + instrument.replen;
+                    state.n_replen = instrument.replen;
+                    mixer.set_loop_start(chn, state.n_loopstart * 2);
+                    mixer.set_loop_end(chn, (state.n_loopstart + state.n_replen as u32) * 2);
+                    mixer.enable_loop(chn, true);
+                } else {
+                    // mt_NoLoop
+                    state.n_length = instrument.repeat + instrument.replen;
+                    state.n_replen = instrument.replen;
+                    mixer.enable_loop(chn, false);
                 }
             }
+        }
 
-            // mt_SetRegs
-            if note != 0 {
-                match cmd {
-                    0xe => {
-                               if (cmdlo & 0xf0) == 0x50 {
-                                   // mt_DoSetFinetune
-                                   self.mt_set_finetune(chn);
-                               }
-                               self.mt_set_period(chn, &mut mixer);
+        self.mt_set_regs(chn, &mut mixer);
+    }
+
+    // mt_SetRegs
+    fn mt_set_regs(&mut self, chn: usize, mut mixer: &mut Mixer) {
+        if self.state[chn].n_note != 0 {
+            match self.state[chn].n_cmd {
+                0xe => {
+                           if (self.state[chn].n_cmdlo & 0xf0) == 0x50 {
+                               // mt_DoSetFinetune
+                               self.mt_set_finetune(chn);
                            }
-                    0x3 => {  // TonePortamento
-                               self.mt_set_tone_porta(chn);
-                               self.mt_check_more_efx(chn, &mut mixer)
-                           },
-                    0x5 => {
-                               self.mt_set_tone_porta(chn);
-                               self.mt_check_more_efx(chn, &mut mixer)
-                           },
-                    0x9 => {  // Sample Offset
-                               self.mt_check_more_efx(chn, &mut mixer);
-                               self.mt_set_period(chn, &mut mixer);
-                           },
-                    _   => {
-                               self.mt_set_period(chn, &mut mixer);
-                           },
-                }
-            } else {
-                self.mt_check_more_efx(chn, &mut mixer);  // If no note
+                           self.mt_set_period(chn, &mut mixer);
+                       }
+                0x3 => {  // TonePortamento
+                           self.mt_set_tone_porta(chn);
+                           self.mt_check_more_efx(chn, &mut mixer)
+                       },
+                0x5 => {
+                           self.mt_set_tone_porta(chn);
+                           self.mt_check_more_efx(chn, &mut mixer)
+                       },
+                0x9 => {  // Sample Offset
+                           self.mt_check_more_efx(chn, &mut mixer);
+                           self.mt_set_period(chn, &mut mixer);
+                       },
+                _   => {
+                           self.mt_set_period(chn, &mut mixer);
+                       },
             }
+        } else {
+            self.mt_check_more_efx(chn, &mut mixer);  // If no note
         }
     }
 
@@ -740,9 +761,12 @@ impl FormatPlayer for ModPlayer {
 #[derive(Clone,Default)]
 struct ChannelData {
     n_note         : u8,
-    n_ins          : u8,     // not in PT2.1A
+    n_ins          : u8,   // not in PT2.1A
     n_cmd          : u8,
     n_cmdlo        : u8,
+    n_length       : u16,
+    n_loopstart    : u32,
+    n_replen       : u16,
     n_period       : u16,
     n_finetune     : i8,
     n_volume       : u8,

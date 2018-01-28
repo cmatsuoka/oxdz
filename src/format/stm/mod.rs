@@ -101,9 +101,12 @@ impl ModuleData for StmData {
 /// StmInstrument defines extra instrument fields used in Protracker instruments.
 #[derive(Debug,Default)]
 pub struct StmInstrument {
-    pub num   : usize,
-    pub name  : String,
-    pub volume: usize,
+    pub name      : String,
+    pub volume    : u8,
+    pub size      : u16,
+    pub loop_start: u16,
+    pub loop_end  : u16,
+    pub c2spd     : u16,
 }
 
 impl StmInstrument {

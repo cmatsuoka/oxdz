@@ -10,39 +10,33 @@ use ::*;
 pub struct ModLoader;
 
 impl ModLoader {
-    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(ModInstrument, Sample), Error> {
+    fn load_instrument(&self, b: &[u8], i: usize) -> Result<ModInstrument, Error> {
         let mut ins = ModInstrument::new();
-        let mut smp = Sample::new();
 
         let ofs = 20 + i * 30;
         ins.name = b.read_string(ofs, 22)?;
+        ins.size = b.read16b(ofs + 22)?;
+        ins.finetune = ((b.read8i(ofs + 24)? << 4) >> 4) * 16;
+        ins.volume = b.read8(ofs + 25)?;
+        ins.repeat = b.read16b(ofs + 26)?;
+        ins.replen = b.read16b(ofs + 28)?;
+
+        Ok(ins)
+    }
+
+    fn load_sample(&self, b: &[u8], i: usize, ins: &ModInstrument) -> Sample {
+        let mut smp = Sample::new();
+
+        smp.num  = i + 1;
         smp.name = ins.name.to_owned();
-
-        smp.size = b.read16b(ofs + 22)? as usize * 2;
-        smp.rate = 8287.0;
-        ins.volume = b.read8(ofs + 25)? as usize;
-        smp.loop_start = b.read16b(ofs + 26)? as usize * 2;
-        let loop_size = b.read16b(ofs + 28)?;
-        smp.loop_end = smp.loop_start + loop_size as usize * 2;
-        smp.has_loop = loop_size > 1 && smp.loop_end >= 4;
-        ins.finetune = (((b.read8i(ofs + 24)? << 4) as isize) >> 4) * 16;
-
+        smp.size = ins.size as u32 * 2;
         smp.rate = util::C4_PAL_RATE;
         if smp.size > 0 {
             smp.sample_type = SampleType::Sample8;
         }
+        smp.store(b);
 
-        smp.sanity_check();
-
-        Ok((ins, smp))
-    }
-
-    fn load_sample(&self, b: &[u8], mut smp_list: Vec<Sample>, i: usize) -> Result<Vec<Sample>, Error> {
-        if i >= smp_list.len() {
-            return Err(Error::Load("invalid sample number"))
-        }
-        smp_list[i].store(b);
-        Ok(smp_list)
+        smp
     }
 }
 
@@ -70,9 +64,8 @@ impl Loader for ModLoader {
         let mut instruments: Vec<ModInstrument> = Vec::new();
         let mut samples: Vec<Sample> = Vec::new();
         for i in 0..31 {
-            let (ins, smp) = try!(self.load_instrument(b, i));
+            let ins = self.load_instrument(b, i)?;
             instruments.push(ins);
-            samples.push(smp);
         }
 
         // Load orders
@@ -88,14 +81,13 @@ impl Loader for ModLoader {
         // Load patterns
         let patterns = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
 
-        // Load samples (sample size is set when loading instruments)
+        // Load samples
         let mut ofs = 1084 + 1024*pat;
         for i in 0..31 {
-            let size = samples[i].size as usize;
-            if size > 0 {
-                samples = try!(self.load_sample(b.slice(ofs, size)?, samples, i));
-                ofs += size;
-            }
+            let size = instruments[i].size as usize * 2;
+            let smp = self.load_sample(b.slice(ofs, size)?, i, &instruments[i]);
+            samples.push(smp);
+            ofs += size;
         }
 
         let mut data = ModData{

@@ -15,16 +15,7 @@ pub enum SampleType {
 pub struct Sample {
     pub sample_type : SampleType,
     pub num         : usize,
-    pub size        : usize,
-    pub loop_start  : usize,
-    pub loop_end    : usize,
-    pub sloop_start : usize,
-    pub sloop_end   : usize,
-    pub has_loop    : bool,
-    pub has_sloop   : bool,
-    pub loop_bidir  : bool,
-    pub loop_full   : bool,
-    pub sloop_bidir : bool,
+    pub size        : u32,
     pub guard_size  : usize,
     pub rate        : f64,
     pub name        : String,
@@ -37,15 +28,6 @@ impl Sample {
             sample_type : SampleType::Empty,
             num         : 0,
             size        : 0,
-            loop_start  : 0,
-            loop_end    : 0,
-            sloop_start : 0,
-            sloop_end   : 0,
-            has_loop    : false,
-            has_sloop   : false,
-            loop_bidir  : false,
-            loop_full   : false,
-            sloop_bidir : false,
             guard_size  : 0,
             rate        : 8000_f64,
             name        : "".to_owned(),
@@ -60,22 +42,13 @@ impl Sample {
 
     pub fn data_8(&self) -> &[i8] {
         unsafe {
-            slice::from_raw_parts(self.data.as_ptr().offset(2) as *const i8, self.size + 2 * (GUARD_SIZE/2) as usize)
+            slice::from_raw_parts(self.data.as_ptr().offset(2) as *const i8, self.size as usize + 2 * (GUARD_SIZE/2) as usize)
         }
     }
 
     pub fn data_16(&self) -> &[i16] {
         unsafe {
-            slice::from_raw_parts(self.data.as_ptr() as *const i16, self.size + 2 * GUARD_SIZE as usize)
-        }
-    }
-
-    pub fn sanity_check(&mut self) {
-        if self.loop_start > self.size {
-            self.has_loop = false;
-        }
-        if self.loop_end > self.size {
-            self.loop_end = self.size;
+            slice::from_raw_parts(self.data.as_ptr() as *const i16, self.size as usize + 2 * GUARD_SIZE as usize)
         }
         if self.loop_end <= self.loop_start {
             self.has_loop = false;

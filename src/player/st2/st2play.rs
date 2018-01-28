@@ -253,13 +253,17 @@ impl St2Play {
             //self.channels[chn].smp_data_ptr = ctx->samples[smp].data;
             mixer.set_patch(chn, smp - 1, smp - 1);
     
-            /*if ctx->samples[smp].loop_end != 0xffff {
-                self.channels[chn].smp_loop_end = ctx->samples[smp].loop_end;
-                self.channels[chn].smp_loop_start = ctx->samples[smp].loop_start;
+            if module.instruments[smp-1].loop_end != 0xffff {
+                //self.channels[chn].smp_loop_end = ctx->samples[smp].loop_end;
+                //self.channels[chn].smp_loop_start = ctx->samples[smp].loop_start;
+                mixer.set_loop_start(chn, module.instruments[smp-1].loop_start as u32);
+                mixer.set_loop_end(chn, module.instruments[smp-1].loop_end as u32);
+                mixer.enable_loop(chn, true);
             } else {
-                self.channels[chn].smp_loop_end = ctx->samples[smp].length;
-                self.channels[chn].smp_loop_start = 0xffff;
-            }*/
+                //self.channels[chn].smp_loop_end = ctx->samples[smp].length;
+                //self.channels[chn].smp_loop_start = 0xffff;
+                mixer.enable_loop(chn, false);
+            }
         }
     
         if note != 255 {
@@ -267,8 +271,9 @@ impl St2Play {
             mixer.set_voicepos(chn, 0.0);
     
             if note == 254 {
-                /*self.channels[chn].smp_loop_end = 0;
-                self.channels[chn].smp_loop_start = 0xffff;*/
+                //self.channels[chn].smp_loop_end = 0;
+                //self.channels[chn].smp_loop_start = 0xffff;
+                mixer.enable_loop(chn, false);
             } else {
                 //self.channels[chn].volume_meter = self.channels[chn].volume_current >> 1;
                 //self.channels[chn].period_current = PERIOD_TABLE[note] * 8448 / ctx->samples[smp].c2spd; /* 8448 - 2.21; 8192 - 2.3 */
