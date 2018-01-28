@@ -56,9 +56,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
 
     println!("Samples:");
     for smp in module.samples() {
-        println!("{:3}: {:30} {:5} {:5} {:5} {}",
-            smp.num, smp.name, smp.size, smp.loop_start, smp.loop_end,
-            if smp.has_loop { 'L' } else { ' ' });
+        println!("{:3}: {:30} {:5}", smp.num, smp.name, smp.size);
     }
 
     println!("Default player for this format: {}", module.player);

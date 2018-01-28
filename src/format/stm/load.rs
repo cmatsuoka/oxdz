@@ -9,41 +9,34 @@ use ::*;
 pub struct StmLoader;
 
 impl StmLoader {
-    fn load_instrument(&self, b: &[u8], i: usize) -> Result<(StmInstrument, Sample), Error> {
+    fn load_instrument(&self, b: &[u8], i: usize) -> Result<StmInstrument, Error> {
         let mut ins = StmInstrument::new();
-        let mut smp = Sample::new();
 
         let ofs = 48 + i * 32;
-        ins.num = i + 1;
-        smp.num = i + 1;;
         ins.name = b.read_string(ofs, 12)?;
-        smp.size = b.read16l(ofs + 16)? as usize;
-        smp.loop_start = b.read16l(ofs + 18)? as usize;
-        smp.loop_end = b.read16l(ofs + 20)? as usize;
-        ins.volume = b.read8(ofs + 22)? as usize;
-        smp.rate = b.read16l(ofs + 24)? as f64;
+        ins.size = b.read16l(ofs + 16)?;
+        ins.loop_start = b.read16l(ofs + 18)?;
+        ins.loop_end = b.read16l(ofs + 20)?;
+        ins.volume = b.read8(ofs + 22)?;
+        ins.c2spd = b.read16l(ofs + 24)?;
 
-        if smp.loop_end == 0xffff {
-            smp.loop_end = 0;
-        } else if smp.loop_end > 0 {
-            smp.has_loop = true;
-        }
 
+        Ok(ins)
+    }
+
+    fn load_sample(&self, b: &[u8], i: usize, ins: &StmInstrument) -> Sample {
+        let mut smp = Sample::new();
+
+        smp.num = i + 1;
+        smp.name = ins.name.to_owned();
+        smp.rate = ins.c2spd as f64;
+        smp.size = ins.size as u32;
         if smp.size > 0 {
             smp.sample_type = SampleType::Sample8;
         }
+        smp.store(b);
 
-        smp.sanity_check();
-
-        Ok((ins, smp))
-    }
-
-    fn load_sample(&self, b: &[u8], mut smp_list: Vec<Sample>, i: usize) -> Result<Vec<Sample>, Error> {
-        if i >= smp_list.len() {
-            return Err(Error::Load("invalid sample number"))
-        }
-        smp_list[i].store(b);
-        Ok(smp_list)
+        smp
     }
 }
 
@@ -86,9 +79,8 @@ impl Loader for StmLoader {
 
         // Load instruments
         for i in 0..31 {
-            let (ins, smp) = try!(self.load_instrument(b, i));
+            let ins = self.load_instrument(b, i)?;
             instruments.push(ins);
-            samples.push(smp);
         }
 
         // Load orders
@@ -100,11 +92,10 @@ impl Loader for StmLoader {
         // Load samples
         let mut ofs = 1168 + 1024*num_patterns as usize;
         for i in 0..31 {
-            let size = samples[i].size as usize;
-            if size > 0 {
-                samples = try!(self.load_sample(b.slice(ofs, size)?, samples, i));
-                ofs += size;
-            }
+            let size = instruments[i].size as usize;
+            let smp = self.load_sample(b.slice(ofs, size)?, i, &instruments[i]);
+            samples.push(smp);
+            ofs += size;
         }
 
         let mut data = StmData{

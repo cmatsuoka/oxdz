@@ -67,58 +67,8 @@ impl<'a> Mixer<'a> {
         self.voices.len()
     }
 
-/*
-    pub fn find_free_voice(&self) -> Option<usize> {
-        for (i, v) in self.voices.iter().enumerate() {
-            if v.chn == None {
-                return Some(i);
-            }
-        }
-
-        return None;
-    }
-
-    pub fn find_lowest_voice(&self, num_tracks: usize) -> usize {
-        let mut vol = std::usize::MAX;
-        let mut num = 0;
-
-        for (i, v) in self.voices.iter().enumerate() {
-
-            let chn = match v.chn {
-                Some(v) => v,
-                None    => continue,
-            };
-
-            if chn >= num_tracks {   // only background channels
-                if v.vol < vol {
-                    vol = v.vol;
-                    num = i;
-                }
-            }
-        }
-
-        num
-    }
-*/
     pub fn set_tempo(&mut self, tempo: usize) {
         self.framesize = ((self.rate as f64 * PAL_RATE) / (self.factor * tempo as f64 * 100.0)) as usize;
-    }
-
-    pub fn set_voice(&mut self, num: usize, chn: usize) {
-        try_voice!(num, self.voices);
-        self.voices[num].chn = Some(chn);
-        self.voices[num].root = Some(chn);
-    }
-
-/*
-    pub fn voice_root(&self, voice: usize) -> Option<usize> {
-        try_voice!(voice, self.voices, None);
-        self.voices[voice].root
-    }
-*/
-    pub fn voice_chn(&self, voice: usize) -> Option<usize> {
-        try_voice!(voice, self.voices, None);
-        self.voices[voice].chn
     }
 
     pub fn reset_voice(&self, voice: usize) {
@@ -130,9 +80,11 @@ impl<'a> Mixer<'a> {
         let v = &self.voices[voice];
         let sample = &self.sample[v.smp];
 
-        if sample.has_loop && sample.loop_bidir {
+/*
+        if v.has_loop && sample.loop_bidir {
             // TODO: handle bidirectional loop
         }
+*/
         
         v.pos
     }
@@ -148,8 +100,8 @@ impl<'a> Mixer<'a> {
         v.adjust_end(&sample);
 
         if v.pos >= v.end as f64 {
-            if sample.has_loop {
-                v.pos = sample.loop_start as f64;
+            if v.has_loop {
+                v.pos = v.loop_start as f64;
             } else {
                 v.pos = sample.size as f64;
             }
@@ -201,7 +153,7 @@ impl<'a> Mixer<'a> {
         v.vol = 0;
         v.pan = 0; 
         v.has_loop = false;
-	v.sample_end = true;
+	    v.sample_end = true;
 
         let sample = &self.sample[v.smp];
 
@@ -210,6 +162,21 @@ impl<'a> Mixer<'a> {
         
         // ...
 
+    }
+
+    pub fn set_loop_start(&mut self, voice: usize, val: u32) {
+        try_voice!(voice, self.voices);
+        self.voices[voice].loop_start = val;
+    }
+
+    pub fn set_loop_end(&mut self, voice: usize, val: u32) {
+        try_voice!(voice, self.voices);
+        self.voices[voice].loop_end = val;
+    }
+
+    pub fn enable_loop(&mut self, voice: usize, val: bool) {
+        try_voice!(voice, self.voices);
+        self.voices[voice].has_loop = val;
     }
 
     pub fn mix(&mut self) {
@@ -292,7 +259,7 @@ impl<'a> Mixer<'a> {
 
                 // No more samples in this frame
                 if size <= 0 {
-                    if sample.has_loop {
+                    if v.has_loop {
                         if v.pos + step >= v.end as f64 {
                             v.pos += step;
                             v.loop_reposition(&sample);
@@ -302,7 +269,7 @@ impl<'a> Mixer<'a> {
                 }
 
                 // First sample loop run
-                if !sample.has_loop {
+                if !v.has_loop {
                     v.sample_end = true;
                     size = 0;
                     continue;
@@ -349,8 +316,6 @@ impl<'a> Mixer<'a> {
 #[derive(Clone,Debug,Default)]
 struct Voice {
     num       : usize,
-    root      : Option<usize>,
-    chn       : Option<usize>,
     pos       : f64,
     period    : f64,
     note      : usize,
@@ -358,7 +323,9 @@ struct Voice {
     vol       : usize,
     ins       : usize,
     smp       : usize,
-    end       : usize,
+    end       : u32,
+    loop_start: u32,
+    loop_end  : u32,
     has_loop  : bool,
     sample_end: bool,
 }
@@ -370,11 +337,16 @@ impl Voice {
     }
 
     pub fn adjust_end(&mut self, sample: &Sample) {
-        if sample.has_loop {
-            if sample.loop_full && !self.has_loop {
+        // sanity check
+        if self.loop_end > sample.size {
+            self.loop_end = sample.size;
+        }
+
+        if self.has_loop {
+            /*if self.loop_full && !self.has_loop {
                 self.end = sample.size;
-            } else {
-                self.end = sample.loop_end;
+            } else*/ {
+                self.end = self.loop_end;
             }
         } else {
             self.end = sample.size;
@@ -382,11 +354,20 @@ impl Voice {
     }
 
     pub fn loop_reposition(&mut self, sample: &Sample) {
-        let loop_size = sample.loop_end - sample.loop_start;
+        // sanity check
+        if self.loop_start > sample.size {
+            self.has_loop = false;
+            return
+        }
+        if self.loop_end > sample.size {
+            self.loop_end = sample.size;
+        }
+        
+        let loop_size = self.loop_end - self.loop_start;
 
         // Reposition for next loop
         self.pos -= loop_size as f64;  // forward loop
-        self.end = sample.loop_end;
+        self.end = self.loop_end;
         self.has_loop = true;
 
         //if self.bidir_loop {

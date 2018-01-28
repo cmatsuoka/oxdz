@@ -128,15 +128,18 @@ impl ModPlayer {
 
                 if ins != 0 {
                     let instrument = &module.instruments[ins as usize - 1];
-                    //let sample = &module.sample[ins as usize];
+                    //let sample = &module.samples[ins as usize];
                     //state.n_start = sample.loop_start;
                     //state.n_length = sample.size;
                     //state.n_reallength = sample.size;
                     state.n_finetune = instrument.finetune as i8;
-                    //self.state[chn].n_replen = sample.loop_end - sample.loop_start;
+                    //state.n_replen = sample.loop_end - sample.loop_start;
                     state.n_volume = instrument.volume as u8;
                     mixer.set_patch(chn, ins as usize - 1, ins as usize - 1);
-                    mixer.set_volume(chn, instrument.volume << 4);  // MOVE.W  D0,8(A5)        ; Set volume
+                    mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
+                    mixer.set_loop_start(chn, instrument.loop_start);
+                    mixer.set_loop_end(chn, instrument.loop_end);
+                    mixer.enable_loop(chn, instrument.has_loop);
                 }
             }
 
