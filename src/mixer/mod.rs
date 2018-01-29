@@ -150,10 +150,10 @@ impl<'a> Mixer<'a> {
         let v = &mut self.voices[voice];
         v.ins = ins;
         v.smp = smp;
-        v.vol = 0;
-        v.pan = 0; 
+        //v.vol = 0;
+        //v.pan = 0; 
         v.has_loop = false;
-	    v.sample_end = true;
+        v.sample_end = true;
 
         let sample = &self.sample[v.smp];
 
