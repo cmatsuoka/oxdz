@@ -22,6 +22,7 @@ const OPENMPT        : u8 = 5;
 const BEROTRACKER    : u8 = 6;
 // there is also CREAMTRACKER (7), but let's ignore that for now
 
+// STRUCTS
 #[derive(Default)]
 struct Chn {
     aorgvol       : i8,
@@ -126,27 +127,28 @@ pub struct St3Play {
     mseg_len : u32,
 } 
 
-/* TABLES */
-static XFINETUNE_AMIGA: &'static [i16; 16] = &[
+
+// TABLES
+static XFINETUNE_AMIGA: [i16; 16] = [
     7895, 7941, 7985, 8046, 8107, 8169, 8232, 8280,
     8363, 8413, 8463, 8529, 8581, 8651, 8723, 8757
 ];
 
-static RETRIGVOLADD: &'static [i8; 32] = &[
+static RETRIGVOLADD: [i8; 32] = [
     0, -1, -2, -4, -8,-16,  0,  0,
     0,  1,  2,  4,  8, 16,  0,  0,
     0,  0,  0,  0,  0,  0, 10,  8,
     0,  0,  0,  0,  0,  0, 24, 32
 ];
 
-static NOTESPD: &'static [u16; 12] = &[
+static NOTESPD: [u16; 12] = [
     1712 * 16, 1616 * 16, 1524 * 16,
     1440 * 16, 1356 * 16, 1280 * 16,
     1208 * 16, 1140 * 16, 1076 * 16,
     1016 * 16,  960 * 16,  907 * 16
 ];
 
-static VIBSIN: &'static [i16; 64] = &[
+static VIBSIN: [i16; 64] = [
      0x00, 0x18, 0x31, 0x4A, 0x61, 0x78, 0x8D, 0xA1,
      0xB4, 0xC5, 0xD4, 0xE0, 0xEB, 0xF4, 0xFA, 0xFD,
      0xFF, 0xFD, 0xFA, 0xF4, 0xEB, 0xE0, 0xD4, 0xC5,
@@ -157,7 +159,7 @@ static VIBSIN: &'static [i16; 64] = &[
     -0xB4,-0xA1,-0x8D,-0x78,-0x61,-0x4A,-0x31,-0x18
 ];
 
-static VIBSQU: &'static [u8; 64] = &[
+static VIBSQU: [u8; 64] = [
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -168,7 +170,7 @@ static VIBSQU: &'static [u8; 64] = &[
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 ];
 
-static VIBRAMP: &'static [i16; 64] = &[
+static VIBRAMP: [i16; 64] = [
        0, -248,-240,-232,-224,-216,-208,-200,
     -192, -184,-176,-168,-160,-152,-144,-136,
     -128, -120,-112,-104, -96, -88, -80, -72,
@@ -178,6 +180,7 @@ static VIBRAMP: &'static [i16; 64] = &[
      128,  136, 144, 152, 160, 168, 176, 184,
      192,  200, 208, 216, 224, 232, 240, 248
 ];
+
 
 
 // CODE START
@@ -401,7 +404,7 @@ impl St3Play {
             self.np_patseg = module.pattern_pp[self.np_pat as usize] * 16;
             if self.np_patseg != 0 {
                 let mut j = 2;  // skip packed pat len flag
-    
+
                 // increase np_patoff on patbreak
                 if self.np_row != 0 {
                     let mut i = self.np_row;
@@ -417,7 +420,7 @@ impl St3Play {
                         }
                     }
                 }
-    
+
                 self.np_patoff = j as i16;
             }
         }
@@ -438,35 +441,35 @@ impl St3Play {
                 self.np_patoff = i as i16;
                 return 255;
             }
-    
+
             if module.ch_settings[dat as usize & 0x1F] & 0x80 == 0 {
                 ch = dat as usize & 0x1F;  // channel to trigger
                 break
             }
-    
+
             // channel is off, skip data
             if dat & 0x20 != 0 { i += 2 }
             if dat & 0x40 != 0 { i += 1 }
             if dat & 0x80 != 0 { i += 2 }
         }
-    
+
         if dat & 0x20 != 0 {
             self.chn[ch].note = pat.data[i]; i += 1;
             self.chn[ch].ins  = pat.data[i]; i += 1;
-    
+
             if self.chn[ch].note != 255 { self.chn[ch].lastnote = self.chn[ch].note }
             if self.chn[ch].ins  != 0   { self.chn[ch].lastins  = self.chn[ch].ins  }
         }
-    
+
         if dat & 0x40 != 0 {
              self.chn[ch].vol = pat.data[i]; i += 1;
         }
-    
+
         if dat & 0x80 != 0 {
             self.chn[ch].cmd  = pat.data[i]; i += 1;
             self.chn[ch].info = pat.data[i]; i += 1;
         }
-    
+
         self.np_patoff = i as i16;
 
         ch
@@ -479,7 +482,7 @@ impl St3Play {
         //uint32_t inslen;
         //uint32_t insrepbeg;
         //uint32_t insrepend;
-    
+
         let note = self.chn[ch].note;
         let ins = self.chn[ch].ins as usize;
         let vol = self.chn[ch].vol;
@@ -489,19 +492,19 @@ impl St3Play {
         if ins != 0 {
             self.chn[ch].lastins = ins as u8;
             self.chn[ch].astartoffset = 0;
-    
+
             if ins <= module.ins_num as usize {  // added for safety reasons
                 let insdat = &module.instruments[ins - 1];
                 if insdat.typ != 0 {
                     if insdat.typ == 1 {
                         self.chn[ch].ac2spd = insdat.c2spd as i32;
-    
+
                         if self.tracker == OPENMPT || self.tracker == BEROTRACKER {
                             if cmd == ('S' as u8 - 64) && info & 0xF0 == 0x20 {
                                 self.chn[ch].ac2spd = XFINETUNE_AMIGA[info as usize & 0x0F] as i32;
                             }
                         }
-    
+
                         self.chn[ch].avol = insdat.vol;
 
                         if self.chn[ch].avol < 0 {
@@ -514,16 +517,16 @@ impl St3Play {
                         self.setvol(ch, &mut mixer);
 
                         //insoffs = ((insdat[0x0D] << 16) | (insdat[0x0F] << 8) | insdat[0x0E]) * 16;
-    
+
                         let inslen        = insdat.length;
                         let mut insrepbeg = insdat.loop_beg;
                         let mut insrepend = insdat.loop_end;
-    
+
                         if insrepbeg > inslen { insrepbeg = inslen }
                         if insrepend > inslen { insrepend = inslen }
-    
+
                         let has_loop = insdat.flags & 1 != 0 && inslen != 0 && insrepend > insrepbeg;
-    
+
                         // This specific portion differs from what sound card driver you use in ST3...
                         if self.soundcardtype == SOUNDCARD_SB || cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64) {
                             /*self.voice_set_source(ch, (const int8_t *)(&mseg[insoffs]), inslen,
@@ -540,12 +543,12 @@ impl St3Play {
                 }
             }
         }
-    
+
         // continue only if we have an active instrument on this channel
         if self.chn[ch].lastins == 0 {
              return
         }
-    
+
         if cmd == ('O' as u8 - 64) {
             if info == 0 {
                 self.chn[ch].astartoffset = self.chn[ch].astartoffset00;
@@ -554,26 +557,26 @@ impl St3Play {
                 self.chn[ch].astartoffset00 = self.chn[ch].astartoffset;
             }
         }
-    
+
         if note != 255 {
             if note == 254 {
                 self.chn[ch].aspd    = 0;
                 self.chn[ch].avol    = 0;
                 self.chn[ch].asldspd = 65535;
-    
+
                 self.setspd(ch, &mut mixer);
                 self.setvol(ch, &mut mixer);
-    
+
                 // shutdown channel
                 //self.voice_set_source(ch, NULL, 0, 0, 0, 0, 0, 0);
                 mixer.set_voicepos(ch, 0.0);
             } else {
                 self.chn[ch].lastnote = note;
-    
+
                 if cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64) {
                     mixer.set_voicepos(ch, self.chn[ch].astartoffset as f64);
                 }
-    
+
 /*
                 if tracker == OPENMPT || tracker == BEROTRACKER {
                     voiceSetPlayBackwards(ch, 0);
@@ -581,71 +584,71 @@ impl St3Play {
                         voiceSetReadPosToEnd(ch);
                 }
 */
-    
+
                 if self.chn[ch].aorgspd == 0 || (cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64)) {
                     let h = self.stnote2herz(note) as i32;
                     self.chn[ch].aspd    = self.scalec2spd(ch, h);
                     self.chn[ch].aorgspd = self.chn[ch].aspd;
                     self.chn[ch].avibcnt = 0;
                     self.chn[ch].apancnt = 0;
-    
+
                     self.setspd(ch, &mut mixer);
                 }
-    
+
                 let h = self.stnote2herz(note) as i32;
                 self.chn[ch].asldspd = self.scalec2spd(ch, h);
             }
         }
-    
+
         if vol != 255 {
             if vol <= 64 {
                 self.chn[ch].avol    = vol as i8;
                 self.chn[ch].aorgvol = vol as i8;
-    
+
                 self.setvol(ch, &mut mixer);
-    
+
                 return;
             }
-    
+
 /*
             /* NON-ST3, but let's handle it no matter what tracker */
             if ((chn[ch].vol >= 128) && (chn[ch].vol <= 192))
             {
                 chn[ch].surround = 0;
                 voiceSetSurround(ch, 0);
-    
+
                 chn[ch].apanpos = (chn[ch].vol - 128) * 4;
                 setpan(ch);
             }
 */
         }
     }
-    
+
     fn donewnote(&mut self, ch: usize, notedelayflag: bool, module: &S3mData, mut mixer: &mut Mixer) {
         if notedelayflag {
             self.chn[ch].achannelused = 0x81;
         } else {
             if self.chn[ch].channelnum > self.lastachannelused {
                 self.lastachannelused = self.chn[ch].channelnum + 1;
-    
+
                 // sanity fix
                 if self.lastachannelused > 31 {
                     self.lastachannelused = 31;
                 }
             }
-    
+
             self.chn[ch].achannelused = 0x01;
-    
+
             if self.chn[ch].cmd == ('S' as u8 - 64) {
                 if (self.chn[ch].info & 0xF0) == 0xD0 {
                     return
                 }
             }
         }
-    
+
         self.doamiga(ch, &module, &mut mixer);
     }
-    
+
     fn donotes(&mut self, module: &S3mData, mut mixer: &mut Mixer) {
         for i in 0..32 {
             self.chn[i].note = 255;
@@ -654,22 +657,85 @@ impl St3Play {
             self.chn[i].cmd  = 0;
             self.chn[i].info = 0;
         }
-    
+
         self.seekpat(&module);
-    
+
         loop {
             let ch = self.getnote(&module);
             if ch == 255 {
                 break  // end of row/channels
             }
-    
+
             if module.ch_settings[ch] & 0x7F <= 15 {  // no adlib channel types yet
                 self.donewnote(ch, false, &module, &mut mixer);
             }
         }
     }
-    
-    fn docmd1(&mut self, module: &S3mData, mixer: &mut Mixer) {
+
+    fn docmd1(&mut self, module: &S3mData, mut mixer: &mut Mixer) {
+        for i in 0..self.lastachannelused as usize + 1 {
+            if self.chn[i].achannelused != 0 {
+                if self.chn[i].info != 0 {
+                    self.chn[i].alastnfo = self.chn[i].info;
+                }
+
+                if self.chn[i].cmd != 0 {
+                    self.chn[i].achannelused |= 0x80;
+
+                    if self.chn[i].cmd == 'D' as u8 - 64 {
+                        // fix retrig if Dxy
+                        self.chn[i].atrigcnt = 0;
+
+                        // fix speed if tone port noncomplete
+                        if self.chn[i].aspd != self.chn[i].aorgspd {
+                            self.chn[i].aspd = self.chn[i].aorgspd;
+                            self.setspd(i, &mut mixer);
+                        }
+                    } else {
+                        if self.chn[i].cmd != 'I' as u8 - 64 {
+                            self.chn[i].atremor = 0;
+                            self.chn[i].atreon  = 1;
+                        }
+
+                        if  self.chn[i].cmd != 'H' as u8 - 64 &&
+                            self.chn[i].cmd != 'U' as u8 - 64 &&
+                            self.chn[i].cmd != 'K' as u8 - 64 &&
+                            self.chn[i].cmd != 'R' as u8 - 64
+                        {
+                            self.chn[i].avibcnt |= 0x80;
+                        }
+
+                        // NON-ST3
+                        if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+                            if self.chn[i].cmd != 'Y' as u8 - 64 {
+                                self.chn[i].apancnt |= 0x80;
+                            }
+                        }
+                    }
+
+                    if self.chn[i].cmd < 27 {
+                        self.volslidetype = 0;
+                        self.soncejmp(i, &mut mixer);
+                    }
+                } else {
+                    // NON-ST3
+                    if self.tracker != SCREAM_TRACKER { 
+                        // recalc pans
+                        self.setpan(i, &mut mixer);
+                        //voiceSetSurround(i, self.chn[i].surround);
+                    }
+
+                    // fix retrig if no command
+                    self.chn[i].atrigcnt = 0;
+
+                    // fix speed if tone port noncomplete
+                    if self.chn[i].aspd != self.chn[i].aorgspd {
+                        self.chn[i].aspd  = self.chn[i].aorgspd;
+                        self.setspd(i, &mut mixer);
+                    }
+                }
+            }
+        }
     }
 
     fn docmd2(&mut self, module: &S3mData, mixer: &mut Mixer) {
@@ -678,7 +744,7 @@ impl St3Play {
     // periodically called from mixer
     fn dorow(&mut self, module: &S3mData, mut mixer: &mut Mixer) {
         self.patmusicrand = ((((self.patmusicrand as u32 * 0xCDEF) >> 16) as u16).wrapping_add(0x1727)) & 0x0000FFFF;
-    
+
         if self.musiccount == 0 {
             if self.patterndelay != 0 {
                 self.np_row -= 1;
@@ -691,30 +757,30 @@ impl St3Play {
         } else {
             self.docmd2(&module, &mut mixer);
         }
-    
+
         self.musiccount += 1;
         if self.musiccount >= self.musicmax + self.tickdelay as u8 {
             self.tickdelay = 0;
             self.np_row += 1;
-    
+
             if self.jumptorow != -1 {
                 self.np_row = self.jumptorow;
                 self.jumptorow = -1;
             }
-    
+
             // np_row = 0..63, 64 = get new pat
             if self.np_row >= 64 || (self.patloopcount == 0 && self.breakpat != 0) {
                 if self.breakpat == 255 {
                     self.breakpat = 0;
                     //self.Playing  = 0;
-    
+
                     return;
                 }
-    
+
                 self.breakpat = 0;
                 self.np_row = self.neworder(&module);  // if breakpat, np_row = break row
             }
-    
+
             self.musiccount = 0;
         }
     }
@@ -726,7 +792,7 @@ impl St3Play {
         //uint32_t j;
         //uint32_t inslen;
         //uint32_t insoff;
-    
+
         // set to init defaults first
         self.oldstvib = false;
         self.setspeed(6);
@@ -738,14 +804,14 @@ impl St3Play {
         self.fastvolslide = false;
         //self.setStereoMode(0);
         //self.setMasterVolume(48);
-    
+
         self.tracker = (module.cwt_v >> 12) as u8;
-    
+
         if module.m_v != 0 {
             if module.m_v & 0x80 != 0 {
                 //self.setStereoMode(1);
             }
-    
+
             if module.m_v & 0x7F != 0 {
                 if module.m_v & 0x7F < 16 {
                     //setMasterVolume(16);
@@ -754,53 +820,53 @@ impl St3Play {
                 }
             }
         }
-    
+
         if module.i_t != 0 {
             self.settempo(module.i_t as u16);
         }
-    
+
         if module.i_s != 255 {
             self.setspeed(module.i_s);
         }
-    
+
         if module.g_v != 255 {
             self.globalvol = module.g_v as i16;
             if self.globalvol > 64 {
                 self.globalvol = 64;
             }
         }
-    
+
         if module.flags & 0xff != 255 {
             self.amigalimits  = module.flags & 0x10 != 0;
             self.fastvolslide = module.flags & 0x40 != 0;
-    
+
             if self.amigalimits {
                 self.aspdmax = 1712 * 2;
                 self.aspdmin =  907 / 2;
             }
         }
-    
+
         // force fastvolslide if ST3.00
         if module.cwt_v == 0x1300 {
             self.fastvolslide = true;
         }
-    
+
         self.oldstvib = module.flags & 0x01 != 0;
-    
+
 /*
         if module.ffi != 0 {
             // we have unsigned samples, convert to signed
-    
+
             for i in 0..module.ins_num {
                 insdat = &mseg[*((uint16_t *)(&mseg[instrumentadd + (i * 2)])) * 16];
                 insoff = ((insdat[0x0D] << 16) | (insdat[0x0F] << 8) | insdat[0x0E]) * 16;
-    
+
                 if (insoff && (insdat[0] == 1))
                 {
                     inslen = *((uint32_t *)(&insdat[0x10]));
-    
+
                     if (insdat[0x1F] & 2) inslen *= 2; /* stereo */
-    
+
                     if (insdat[0x1F] & 4)
                     {
                         /* 16-bit */
@@ -818,7 +884,82 @@ impl St3Play {
         }
 */
     }
+
+
+    // EFFECTS
+
+    fn soncejmp(&mut self, i: usize, mut mixer: &mut Mixer) {
+        match self.chn[i].cmd {
+            0x01 => self.s_setgliss(i),
+            0x02 => self.s_setfinetune(i),
+            0x03 => self.s_setvibwave(i),
+            0x04 => self.s_settrewave(i),
+            0x05 => self.s_setpanwave(i),  // NON-ST3
+            0x06 => self.s_tickdelay(i),   // NON-ST3
+            0x07 => self.s_ret(),
+            0x08 => self.s_setpanpos(i, &mut mixer),
+            _    => self.s_ret(),
+        }
+    }
+
+    fn s_ret(&mut self) {
+    }
+    // ----------------
+
+    fn s_setgliss(&mut self, i: usize) {
+        self.chn[i].aglis = self.chn[i].info & 0x0F;
+    }
+
+    fn s_setfinetune(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        // this function does nothing in ST3 and many other trackers
+        if self.tracker == OPENMPT || self.tracker == BEROTRACKER {
+            ch.ac2spd = XFINETUNE_AMIGA[ch.info as usize & 0x0F] as i32;
+        }
+    } 
+
+    fn s_setvibwave(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        ch.avibtretype = (ch.avibtretype & 0xF0) | ((ch.info << 1) & 0x0F);
+    }
+
+    fn s_settrewave(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        ch.avibtretype = ((ch.info << 5) & 0xF0) | (ch.avibtretype & 0x0F);
+    }
+
+    fn s_setpanwave(&mut self, i: usize) {  // NON-ST3
+        let ch = &mut self.chn[i];
+        if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+            ch.apantype = ch.info & 0x0F;
+        }
+    }
+
+    fn s_tickdelay(&mut self, i: usize) {  // NON-ST3
+        let ch = &mut self.chn[i];
+        if     self.tracker == OPENMPT
+            || self.tracker == BEROTRACKER
+            || self.tracker == IMPULSE_TRACKER
+            || self.tracker == SCHISM_TRACKER
+        {
+            self.tickdelay += (ch.info & 0x0F) as i8;
+        }
+    }
+
+    fn s_setpanpos(&mut self, i: usize, mut mixer: &mut Mixer) {
+        let num = {
+            let ch = &mut self.chn[i];
+            ch.surround = 0;
+            //voiceSetSurround(ch->channelnum, 0);
+
+            ch.apanpos = (ch.info & 0x0F) as i16 * 17;
+            ch.channelnum as usize
+        };
+        self.setpan(num, &mut mixer);
+    }
+
 }
+
 
 impl FormatPlayer for St3Play {
     fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, _mixer: &mut Mixer) {
