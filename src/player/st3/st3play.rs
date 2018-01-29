@@ -77,7 +77,7 @@ pub struct St3Play {
     breakpat          : u8,
     startrow          : u8,
     musiccount        : u8,
-    np_ord            : usize,  // i16,
+    np_ord            : i16,
     np_row            : i16,
     np_pat            : i16,
     np_patoff         : i16,
@@ -378,15 +378,15 @@ impl St3Play {
         loop {
             self.np_ord += 1;
 
-            if module.orders[self.np_ord - 1] == 255 || self.np_ord > module.ord_num as usize {  // end
+            if module.orders[self.np_ord as usize - 1] == 255 || self.np_ord > module.ord_num as i16 {  // end
                 self.np_ord = 1;
             }
 
-            if module.orders[self.np_ord - 1] == 254 {  // skip
+            if module.orders[self.np_ord as usize - 1] == 254 {  // skip
                 continue;  // goto newOrderSkip;
             }
 
-            self.np_pat       = module.orders[self.np_ord - 1] as i16;
+            self.np_pat       = module.orders[self.np_ord as usize - 1] as i16;
             self.np_patoff    = -1;  // force reseek
             self.np_row       = self.startrow as i16;
             self.startrow     = 0;
@@ -898,6 +898,12 @@ impl St3Play {
             0x06 => self.s_tickdelay(i),   // NON-ST3
             0x07 => self.s_ret(),
             0x08 => self.s_setpanpos(i, &mut mixer),
+            0x09 => self.s_sndcntrl(i),
+            0x0a => self.s_ret(),
+            0x0b => self.s_patloop(i),
+            0x0c => self.s_notecut(i),
+            0x0d => self.s_notedelay(i),
+            0x0e => self.s_patterdelay(i),
             _    => self.s_ret(),
         }
     }
@@ -958,6 +964,113 @@ impl St3Play {
         self.setpan(num, &mut mixer);
     }
 
+    fn s_sndcntrl(&mut self, i: usize) {  // NON-ST3
+        let ch = &mut self.chn[i];
+        if ch.info & 0x0F == 0x00 {
+            if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+                ch.surround = 0;
+                //voiceSetSurround(ch.channelnum, 0);
+            }
+        } else if ch.info & 0x0F == 0x01 {
+            if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+                ch.surround = 1;
+                //voiceSetSurround(ch.channelnum, 1);
+            }
+        } else if ch.info & 0x0F == 0x0E {
+            if self.tracker == OPENMPT || self.tracker == BEROTRACKER {
+                //voiceSetPlayBackwards(ch.channelnum, 0);
+            }
+        } else if ch.info & 0x0F == 0x0F {
+            if self.tracker == OPENMPT || self.tracker == BEROTRACKER {
+                //voiceSetPlayBackwards(ch.channelnum, 1);
+            }
+        }
+    }
+
+    fn s_patloop(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        if ch.info & 0x0F == 0 {
+            self.patloopstart = self.np_row;
+            return;
+        }
+
+        if self.patloopcount == 0 {
+            self.patloopcount = (ch.info & 0x0F) as i8 + 1;
+
+            if self.patloopstart == -1 {
+                self.patloopstart = 0;  // default loopstart
+            }
+        }
+
+        if self.patloopcount > 1 {
+            self.patloopcount -= 1;
+
+            self.jumptorow = self.patloopstart;
+            self.np_patoff = -1;  // force reseek
+        } else {
+            self.patloopcount = 0;
+            self.patloopstart = self.np_row + 1;
+        }
+    }
+
+    fn s_notecut(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        ch.anotecutcnt = ch.info & 0x0F;
+    }
+
+    fn s_notecutb(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        if ch.anotecutcnt != 0 {
+            ch.anotecutcnt -= 1;
+            if ch.anotecutcnt == 0 {
+                //voiceSetSamplingFrequency(ch.channelnum, 0);  // cut note
+            }
+        }
+    }
+
+    fn s_notedelay(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        ch.anotedelaycnt = ch.info & 0x0F;
+    }
+
+    fn s_notedelayb(&mut self, i: usize, module: &S3mData, mut mixer: &mut Mixer) {
+        if self.chn[i].anotedelaycnt != 0 {
+            self.chn[i].anotedelaycnt -= 1;
+            if self.chn[i].anotedelaycnt == 0 {
+                let num = self.chn[i].channelnum as usize;
+                self.donewnote(num, true, &module, &mut mixer);  // 1 = notedelay end
+            }
+        }
+    }
+
+    fn s_patterdelay(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        if self.patterndelay == 0 {
+            self.patterndelay = (ch.info & 0x0F) as i8;
+        }
+    }
+
+    fn s_setspeed(&mut self, i: usize) {
+        let info = self.chn[i].info;
+        self.setspeed(info);
+    }
+
+    fn s_jmpto(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        if ch.info != 0xFF {
+            self.breakpat = 1;
+            self.np_ord = ch.info as i16;
+        } else {
+            self.breakpat = 255;
+        }
+    }
+
+    fn s_break(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
+        self.startrow = ((ch.info >> 4) * 10) + (ch.info & 0x0F);
+        self.breakpat = 1;
+    }
+
 }
 
 
@@ -991,7 +1104,7 @@ impl FormatPlayer for St3Play {
 
         data.frame = self.musiccount as usize;
         data.row = self.np_row as usize;
-        data.pos = self.np_ord - 1 as usize;
+        data.pos = self.np_ord as usize - 1;
 
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as usize;

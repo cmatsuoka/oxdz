@@ -53,8 +53,8 @@ impl Sample {
     }
 
     pub fn to_signed(&mut self) {
-        match &self.sample_type {
-            Sample8  => {
+        match self.sample_type {
+            SampleType::Sample8  => {
                 for i in 2..self.size as usize + 2 {
                     self.data[i] = self.data[i].wrapping_add(0x80);
                 }
