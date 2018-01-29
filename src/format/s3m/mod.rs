@@ -163,11 +163,23 @@ impl ModuleData for S3mData {
 //        +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 //  xxxx: sampledata
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct S3mInstrument {
-    pub typ    : u8,
-    pub c2spd  : u32,
-    pub vol    : i8,
+    pub typ     : u8,
+    pub memseg  : u16,
+    pub length  : u32,
+    pub loop_beg: u32,
+    pub loop_end: u32,
+    pub vol     : i8,
+    pub flags   : i8,
+    pub c2spd   : u32,
+    pub name    : String,
+}
+
+impl S3mInstrument {
+    pub fn new() -> Self {
+        Default::default()
+    }
 }
 
 

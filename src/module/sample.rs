@@ -50,15 +50,12 @@ impl Sample {
         unsafe {
             slice::from_raw_parts(self.data.as_ptr() as *const i16, self.size as usize + 2 * GUARD_SIZE as usize)
         }
-        if self.loop_end <= self.loop_start {
-            self.has_loop = false;
-        }
     }
 
     pub fn to_signed(&mut self) {
         match &self.sample_type {
             Sample8  => {
-                for i in 2..self.size+2 {
+                for i in 2..self.size as usize + 2 {
                     self.data[i] = self.data[i].wrapping_add(0x80);
                 }
             },

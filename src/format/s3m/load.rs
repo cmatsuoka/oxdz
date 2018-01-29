@@ -22,44 +22,41 @@ impl<'a> BinaryReadExt for &'a [u8] {
 pub struct S3mLoader;
 
 impl S3mLoader {
-    fn load_instrument(&self, b: &[u8], i: usize, ofs: usize, cvt: bool) -> Result<(S3mInstrument, Sample), Error> {
+    fn load_instrument(&self, b: &[u8], i: usize, ofs: usize, cvt: bool) -> Result<S3mInstrument, Error> {
+        let mut ins = S3mInstrument::new();
+
+        ins.typ      = b.read8(ofs)?;
+        ins.memseg   = b.read16l(ofs + 0x0e)?;
+        ins.length   = b.read16l_lo_hi(ofs + 0x10)?;
+        ins.loop_beg = b.read16l_lo_hi(ofs + 0x14)?;
+        ins.loop_end = b.read16l_lo_hi(ofs + 0x18)?;
+        ins.vol      = b.read8i(ofs + 0x1c)?;
+        ins.flags    = b.read8i(ofs + 0x1f)?;
+        ins.c2spd    = b.read16l_lo_hi(ofs + 0x20)?;
+        ins.name     = b.read_string(ofs + 0x30, 28)?;
+
+        Ok(ins)
+    }
+
+    fn load_sample(&self, b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sample, Error> {
         let mut smp = Sample::new();
-        let flags = b.read8(ofs)?;
-        let typ = b.read8(ofs)?;
-        let vol = b.read8(ofs + 0x1c)?;
 
-        let c2spd      = 8363; // b.read16l_lo_hi(ofs + 0x20)?;
-        smp.name       = b.read_string(ofs + 0x30, 28)?;
-        smp.size       = b.read16l_lo_hi(ofs + 0x10)? as usize;
-        smp.loop_start = b.read16l_lo_hi(ofs + 0x14)? as usize;
-        smp.loop_end   = b.read16l_lo_hi(ofs + 0x18)? as usize;
-        smp.rate       = c2spd as f64;
-        smp.num        = i + 1;
-        smp.has_loop   = flags & 0x01 != 0;
-
-        if smp.loop_end == 0xffff {
-            smp.loop_end = 0;
-        }
+        smp.num  = i + 1;
+        smp.name = ins.name.to_owned();
+        smp.size = ins.length;
+        smp.rate = 8363.0;
 
         if smp.size > 0 {
-            smp.sample_type = if flags & 0x04 != 0 { SampleType::Sample16 } else { SampleType::Sample8 };
+            smp.sample_type = if ins.flags & 0x04 != 0 { SampleType::Sample16 } else { SampleType::Sample8 };
         }
 
-        smp.sanity_check();
-        let sample_offset = b.read16l(ofs + 0x0e)? as usize * 16;
-        let sample_size = if flags & 0x04 != 0 { smp.size*2 } else { smp.size };
-        smp.store(b.slice(sample_offset, sample_size)?);
+        let sample_size = if ins.flags & 0x04 != 0 { smp.size*2 } else { smp.size };
+        smp.store(b.slice(ins.memseg as usize * 16, sample_size as usize)?);
         if cvt {
             smp.to_signed();
         }
 
-        let ins = S3mInstrument {
-            typ,
-            c2spd,
-            vol: vol as i8,
-        };
-
-        Ok((ins, smp))
+        Ok(smp)
     }
 }
 
@@ -116,7 +113,8 @@ impl Loader for S3mLoader {
         let mut instruments = Vec::<S3mInstrument>::new();
         let mut samples = Vec::<Sample>::new();
         for i in 0..ins_num as usize {
-            let (ins, smp) = try!(self.load_instrument(b, i, instrum_pp[i], ffi != 1));
+            let ins = self.load_instrument(b, i, instrum_pp[i], ffi != 1)?;
+            let smp = self.load_sample(b, i, &ins, ffi != 1)?;
             instruments.push(ins);
             samples.push(smp);
         }
