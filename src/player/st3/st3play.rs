@@ -10,10 +10,8 @@ use mixer::Mixer;
 /// by Olav "8bitbubsy" Sørensen, based on the original asm source codes
 /// by Sami "PSI" Tammilehto (Future Crew).
 
-enum SoundCard {
-    Sb,
-    Gus,
-}
+const SOUNDCARD_GUS  : u8 = 0;  // Default to GUS
+const SOUNDCARD_SB   : u8 = 1;
 
 // TRACKER ID
 const SCREAM_TRACKER : u8 = 1;
@@ -493,7 +491,7 @@ impl St3Play {
             self.chn[ch].astartoffset = 0;
     
             if ins <= module.ins_num as usize {  // added for safety reasons
-                let insdat = &module.instruments[ins];
+                let insdat = &module.instruments[ins - 1];
                 if insdat.typ != 0 {
                     if insdat.typ == 1 {
                         self.chn[ch].ac2spd = insdat.c2spd as i32;
@@ -515,29 +513,27 @@ impl St3Play {
                         self.chn[ch].aorgvol = self.chn[ch].avol;
                         self.setvol(ch, &mut mixer);
 
-                        mixer.set_patch(ch, ins - 1, ins - 1);
+                        //insoffs = ((insdat[0x0D] << 16) | (insdat[0x0F] << 8) | insdat[0x0E]) * 16;
     
-/*
-                        insoffs = ((insdat[0x0D] << 16) | (insdat[0x0F] << 8) | insdat[0x0E]) * 16;
+                        let inslen        = insdat.length;
+                        let mut insrepbeg = insdat.loop_beg;
+                        let mut insrepend = insdat.loop_end;
     
-                        inslen    = *((uint32_t *)(&insdat[0x10]));
-                        insrepbeg = *((uint32_t *)(&insdat[0x14]));
-                        insrepend = *((uint32_t *)(&insdat[0x18]));
+                        if insrepbeg > inslen { insrepbeg = inslen }
+                        if insrepend > inslen { insrepend = inslen }
     
-                        if (insrepbeg > inslen) insrepbeg = inslen;
-                        if (insrepend > inslen) insrepend = inslen;
-    
-                        loop = 0;
-                        if ((insdat[0x1F] & 1) && inslen && (insrepend > insrepbeg))
-                            loop = 1;
+                        let has_loop = insdat.flags & 1 != 0 && inslen != 0 && insrepend > insrepbeg;
     
                         // This specific portion differs from what sound card driver you use in ST3...
-                        if self.soundcardtype == Soundcard::Sb || cmd != ('G' as u8 - 64) && .cmd != ('L' as u8 - 64) {
-                            self.voice_set_source(ch, (const int8_t *)(&mseg[insoffs]), inslen,
+                        if self.soundcardtype == SOUNDCARD_SB || cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64) {
+                            /*self.voice_set_source(ch, (const int8_t *)(&mseg[insoffs]), inslen,
                                 insrepend - insrepbeg, insrepend, loop,
-                                insdat[0x1F] & 4, insdat[0x1F] & 2);
+                                insdat[0x1F] & 4, insdat[0x1F] & 2);*/
+                            mixer.set_patch(ch, ins - 1, ins - 1);
+                            mixer.set_loop_start(ch, insrepbeg);
+                            mixer.set_loop_end(ch, insrepend);
+                            mixer.enable_loop(ch, has_loop);
                         }
-*/
                     } else {
                         self.chn[ch].lastins = 0;
                     }
