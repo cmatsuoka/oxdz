@@ -9,6 +9,44 @@ use mixer::Mixer;
 /// St3play is a very accurate C port of Scream Tracker 3.21's replayer,
 /// by Olav "8bitbubsy" Sørensen, based on the original asm source codes
 /// by Sami "PSI" Tammilehto (Future Crew).
+///
+/// Non-ST3 additions from other trackers (only handled for non ST3 S3Ms):
+///
+/// - Mixing:
+///   * 16-bit sample support
+///   * Stereo sample support
+///   * 2^31-1 sample length support
+///   * Middle-C speeds beyond 65535
+///   * Process the last 16 channels as PCM
+///   * Process 8 octaves instead of 7
+///   * The ability to play samples backwards
+///
+/// - Effects:
+///   * Command S2x        (set middle-C finetune)
+///   * Command S5x        (panbrello type)
+///   * Command S6x        (tick delay)
+///   * Command S9x        (sound control - only S90/S91/S9E/S9F)
+///   * Command Mxx        (set channel volume)
+///   * Command Nxy        (channel volume slide)
+///   * Command Pxy        (panning slide)
+///   * Command Txx<0x20   (tempo slide)
+///   * Command Wxy        (global volume slide)
+///   * Command Xxx        (7+1-bit pan) + XA4 for 'surround'
+///   * Command Yxy        (panbrello)
+///   * Volume Command Pxx (set 4+1-bit panning)
+///
+/// - Variables:
+///   * Pan changed from 4-bit (0..15) to 8+1-bit (0..256)
+///   * Memory variables for the new N/P/T/W/Y effects
+///   * Panbrello counter
+///   * Panbrello type
+///   * Channel volume multiplier
+///   * Channel surround flag
+///
+/// - Other changes:
+///   * Added tracker identification to make sure Scream Tracker 3.xx
+///     modules are still played exactly like they should. :-)
+///
 
 const SOUNDCARD_GUS  : u8 = 0;  // Default to GUS
 const SOUNDCARD_SB   : u8 = 1;
