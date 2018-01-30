@@ -114,7 +114,7 @@ impl ModuleData for S3mData {
 
         let mut row = 0;
         let mut ch = 0;
-        let mut i = 0;
+        let mut i = 2;
         loop {
             let b = p[i]; i += 1;
             if b == 0 { row += 1; continue }

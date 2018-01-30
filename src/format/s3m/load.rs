@@ -124,7 +124,7 @@ impl Loader for S3mLoader {
         for i in 0..pat_num as usize {
             let ofs = pattern_pp[i];
             let plen = b.read16l(ofs)? as usize;
-            patterns.push(S3mPattern{ size: plen, data: b.slice(ofs + 2, plen)?.to_vec() });
+            patterns.push(S3mPattern{ size: plen, data: b.slice(ofs, plen)?.to_vec() });
         }
 
         let mut data = S3mData{

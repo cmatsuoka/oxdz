@@ -304,7 +304,9 @@ impl St3Play {
     }
 
     fn setpan(&mut self, ch: usize, mut mixer: &mut Mixer) {
-        self.setvol(ch, &mut mixer);
+        mixer.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0) * (self.chn[ch].chanvol as f64 / 64.0) *
+                              (self.globalvol as f64 / 64.0) * 1024.0) as usize);
+        mixer.set_pan(ch, self.chn[ch].apanpos as isize);
     }
 
     fn stnote2herz(&mut self, note: u8) -> u16 {
@@ -352,13 +354,6 @@ impl St3Play {
 
     /* for Gxx with semitones slide flag */
     fn roundspd(&mut self, ch: usize, spd: i32) -> i32 {
-        /*int8_t octa;
-        int8_t lastnote;
-        int8_t newnote;
-        int32_t note;
-        int32_t lastspd;
-        int32_t newspd;*/
-
         let mut newspd = spd * self.chn[ch].ac2spd;
 
         if self.tracker == SCREAM_TRACKER {
@@ -515,12 +510,6 @@ impl St3Play {
     }
 
     fn doamiga(&mut self, ch: usize, module: &S3mData, mut mixer: &mut Mixer) {
-        //uint8_t *insdat;
-        //int8_t loop;
-        //uint32_t insoffs;
-        //uint32_t inslen;
-        //uint32_t insrepbeg;
-        //uint32_t insrepend;
 
         let note = self.chn[ch].note;
         let ins = self.chn[ch].ins as usize;
@@ -608,6 +597,7 @@ impl St3Play {
 
                 // shutdown channel
                 //self.voice_set_source(ch, NULL, 0, 0, 0, 0, 0, 0);
+                mixer.set_volume(ch, 0);
                 mixer.set_voicepos(ch, 0.0);
             } else {
                 self.chn[ch].lastnote = note;
