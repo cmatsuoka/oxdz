@@ -393,7 +393,7 @@ impl St3Play {
         }
 
         // get new speed from new note
-        newspd = ((self.stnote2herz((octa << 4) | (lastnote & 0x0F) as u8)) * 8363) as i32;
+        newspd = (self.stnote2herz((octa << 4) | (lastnote & 0x0F) as u8)) as i32 * 8363;
 
         if self.tracker == SCREAM_TRACKER {
             if (newspd / 65536) >= self.chn[ch].ac2spd {
