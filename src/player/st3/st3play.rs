@@ -965,6 +965,9 @@ impl St3Play {
             'T' => self.s_settempo(i, &mut mixer),
             'U' => self.s_ret(),
             'V' => self.s_ret(),
+            'W' => self.s_globvolslide(i, &mut mixer),  // NON-ST3
+            'X' => self.s_setpan(i, &mut mixer),        // NON-ST3
+            'Y' => self.s_panbrello(i, &mut mixer),     // NON-ST3
             _   => self.s_ret(),
         }
     }
@@ -993,6 +996,9 @@ impl St3Play {
             'T' => self.s_settempo(i, &mut mixer),      // NON-ST3 (for tempo slides)
             'U' => self.s_finevibrato(i, &mut mixer),
             'V' => self.s_setgvol(i, &mut mixer),
+            'W' => self.s_globvolslide(i, &mut mixer),  // NON-ST3
+            'X' => self.s_ret(),
+            'Y' => self.s_panbrello(i, &mut mixer),     // NON-ST3
             _    => self.s_ret(),
         }
     }
@@ -1892,6 +1898,172 @@ impl St3Play {
 
         if ch.info <= 64 {
             self.globalvol = ch.info as i16;
+        }
+    }
+
+    fn s_globvolslide(&mut self, i: usize, mut mixer: &mut Mixer) {  // NON-ST3
+        if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+            {
+                let ch = &mut self.chn[i];
+
+                if ch.info != 0 {
+                    ch.wxymem = ch.info;
+                } else {
+                    ch.info = ch.wxymem;
+                }
+
+                let infohi = (ch.wxymem >> 4) as i16;
+                let infolo = (ch.wxymem & 0x0F) as i16;
+
+                if infolo == 0x0F {
+                    if infohi == 0 {
+                        self.globalvol -= infolo;
+                    } else if self.musiccount == 0 {
+                        self.globalvol += infohi;
+                    }
+                } else if infohi == 0x0F {
+                    if infolo == 0 {
+                        self.globalvol += infohi;
+                    } else if self.musiccount == 0 {
+                        self.globalvol -= infolo;
+                    }
+                } else if self.musiccount != 0 {  // don't rely on fastvolslide flag here
+                    if infolo == 0 {
+                        self.globalvol += infohi;
+                    } else {
+                        self.globalvol -= infolo;
+                    }
+                } else {
+                    return  // illegal slide
+                }
+
+                if self.globalvol < 0 {
+                    self.globalvol = 0;
+                } else if self.globalvol > 64 {
+                    self.globalvol = 64;
+                }
+            }
+
+            // update all channels now
+            for i in 0..self.lastachannelused as usize + 1 {
+                self.setvol(i, &mut mixer);
+            }
+        }
+    }
+
+    fn s_setpan(&mut self, i: usize, mut mixer: &mut Mixer) {  // NON-ST3
+        //
+        // this one should work even in mono mode
+        // for newer trackers that exports as ST3
+        //
+        if self.chn[i].info <= 0x80 {
+            self.chn[i].surround = 0;
+            //voiceSetSurround(ch.channelnum, 0);
+
+            self.chn[i].apanpos = self.chn[i].info as i16 * 2;
+            let num = self.chn[i].channelnum as usize;
+            self.setpan(num, &mut mixer);
+        } else if self.chn[i].info == 0xA4 {  // surround
+            if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+                self.chn[i].surround = 1;
+                //voiceSetSurround(ch.channelnum, 1);
+            }
+        }
+    }
+
+    fn s_panbrello(&mut self, i: usize, mixer: &mut Mixer) {  // NON-ST3
+        if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+            let ch = &mut self.chn[i];
+
+            if self.musiccount == 0 {
+                if ch.info == 0 {
+                    ch.info = ch.alasteff;
+                } else {
+                    ch.yxymem = ch.info;
+                }
+
+                if ch.info & 0xF0 == 0 {
+                    ch.info = (ch.yxymem & 0xF0) | (ch.info & 0x0F);
+                }
+
+                if ch.info & 0x0F == 0 {
+                    ch.info = (ch.info & 0xF0) | (ch.yxymem & 0x0F);
+                }
+            }
+
+            let mut cnt = ch.apancnt as usize;
+            let ptype   = ch.apantype;
+            let mut dat = 0_i16;
+
+            // sine
+            if ptype == 0 || ptype == 4 {
+                if ptype == 4 {
+                    cnt &= 0x7F;
+                } else {
+                    if cnt & 0x80 != 0 {
+                        cnt = 0;
+                    }
+                }
+
+                dat = VIBSIN[cnt / 2] as i16;
+            }
+
+            // ramp
+            else if ptype == 1 || ptype == 5 {
+                if ptype == 5 {
+                    cnt &= 0x7F;
+                } else {
+                    if cnt & 0x80 != 0 {
+                        cnt = 0;
+                    }
+                }
+
+                dat = VIBRAMP[cnt / 2] as i16;
+            }
+
+            // square
+            else if ptype == 2 || ptype == 6 {
+                if ptype == 6 {
+                    cnt &= 0x7F;
+                } else {
+                    if cnt & 0x80 != 0 {
+                        cnt = 0;
+                    }
+                }
+
+                dat = VIBSQU[cnt / 2] as i16;
+            }
+
+            // random
+            else if ptype == 3 || ptype == 7 {
+                if ptype == 7 {
+                    cnt &= 0x7F;
+                } else {
+                    if cnt & 0x80 != 0 {
+                       cnt = 0;
+                    }
+                }
+
+                dat = VIBSIN[cnt / 2] as i16;
+                cnt += (self.patmusicrand & 0x1E) as usize;
+            }
+
+            dat = ((dat * (ch.info & 0x0F) as i16) >> 4) + ch.apanpos;
+
+            if dat < 0 {
+                dat = 0;
+            } else if dat > 256 {
+                dat = 256;
+            }
+
+            // voiceSetVolume(ch.channelnum,
+            //       (chn[ch.channelnum].avol    / 63.0f)
+            //     * (chn[ch.channelnum].chanvol / 64.0f)
+            //     * (globalvol                   / 64.0f), dat);
+
+            mixer.set_pan(ch.channelnum as usize, dat as isize - 128);
+
+            ch.apancnt = ((cnt + ((ch.info >> 6) * 2) as usize) & 0x7E) as i16;
         }
     }
 
