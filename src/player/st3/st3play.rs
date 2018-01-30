@@ -29,9 +29,9 @@ struct Chn {
     avol          : i8,
     channelnum    : u8,
     achannelused  : u8,
-    aglis         : u8,
+    aglis         : bool,  // u8,
     atremor       : u8,
-    atreon        : u8,
+    atreon        : bool,  // u8,
     atrigcnt      : u8,
     anotecutcnt   : u8,
     anotedelaycnt : u8,
@@ -190,7 +190,8 @@ impl St3Play {
         Default::default()
     }
 
-    fn getlastnfo(&self, ch: &mut Chn) {
+    fn getlastnfo(&mut self, i: usize) {
+        let ch = &mut self.chn[i];
         if ch.info != 0 {
             ch.info = ch.alastnfo;
         }
@@ -672,7 +673,7 @@ impl St3Play {
         }
     }
 
-    fn docmd1(&mut self, module: &S3mData, mut mixer: &mut Mixer) {
+    fn docmd1(&mut self, mut mixer: &mut Mixer) {
         for i in 0..self.lastachannelused as usize + 1 {
             if self.chn[i].achannelused != 0 {
                 if self.chn[i].info != 0 {
@@ -694,7 +695,7 @@ impl St3Play {
                     } else {
                         if self.chn[i].cmd != 'I' as u8 - 64 {
                             self.chn[i].atremor = 0;
-                            self.chn[i].atreon  = 1;
+                            self.chn[i].atreon  = true;
                         }
 
                         if  self.chn[i].cmd != 'H' as u8 - 64 &&
@@ -738,7 +739,19 @@ impl St3Play {
         }
     }
 
-    fn docmd2(&mut self, module: &S3mData, mixer: &mut Mixer) {
+    fn docmd2(&mut self, mut mixer: &mut Mixer) {
+        for i in 0..self.lastachannelused as usize + 1 {
+            if self.chn[i].achannelused != 0 {
+                if self.chn[i].cmd != 0 {
+                    self.chn[i].achannelused |= 0x80;
+
+                    if self.chn[i].cmd < 27 {
+                        self.volslidetype = 0;
+                        self.sotherjmp(i, &mut mixer);
+                    }
+                }
+            }
+        }
     }
 
     // periodically called from mixer
@@ -748,14 +761,14 @@ impl St3Play {
         if self.musiccount == 0 {
             if self.patterndelay != 0 {
                 self.np_row -= 1;
-                self.docmd1(&module, &mut mixer);
+                self.docmd1(&mut mixer);
                 self.patterndelay -= 1;
             } else {
                 self.donotes(&module, &mut mixer);
-                self.docmd1(&module, &mut mixer);
+                self.docmd1(&mut mixer);
             }
         } else {
-            self.docmd2(&module, &mut mixer);
+            self.docmd2(&mut mixer);
         }
 
         self.musiccount += 1;
@@ -888,22 +901,84 @@ impl St3Play {
 
     // EFFECTS
 
+    fn ssoncejmp(&mut self, i: usize, mut mixer: &mut Mixer) {
+        match self.chn[i].cmd >> 4 {
+            0x1 => self.s_setgliss(i),
+            0x2 => self.s_setfinetune(i),
+            0x3 => self.s_setvibwave(i),
+            0x4 => self.s_settrewave(i),
+            0x5 => self.s_setpanwave(i),  // NON-ST3
+            0x6 => self.s_tickdelay(i),   // NON-ST3
+            0x7 => self.s_ret(),
+            0x8 => self.s_setpanpos(i, &mut mixer),
+            0x9 => self.s_sndcntrl(i),
+            0xa => self.s_ret(),
+            0xb => self.s_patloop(i),
+            0xc => self.s_notecut(i),
+            0xd => self.s_notedelay(i),
+            0xe => self.s_patterdelay(i),
+            _   => self.s_ret(),
+        }
+    }
+
+    fn ssotherjmp(&mut self, i: usize, module: &S3mData, mut mixer: &mut Mixer) {
+        match self.chn[i].cmd >> 4 {
+            0x1 => self.s_ret(),
+            0x2 => self.s_ret(),
+            0x3 => self.s_ret(),
+            0x4 => self.s_ret(),
+            0x5 => self.s_ret(),
+            0x6 => self.s_ret(),
+            0x7 => self.s_ret(),
+            0x8 => self.s_ret(),
+            0x9 => self.s_ret(),
+            0xa => self.s_ret(),
+            0xb => self.s_ret(),
+            0xc => self.s_notecutb(i),
+            0xd => self.s_notedelayb(i, &module, &mut mixer),
+            0xe => self.s_ret(),
+            _   => self.s_ret(),
+        }
+    }
+
     fn soncejmp(&mut self, i: usize, mut mixer: &mut Mixer) {
-        match self.chn[i].cmd {
-            0x01 => self.s_setgliss(i),
-            0x02 => self.s_setfinetune(i),
-            0x03 => self.s_setvibwave(i),
-            0x04 => self.s_settrewave(i),
-            0x05 => self.s_setpanwave(i),  // NON-ST3
-            0x06 => self.s_tickdelay(i),   // NON-ST3
-            0x07 => self.s_ret(),
-            0x08 => self.s_setpanpos(i, &mut mixer),
-            0x09 => self.s_sndcntrl(i),
-            0x0a => self.s_ret(),
-            0x0b => self.s_patloop(i),
-            0x0c => self.s_notecut(i),
-            0x0d => self.s_notedelay(i),
-            0x0e => self.s_patterdelay(i),
+        match (self.chn[i].cmd + 64) as char {
+            'A' => self.s_setspeed(i),
+            'B' => self.s_jmpto(i),
+            'C' => self.s_break(i),
+            'D' => self.s_volslide(i, &mut mixer),
+            'E' => self.s_slidedown(i, &mut mixer),
+            'F' => self.s_slideup(i, &mut mixer),
+            'G' => self.s_ret(),
+            'H' => self.s_ret(),
+            'I' => self.s_tremor(i, &mut mixer),
+            'J' => self.s_arp(i, &mut mixer),
+            'K' => self.s_ret(),
+            'L' => self.s_ret(),
+            'M' => self.s_chanvol(i, &mut mixer),
+            'N' => self.s_chanvolslide(i, &mut mixer),
+            'O' => self.s_ret(),
+            _   => self.s_ret(),
+        }
+    }
+
+    fn sotherjmp(&mut self, i: usize, mut mixer: &mut Mixer) {
+        match (self.chn[i].cmd + 64) as char {
+            'A' => self.s_ret(),
+            'B' => self.s_ret(),
+            'C' => self.s_ret(),
+            'D' => self.s_volslide(i, &mut mixer),
+            'E' => self.s_slidedown(i, &mut mixer),
+            'F' => self.s_slideup(i, &mut mixer),
+            'G' => self.s_toneslide(i, &mut mixer),
+            'H' => self.s_vibrato(i, &mut mixer),
+            'I' => self.s_tremor(i, &mut mixer),
+            'J' => self.s_arp(i, &mut mixer),
+            'K' => self.s_vibvol(i, &mut mixer),
+            'L' => self.s_tonevol(i, &mut mixer),
+            'M' => self.s_ret(),
+            'N' => self.s_chanvolslide(i, &mut mixer),
+            'O' => self.s_ret(),
             _    => self.s_ret(),
         }
     }
@@ -913,7 +988,7 @@ impl St3Play {
     // ----------------
 
     fn s_setgliss(&mut self, i: usize) {
-        self.chn[i].aglis = self.chn[i].info & 0x0F;
+        self.chn[i].aglis = self.chn[i].info & 0x0F != 0;
     }
 
     fn s_setfinetune(&mut self, i: usize) {
@@ -1069,6 +1144,423 @@ impl St3Play {
         let ch = &mut self.chn[i];
         self.startrow = ((ch.info >> 4) * 10) + (ch.info & 0x0F);
         self.breakpat = 1;
+    }
+
+    fn s_volslide(&mut self, i: usize, mut mixer: &mut Mixer) {
+        self.getlastnfo(i);
+
+        let num = {
+            let ch = &mut self.chn[i];
+
+            let infohi = (ch.info >> 4) as i8;
+            let infolo = (ch.info & 0x0F) as i8;
+
+            if infolo == 0x0F {
+                if infohi == 0 {
+                    ch.avol -= infolo;
+                } else if self.musiccount == 0 {
+                    ch.avol += infohi;
+                }
+            } else if infohi == 0x0F {
+                if infolo == 0 {
+                    ch.avol += infohi;
+                } else if self.musiccount == 0 {
+                    ch.avol -= infolo;
+                }
+            } else if self.fastvolslide || self.musiccount != 0 {
+                if infolo == 0 {
+                    ch.avol += infohi;
+                } else {
+                    ch.avol -= infolo;
+                }
+            } else {
+                return  // illegal slide
+            }
+
+            if ch.avol < 0 {
+                ch.avol = 0;
+            } else if ch.avol > 63 {
+                ch.avol = 63;
+            }
+
+            ch.channelnum as usize
+        };
+
+        self.setvol(num, &mut mixer);
+
+        match self.volslidetype {
+            1 => self.s_vibrato(i, &mut mixer),
+            2 => self.s_toneslide(i, &mut mixer),
+            _ => ()
+        }
+    }
+
+    fn s_slidedown(&mut self, i: usize, mut mixer: &mut Mixer) {
+        if self.chn[i].aorgspd != 0 {
+            self.getlastnfo(i);
+
+            let num = {
+                let ch = &mut self.chn[i];
+
+                if self.musiccount != 0 {
+                    if ch.info >= 0xE0 {
+                        return  // no fine slides here
+                    }
+
+                    ch.aspd += ch.info as i32 * 4;
+                    if ch.aspd > 32767 {
+                        ch.aspd = 32767;
+                    }
+                } else {
+                    if ch.info <= 0xE0 {
+                        return;  // only fine slides here
+                    }
+
+                    if ch.info <= 0xF0 {
+                        ch.aspd += (ch.info & 0x0F) as i32;
+                        if ch.aspd > 32767 {
+                            ch.aspd = 32767;
+                        }
+                    } else {
+                        ch.aspd += (ch.info & 0x0F) as i32 * 4;
+                        if ch.aspd > 32767 {
+                            ch.aspd = 32767;
+                        }
+                    }
+                }
+
+                ch.aorgspd = ch.aspd;
+                ch.channelnum as usize
+            };
+
+            self.setspd(num, &mut mixer);
+        }
+    }
+
+    fn s_slideup(&mut self, i: usize, mut mixer: &mut Mixer) {
+        if self.chn[i].aorgspd != 0 {
+            self.getlastnfo(i);
+
+            let num = {
+                let ch = &mut self.chn[i];
+
+                if self.musiccount != 0 {
+                    if ch.info >= 0xE0 {
+                        return  // no fine slides here
+                    }
+
+                    ch.aspd -= ch.info as i32 * 4;
+                    if ch.aspd < 0 {
+                        ch.aspd = 0;
+                    }
+                } else {
+                    if ch.info <= 0xE0 {
+                        return  // only fine slides here
+                    }
+
+                    if ch.info <= 0xF0 {
+                        ch.aspd -= (ch.info & 0x0F) as i32;
+                        if ch.aspd < 0 {
+                            ch.aspd = 0;
+                        }
+                    } else {
+                        ch.aspd -= (ch.info & 0x0F) as i32 * 4;
+                        if ch.aspd < 0 {
+                            ch.aspd = 0;
+                        }
+                    }
+                }
+
+                ch.aorgspd = ch.aspd;
+                ch.channelnum as usize
+            };
+
+            self.setspd(num, &mut mixer);
+        }
+    }
+
+    fn s_toneslide(&mut self, i: usize, mut mixer: &mut Mixer) {
+        {
+            let ch = &mut self.chn[i];
+
+            if self.volslidetype == 2 {  // we came from an Lxy (toneslide+volslide)
+                ch.info = ch.alasteff1;
+            } else {
+                if ch.aorgspd == 0 {
+                    if ch.asldspd == 0 {
+                        return
+                    }
+
+                    ch.aorgspd = ch.asldspd;
+                    ch.aspd    = ch.asldspd;
+                }
+
+                if ch.info == 0 {
+                    ch.info = ch.alasteff1;
+                } else {
+                    ch.alasteff1 = ch.info;
+                }
+            }
+        }
+
+        if self.chn[i].aorgspd != self.chn[i].asldspd {
+             let num = {
+                let ch = &mut self.chn[i];
+                if ch.aorgspd < ch.asldspd {
+                    ch.aorgspd += ch.info as i32 * 4;
+                    if ch.aorgspd > ch.asldspd {
+                        ch.aorgspd = ch.asldspd;
+                    }
+                } else {
+                    ch.aorgspd -= ch.info as i32 * 4;
+                    if ch.aorgspd < ch.asldspd {
+                        ch.aorgspd = ch.asldspd;
+                    }
+                }
+                ch.channelnum as usize
+            };
+
+            let aorgspd = self.chn[i].aorgspd;
+            self.chn[i].aspd = if self.chn[i].aglis {
+                self.roundspd(num, aorgspd)
+            } else {
+                aorgspd
+            };
+
+            self.setspd(num, &mut mixer);
+        }
+    }
+
+    fn s_vibrato(&mut self, i: usize, mut mixer: &mut Mixer) {
+        {
+            let ch = &mut self.chn[i];
+
+            if self.volslidetype == 1 {  // we came from a Kxy (vibrato+volslide)
+                ch.info = ch.alasteff;
+            } else {
+                if ch.info == 0 {
+                    ch.info = ch.alasteff;
+                }
+
+                if ch.info & 0xF0 == 0 {
+                    ch.info = (ch.alasteff & 0xF0) | (ch.info & 0x0F);
+                }
+
+                ch.alasteff = ch.info;
+            }
+        }
+
+        if self.chn[i].aorgspd != 0 {
+            let mut cnt = self.chn[i].avibcnt as usize;
+
+
+            let num = {
+                let ch = &mut self.chn[i];
+
+                let vtype   = (ch.avibtretype & 0x0E) >> 1;
+                let mut dat = 0_i32;
+
+                // sine
+                if vtype == 0 || vtype == 4 {
+                    if vtype == 4 {
+                        cnt &= 0x7F;
+                    } else {
+                        if cnt & 0x80 != 0 {
+                           cnt = 0;
+                        }
+                    }
+
+                    dat = VIBSIN[cnt / 2] as i32;
+                }
+
+                // ramp
+                else if vtype == 1 || vtype == 5 {
+                    if vtype == 5 {
+                        cnt &= 0x7F;
+                    } else {
+                        if cnt & 0x80 != 0 {
+                            cnt = 0;
+                        }
+                    }
+
+                    dat = VIBRAMP[cnt / 2] as i32;
+                }
+
+                // square
+                else if vtype == 2 || vtype == 6 {
+                    if vtype == 6 {
+                        cnt &= 0x7F;
+                    } else {
+                        if cnt & 0x80 != 0 {
+                            cnt = 0;
+                        }
+                    }
+
+                    dat = VIBSQU[cnt / 2] as i32;
+                }
+
+                // random
+                else if vtype == 3 || vtype == 7 {
+                    if vtype == 7 {
+                        cnt &= 0x7F;
+                    } else {
+                        if cnt & 0x80 != 0 {
+                            cnt = 0;
+                        }
+                    }
+
+                    dat = VIBSIN[cnt / 2] as i32;
+                    cnt += (self.patmusicrand & 0x1E) as usize;
+                }
+
+                if self.oldstvib {
+                    dat = ((dat * (ch.info & 0x0F) as i32) >> 4) + ch.aorgspd;
+                } else {
+                    dat = ((dat * (ch.info & 0x0F) as i32) >> 5) + ch.aorgspd;
+                }
+
+                ch.aspd = dat;
+                ch.channelnum as usize
+            };
+
+            self.setspd(num, &mut mixer);
+
+            self.chn[i].avibcnt = ((cnt + ((self.chn[i].info >> 4) * 2) as usize) & 0x7E) as i16;
+        }
+    }
+
+    fn s_tremor(&mut self, i: usize, mut mixer: &mut Mixer) {
+        self.getlastnfo(i);
+
+        if self.chn[i].atremor != 0 {
+            self.chn[i].atremor -= 1;
+            return;
+        }
+
+        let num = self.chn[i].channelnum as usize;
+
+        if self.chn[i].atreon {
+            self.chn[i].atreon = false;
+
+            self.chn[i].avol = 0;
+            self.setvol(num, &mut mixer);
+
+            self.chn[i].atremor = self.chn[i].info & 0x0F;
+        } else {
+            self.chn[i].atreon = true;
+
+            self.chn[i].avol = self.chn[i].aorgvol;
+            self.setvol(num, &mut mixer);
+
+            self.chn[i].atremor = self.chn[i].info >> 4;
+        }
+    }
+
+    fn s_arp(&mut self, i: usize, mut mixer: &mut Mixer) {
+        let mut octa: u8;
+        let mut note: u8;
+
+        self.getlastnfo(i);
+
+        let num = {
+            let ch = &mut self.chn[i];
+
+            let tick = self.musiccount % 3;
+
+            let noteadd = match tick {
+                1 => ch.info >> 4,
+                2 => ch.info & 0x0F,
+                _ => 0,
+            };
+
+            // check for octave overflow
+            octa =  ch.lastnote & 0xF0;
+            note = (ch.lastnote & 0x0F) + noteadd;
+
+            while note >= 12 {
+                note -= 12;
+                octa += 16;
+            }
+            ch.channelnum as usize
+        };
+
+        let spd = self.stnote2herz(octa | note) as i32;
+        self.chn[i].aspd = self.scalec2spd(num, spd);
+        self.setspd(num, &mut mixer);
+    }
+
+
+    fn s_chanvol(&mut self, i: usize, mut mixer: &mut Mixer) {  // NON-ST3
+        if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+            let num = {
+                let ch = &mut self.chn[i];
+
+                if ch.info <= 0x40 {
+                    ch.chanvol = ch.info as i8;
+                }
+                ch.channelnum as usize
+            };
+
+            self.setvol(num, &mut mixer);
+        }
+    }
+
+    fn s_chanvolslide(&mut self, i: usize, mut mixer: &mut Mixer) {  // NON-ST3
+        if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+            let num = {
+                let ch = &mut self.chn[i];
+
+                if ch.info != 0 {
+                    ch.nxymem = ch.info;
+                } else {
+                    ch.info = ch.nxymem;
+                }
+
+                let infohi = (ch.nxymem >> 4) as i8;
+                let infolo = (ch.nxymem & 0x0F) as i8;
+
+                if infolo == 0x0F {
+                    if infohi == 0 {
+                        ch.chanvol -= infolo;
+                    } else if self.musiccount == 0 {
+                        ch.chanvol += infohi;
+                    }
+                } else if infohi == 0x0F {
+                    if infolo == 0 {
+                        ch.chanvol += infohi;
+                    } else if self.musiccount == 0 {
+                        ch.chanvol -= infolo;
+                    }
+                } else if self.musiccount != 0 {  // don't rely on fastvolslide flag here
+                    if infolo == 0 {
+                        ch.chanvol += infohi;
+                    } else {
+                        ch.chanvol -= infolo;
+                    }
+                } else {
+                    return  // illegal slide
+                }
+
+                if ch.chanvol < 0 {
+                    ch.chanvol =  0;
+                } else if ch.chanvol > 64 {
+                    ch.chanvol = 64;
+                }
+                ch.channelnum as usize
+            };
+
+            self.setvol(num, &mut mixer);
+        }
+    }
+
+    fn s_vibvol(&mut self, i: usize, mut mixer: &mut Mixer) {
+        self.volslidetype = 1;
+        self.s_volslide(i, &mut mixer);
+    }
+
+    fn s_tonevol(&mut self, i: usize, mut mixer: &mut Mixer) {
+        self.volslidetype = 2;
+        self.s_volslide(i, &mut mixer);
     }
 
 }
