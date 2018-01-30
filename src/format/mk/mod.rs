@@ -185,7 +185,7 @@ impl ModPatterns {
 
 /// Protracker period table.
 
-static MT_PERIOD_TABLE: &'static [u16; 16*12*3] = &[
+static MT_PERIOD_TABLE: [u16; 16*12*3] = [
 // Tuning 0, Normal
     856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
     428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
