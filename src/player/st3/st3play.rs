@@ -962,7 +962,7 @@ impl St3Play {
             'Q' => self.s_retrig(i, &mut mixer),
             'R' => self.s_ret(),
             'S' => self.s_scommand1(i, &mut mixer),
-            //'T' => self.s_settempo(i, &mut mixer),
+            'T' => self.s_settempo(i, &mut mixer),
             'U' => self.s_ret(),
             'V' => self.s_ret(),
             _   => self.s_ret(),
@@ -990,7 +990,9 @@ impl St3Play {
             'Q' => self.s_retrig(i, &mut mixer),
             'R' => self.s_tremolo(i, &mut mixer),
             'S' => self.s_scommand2(i, &module, &mut mixer),
-            //'T' => self.s_settempo(i, &mut mixer),      // NON-ST3 (for tempo slides)
+            'T' => self.s_settempo(i, &mut mixer),      // NON-ST3 (for tempo slides)
+            'U' => self.s_finevibrato(i, &mut mixer),
+            'V' => self.s_setgvol(i, &mut mixer),
             _    => self.s_ret(),
         }
     }
@@ -1424,11 +1426,7 @@ impl St3Play {
                     cnt += (self.patmusicrand & 0x1E) as usize;
                 }
 
-                if self.oldstvib {
-                    dat = ((dat * (ch.info & 0x0F) as i32) >> 4) + ch.aorgspd;
-                } else {
-                    dat = ((dat * (ch.info & 0x0F) as i32) >> 5) + ch.aorgspd;
-                }
+                dat = ((dat * (ch.info & 0x0F) as i32) >> if self.oldstvib { 4 } else { 5 }) + ch.aorgspd;
 
                 ch.aspd = dat;
                 ch.channelnum as usize
@@ -1763,6 +1761,138 @@ impl St3Play {
     fn s_scommand2(&mut self, i: usize, module: &S3mData, mut mixer: &mut Mixer) {
         self.getlastnfo(i);
         self.ssotherjmp(i, &module, &mut mixer);
+    }
+
+
+    fn s_settempo(&mut self, i: usize, mixer: &Mixer) {
+        {
+            let ch = &mut self.chn[i];
+
+            if self.musiccount == 0 && ch.info >= 0x20 {
+                self.tempo = ch.info as i16;
+            }
+
+            // NON-ST3 tempo slide */
+            if self.tracker != SCREAM_TRACKER && self.tracker != IMAGO_ORPHEUS {
+                if self.musiccount == 0 {
+                    if ch.info == 0 {
+                        ch.info = ch.txxmem;
+                    } else {
+                        ch.txxmem = ch.info;
+                    }
+                } else {
+                    if ch.info <= 0x0F {
+                        self.tempo -= ch.info as i16;
+                        if self.tempo < 32 {
+                            self.tempo = 32;
+                        }
+                    } else if ch.info <= 0x1F {
+                        self.tempo += ch.info as i16 - 0x10;
+                        if self.tempo > 255 {
+                            self.tempo = 255;
+                        }
+                    }
+                }
+            }
+        }
+        // ------------------
+
+        let tempo = self.tempo as u16;
+        self.settempo(tempo);
+    }
+
+    fn s_finevibrato(&mut self, i: usize, mut mixer: &mut Mixer) {
+        {
+            let ch = &mut self.chn[i];
+
+            if ch.info == 0 {
+                ch.info = ch.alasteff;
+            }
+
+            if ch.info & 0xF0 == 0 {
+                ch.info = (ch.alasteff & 0xF0) | (ch.info & 0x0F);
+            }
+
+            ch.alasteff = ch.info;
+        }
+
+        if self.chn[i].aorgspd != 0 {
+            let mut cnt = self.chn[i].avibcnt as usize;
+            {
+                let ch = &mut self.chn[i];
+
+                let vtype   = (ch.avibtretype & 0x0E) >> 1;
+                let mut dat = 0_i32;
+
+                // sine
+                if vtype == 0 || vtype == 4 {
+                    if vtype == 4 {
+                        cnt &= 0x7F;
+                    } else {
+                        if cnt & 0x80 != 0 {
+                            cnt = 0;
+                        }
+                    }
+
+                    dat = VIBSIN[cnt / 2] as i32;
+                }
+
+                // ramp
+                else if vtype == 1 || vtype == 5 {
+                    if vtype == 5 {
+                        cnt &= 0x7F;
+                    } else {
+                        if cnt & 0x80 != 0 {
+                            cnt = 0;
+                        }
+                    }
+
+                    dat = VIBRAMP[cnt / 2] as i32;
+                }
+
+                // square
+                else if vtype == 2 || vtype == 6 {
+                    if vtype == 6 {
+                        cnt &= 0x7F;
+                    } else {
+                        if cnt & 0x80 != 0 {
+                            cnt = 0;
+                        }
+                    }
+
+                    dat = VIBSQU[cnt / 2] as i32;
+                }
+
+                // random
+                else if vtype == 3 || vtype == 7 {
+                    if vtype == 7 {
+                        cnt &= 0x7F;
+                    } else {
+                        if cnt & 0x80 != 0 {
+                            cnt = 0;
+                        }
+                    }
+
+                    dat = VIBSIN[cnt / 2] as i32;
+                    cnt += (self.patmusicrand & 0x1E) as usize;
+                }
+
+                dat = ((dat * (ch.info & 0x0F) as i32) >> if self.oldstvib { 6 } else { 7 }) + ch.aorgspd;
+
+                ch.aspd = dat;
+            }
+            self.setspd(i, &mut mixer);
+
+            self.chn[i].avibcnt = ((cnt + ((self.chn[i].info >> 4) * 2) as usize) & 0x7E) as i16;
+        }
+    }
+
+    fn s_setgvol(&mut self, i: usize, mixer: &Mixer) {
+        let ch = &mut self.chn[i];
+
+        if ch.info <= 64 {
+            self.globalvol = ch.info as i16;
+        }
     }
 
 }
