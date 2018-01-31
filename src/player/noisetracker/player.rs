@@ -7,11 +7,6 @@ use mixer::Mixer;
 ///
 /// An oxdz player based on the Noisetracker V1.1 play routine by Pex "Mahoney"
 /// Tufvesson and Anders “Kaktus” Berkeman (Mahoney & Kaktus - HALLONSOFT 1989).
-///
-/// Notes:
-/// * Mixer volumes are *16, so adjust when setting.
-/// * Pattern periods are decoded beforehand and stored as a note value.
-/// * Pattern instruments are decoded beforehand and stored in channel state.
 
 pub struct ModPlayer {
     state : Vec<ChannelData>,
@@ -91,49 +86,32 @@ impl ModPlayer {
         let event = module.patterns.event(pat, self.mt_pattpos, chn);
         let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
-        if { let e = &self.state[chn]; e.n_note | e.n_ins | e.n_2_cmd | e.n_3_cmdlo == 0 } {  // TST.L   (A6)
-            self.per_nop(chn, &mut mixer);
-        }
+        if ins != 0 {
+            let instrument = &module.instruments[ins as usize - 1];
+            state.n_8_length = instrument.size;                            // move.w  (a3,d4.l),$8(a6)
+            state.n_12_volume = instrument.volume as u8;                   // move.w  $2(a3,d4.l),$12(a6)
+            if instrument.repeat != 0 {
+                state.n_a_loopstart = instrument.repeat as u32;
+                state.n_8_length = instrument.repeat + instrument.replen;
+                state.n_e_replen = instrument.replen;                      // move.w  $6(a3,d4.l),$e(a6)
 
-        {
-            let state = &mut self.state[chn];
-
-            // mt_plvskip
-            state.n_note = note;
-            state.n_ins = ins;
-            state.n_2_cmd = cmd;
-            state.n_3_cmdlo = cmdlo;
-
-            if ins != 0 {
-                let instrument = &module.instruments[ins as usize - 1];
-                state.n_length = instrument.size;
-                //state.n_reallength = instrument.size;
-                state.n_finetune = instrument.finetune as i8;
-                state.n_12_volume = instrument.volume as u8;
-                mixer.set_patch(chn, ins as usize - 1, ins as usize - 1);
-                mixer.set_volume(chn, (instrument.volume as usize) << 4);
-                if instrument.replen > 1 {
-                    state.n_loopstart = instrument.repeat as u32;
-                    state.n_wavestart = instrument.repeat as u32;
-                    state.n_length = instrument.repeat + instrument.replen;
-                    state.n_replen = instrument.replen;
-                    mixer.set_loop_start(chn, state.n_loopstart * 2);
-                    mixer.set_loop_end(chn, (state.n_loopstart + state.n_replen as u32) * 2);
-                    mixer.enable_loop(chn, true);
-                } else {
-                    // mt_NoLoop
-                    state.n_length = instrument.repeat + instrument.replen;
-                    state.n_replen = instrument.replen;
-                    mixer.enable_loop(chn, false);
-                }
+                state.n_8_length = instrument.repeat + instrument.replen;
+                mixer.set_volume(chn, (state.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
+                mixer.enable_loop(chn, true);
+            } else {
+                // mt_noloop
+                state.n_8_length = instrument.length;
+                state.n_e_replen = instrument.replen;
+                mixer.enable_loop(chn, false);
+                mixer.set_volume(chn, (state.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
             }
+            mixer.set_patch(chn, ins as usize - 1, ins as usize - 1);
+            mixer.set_loop_start(chn, state.n_a_loopstart * 2);
+            mixer.set_loop_end(chn, (state.n_a_loopstart + state.n_e_replen as u32) * 2);
         }
 
-        self.mt_setregs(chn, &mut mixer);
-    }
-
-    fn mt_setregs(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        if self.state[chn].n_note != 0 {
+        // mt_setregs
+        if self.state[chn].n_0_note != 0 {
             if self.state[chn].n_2_cmd & 0x0f == 0x03 {
                 self.mt_setmyport(chn);
                 self.mt_checkcom2(chn, &mut mixer)
@@ -148,7 +126,7 @@ impl ModPlayer {
     fn mt_setperiod(&mut self, chn: usize, mut mixer: &mut Mixer) {
         {
             let state = &mut self.state[chn];
-            let period = PeriodTable::note_to_period(state.n_note, state.n_finetune);
+            let period = PeriodTable::note_to_period(state.n_0_note, state.n_finetune);
             state.n_10_period = period;
             state.n_1b_vibpos = 0;
             mixer.set_voicepos(chn, 0.0);
@@ -171,7 +149,7 @@ impl ModPlayer {
 
     fn mt_setmyport(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        state.n_18_wantperiod = PeriodTable::note_to_period(state.n_note, state.n_finetune);
+        state.n_18_wantperiod = state.n_0_note & 0xfff;
         state.n_16_portdir = false;     // clr.b   $16(a6)
         if state.n_10_period == state.n_18_wantperiod {
             // mt_clrport
@@ -363,34 +341,31 @@ impl FormatPlayer for ModPlayer {
     }
 
     fn reset(&mut self) {
-        self.mt_speed           = 6;
-        self.mt_counter         = 0;
-        self.mt_songpos        = 0;
-        self.mt_break      = false;
-        self.mt_pos_jump_flag   = false;
-        self.mt_patt_del_time   = 0;
-        self.mt_patt_del_time_2 = 0;
-        self.mt_pattpos     = 0;
+        self.mt_speed   = 6;
+        self.mt_counter = 0;
+        self.mt_songpos = 0;
+        self.mt_break   = false;
+        self.mt_pattpos = 0;
     }
 }
 
 
 #[derive(Clone,Default)]
 struct ChannelData {
-    n_note         : u8,
-    n_ins          : u8,   // not in PT2.1A
-    n_2_cmd          : u8,
-    n_3_cmdlo        : u8,
-    n_length       : u16,
-    n_loopstart    : u32,
-    n_replen       : u16,
-    n_10_period       : i16,
-    n_12_volume       : u8,
-    n_16_portdir: bool,
+    n_0_note        : u16,
+    n_2_cmd         : u8,
+    n_3_cmdlo       : u8,
+    //n_4_samplestart: u32,
+    n_8_length      : u16,
+    n_a_loopstart   : u32,
+    n_e_replen      : u16,
+    n_10_period     : i16,
+    n_12_volume     : u8,
+    n_16_portdir    : bool,
     n_17_toneportspd: u8,
     n_18_wantperiod : u16,
-    n_1a_vibrato   : u8,
-    n_1b_vibpos   : u8,
+    n_1a_vibrato    : u8,
+    n_1b_vibpos     : u8,
 }
 
 impl ChannelData {
