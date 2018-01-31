@@ -230,7 +230,7 @@ impl St3Play {
 
     fn getlastnfo(&mut self, i: usize) {
         let ch = &mut self.chn[i];
-        if ch.info != 0 {
+        if ch.info == 0 {
             ch.info = ch.alastnfo;
         }
     }
