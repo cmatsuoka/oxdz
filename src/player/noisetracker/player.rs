@@ -28,17 +28,11 @@ impl ModPlayer {
         ModPlayer {
             state: vec![ChannelData::new(); module.data.channels()],
 
-            mt_speed          : 6,
-            mt_counter        : 0,
-            mt_songpos       : 0,
-            mt_break     : 0,
-            mt_pos_jump_flag  : false,
-            mt_pbreak_flag    : false,
-            mt_low_mask       : 0,
-            mt_patt_del_time  : 0,
-            mt_patt_del_time_2: 0,
-            mt_pattpos    : 0,
-            cia_tempo         : 125,
+            mt_speed  : 6,
+            mt_songpos: 0,
+            mt_pattpos: 0,
+            mt_counter: 0,
+            mt_break  : false,
         }
     }
 
@@ -54,60 +48,24 @@ impl ModPlayer {
 
         self.mt_counter = 0;
         self.mt_getnew(&module, &mut mixer);
-
-/*
-        if self.mt_patt_del_time_2 == 0 {
-            self.mt_getnew(&module, &mut mixer);
-        } else {
-            self.mt_no_new_all_channels(&module, &mut mixer);
-        }
-
-        // mt_dskip
-        self.mt_pattpos +=1;
-        if self.mt_patt_del_time != 0 {
-            self.mt_patt_del_time_2 = self.mt_patt_del_time;
-            self.mt_patt_del_time = 0;
-        }
-
-        // mt_dskc
-        if self.mt_patt_del_time_2 != 0 {
-            self.mt_patt_del_time_2 -= 1;
-            if self.mt_patt_del_time_2 != 0 {
-                self.mt_pattpos -= 1;
-            }
-        }
-
-        // mt_dska
-        if self.mt_pbreak_flag {
-            self.mt_pbreak_flag = false;
-            self.mt_pattpos = self.mt_break;
-            self.mt_break = 0;
-        }
-
-        // mt_nnpysk
-        if self.mt_pattpos >= 64 {
-            self.mt_nex(&module);
-        }
-        //self.mt_no_new_pos_yet(&module);
-*/
     }
 
     fn mt_arpeggio(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
         let val = match self.mt_counter % 3 {
             2 => {  // mt_arp1
-                     state.n_cmdlo & 15
+                     state.n_3_cmdlo & 15
                  },
             0 => {  // mt_arp2
                      0
                  },
             _ => {
-                     state.n_cmdlo >> 4
+                     state.n_3_cmdlo >> 4
                  },
         } as u8;
         // mt_arp3
         // mt_arp4
-        let note = PeriodTable::period_to_note(state.n_period, state.n_finetune);
+        let note = PeriodTable::period_to_note(state.n_10_period, state.n_finetune);
         let period = PeriodTable::note_to_period(note + val, state.n_finetune);
         mixer.set_period(chn, period as f64);  // move.w  d2,$6(a5)
     }
@@ -133,7 +91,7 @@ impl ModPlayer {
         let event = module.patterns.event(pat, self.mt_pattpos, chn);
         let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
-        if { let e = &self.state[chn]; e.n_note | e.n_ins | e.n_cmd | e.n_cmdlo == 0 } {  // TST.L   (A6)
+        if { let e = &self.state[chn]; e.n_note | e.n_ins | e.n_2_cmd | e.n_3_cmdlo == 0 } {  // TST.L   (A6)
             self.per_nop(chn, &mut mixer);
         }
 
@@ -143,15 +101,15 @@ impl ModPlayer {
             // mt_plvskip
             state.n_note = note;
             state.n_ins = ins;
-            state.n_cmd = cmd;
-            state.n_cmdlo = cmdlo;
+            state.n_2_cmd = cmd;
+            state.n_3_cmdlo = cmdlo;
 
             if ins != 0 {
                 let instrument = &module.instruments[ins as usize - 1];
                 state.n_length = instrument.size;
                 //state.n_reallength = instrument.size;
                 state.n_finetune = instrument.finetune as i8;
-                state.n_volume = instrument.volume as u8;
+                state.n_12_volume = instrument.volume as u8;
                 mixer.set_patch(chn, ins as usize - 1, ins as usize - 1);
                 mixer.set_volume(chn, (instrument.volume as usize) << 4);
                 if instrument.replen > 1 {
@@ -176,7 +134,7 @@ impl ModPlayer {
 
     fn mt_setregs(&mut self, chn: usize, mut mixer: &mut Mixer) {
         if self.state[chn].n_note != 0 {
-            if self.state[chn].n_cmd & 0x0f == 0x03 {
+            if self.state[chn].n_2_cmd & 0x0f == 0x03 {
                 self.mt_setmyport(chn);
                 self.mt_checkcom2(chn, &mut mixer)
             } else {
@@ -191,10 +149,10 @@ impl ModPlayer {
         {
             let state = &mut self.state[chn];
             let period = PeriodTable::note_to_period(state.n_note, state.n_finetune);
-            state.n_period = period;
-            state.n_vibratopos = 0;
+            state.n_10_period = period;
+            state.n_1b_vibpos = 0;
             mixer.set_voicepos(chn, 0.0);
-            mixer.set_period(chn, state.n_period as f64);
+            mixer.set_period(chn, state.n_10_period as f64);
         }
 
         self.mt_checkcom2(chn, &mut mixer);
@@ -213,64 +171,70 @@ impl ModPlayer {
 
     fn mt_setmyport(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        state.n_wantedperiod = PeriodTable::note_to_period(state.n_note, state.n_finetune);
-        state.n_toneportdirec = false;     // clr.b   $16(a6)
-        if state.n_period == state.n_wantedperiod {
+        state.n_18_wantperiod = PeriodTable::note_to_period(state.n_note, state.n_finetune);
+        state.n_16_portdir = false;     // clr.b   $16(a6)
+        if state.n_10_period == state.n_18_wantperiod {
             // mt_clrport
-            state.n_wantedperiod = 0;      // clr.w   $18(a6)
-        } else if state.n_period < state.n_wantedperiod {
-            state.n_toneportdirec = true;  // move.b  #$1,$16(a6)
+            state.n_18_wantperiod = 0;  // clr.w   $18(a6)
+        } else if state.n_10_period < state.n_18_wantperiod {
+            state.n_16_portdir = true;  // move.b  #$1,$16(a6)
         }
+    }
+
+    fn mt_myport(&mut self, chn: usize, mut mixer: &mut Mixer) {
+        {
+            let state = &mut self.state[chn];
+            if state.n_3_cmdlo != 0 {
+                 state.n_17_toneportspd = state.n_3_cmdlo;
+                 state.n_3_cmdlo = 0;
+            }
+            // mt_myslide
+            if state.n_18_wantperiod != 0 {
+                if state.n_16_portdir {
+                    state.n_10_period += state.n_17_toneportspd as i16;
+                    if state.n_10_period > state.n_18_wantperiod {
+                        state.n_10_period = state.n_18_wantperiod;
+                        state.n_18_wantperiod = 0;
+                    }
+                } else {
+                    // mt_mysub
+                    state.n_10_period -= state.n_17_toneportspd as i16;
+                    if state.n_10_period < state.n_18_wantperiod {
+                        state.n_10_period = state.n_18_wantperiod;
+                        state.n_18_wantperiod = 0;
+                    }
+                }
+            }
+        }
+        mixer.set_period(chn, state.n_10_period as f64);  // move.w  $10(a6),$6(a5)
     }
 
     fn mt_vib(&mut self, chn: usize, mut mixer: &mut Mixer) {
         {
             let state = &mut self.state[chn];
-            if state.n_cmdlo != 0 {
-                if state.n_cmdlo & 0x0f != 0 {
-                    state.n_vibratocmd = (state.n_vibratocmd & 0xf0) | (state.n_cmdlo & 0x0f)
+            if state.n_3_cmdlo != 0 {
+                state.n_1a_vibrato = state.n_3_cmdlo;
+
+                let mut pos = (state.n_1b_vibpos >> 2) & 0x1f;
+                let val = MT_SIN[pos as usize];
+                let amt = (val as usize * (state.n_1a_vibrato & 0xf) as usize) >> 6;
+
+                let mut period = state.n_10_period;
+                if state.n_1b_vibpos & 0x80 == 0 {
+                    period += amt as u16
+                } else {
+                    // mt_vibmin
+                    period -= amt as u16
                 }
-                // mt_vibskip
-                if state.n_cmdlo & 0xf0 != 0 {
-                    state.n_vibratocmd = (state.n_vibratocmd & 0x0f) | (state.n_cmdlo & 0xf0)
-                }
-                // mt_vibskip2
+
+                state.n_1b_vibpos = state.n_1b_vibpos.wrapping_add((state.n_1a_vibrato >> 2) & 0x3c);
             }
         }
         self.mt_vib_2(chn, &mut mixer);
     }
 
-    fn mt_vib_2(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        let mut pos = (state.n_vibratopos >> 2) & 0x1f;
-        let val = match state.n_wavecontrol & 0x03 {
-            0 => {  // mt_vib_sine
-                     MT_SIN[pos as usize]
-                 },
-            1 => {  // mt_vib_rampdown
-                     pos <<= 3;
-                     if pos & 0x80 != 0 { 255 - pos } else { pos }
-                 },
-            _ => {
-                     255
-                 }
-        };
-        // mt_vib_set
-        let mut period = state.n_period;
-        let amt = (val as usize * (state.n_vibratocmd & 15) as usize) >> 7;
-        if state.n_vibratopos & 0x80 == 0 {
-            period += amt as u16
-        } else {
-            period -= amt as u16
-        };
-
-        // mt_Vibrato3
-        mixer.set_period(chn, period as f64);
-        state.n_vibratopos = state.n_vibratopos.wrapping_add((state.n_vibratocmd >> 2) & 0x3c);
-    }
-
     fn mt_checkcom(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        let cmd = self.state[chn].n_cmd;
+        let cmd = self.state[chn].n_2_cmd;
         match cmd {
             0x0 => self.mt_arpeggio(chn, &mut mixer),
             0x1 => self.mt_portup(chn, &mut mixer),
@@ -278,7 +242,7 @@ impl ModPlayer {
             0x3 => self.mt_myport(chn, &mut mixer),
             0x4 => self.mt_vib(chn, &mut mixer),
             _   => {
-                       mixer.set_period(chn, self.state[chn].n_period as f64);  // move.w  $10(a6),$6(a5)
+                       mixer.set_period(chn, self.state[chn].n_10_period as f64);  // move.w  $10(a6),$6(a5)
                        match cmd {
                            0xa => self.mt_volslide(chn, &mut mixer),
                            _   => {},
@@ -288,90 +252,49 @@ impl ModPlayer {
     }
 
     fn mt_volslide(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        if self.state[chn].n_cmdlo >> 4 == 0 {
+        if self.state[chn].n_3_cmdlo >> 4 == 0 {
             // mt_voldown
-            let cmdlo = state.n_cmdlo & 0x0f;
-            if state.n_volume > cmdlo {
-                state.n_volume -= cmdlo;
+            let cmdlo = state.n_3_cmdlo & 0x0f;
+            if state.n_12_volume > cmdlo {
+                state.n_12_volume -= cmdlo;
             } else {
-                state.n_volume = 0;
+                state.n_12_volume = 0;
             }
         } else {
-            state.n_volume += state.n_cmdlo >> 4;
-            if state.n_volume > 0x40 {
-                state.n_volume = 0x40;
+            state.n_12_volume += state.n_3_cmdlo >> 4;
+            if state.n_12_volume > 0x40 {
+                state.n_12_volume = 0x40;
             }
         }
         // mt_vol2
-        mixer.set_volume(chn, (state.n_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
+        mixer.set_volume(chn, (state.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
     }
 
     fn mt_portup(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
-        state.n_period -= (state.n_cmdlo & self.mt_low_mask) as u16;
-        self.mt_low_mask = 0xff;
-        if state.n_period < 113 {
-            state.n_period = 113;
+        state.n_10_period -= state.n_3_cmdlo as i16;
+        if (state.n_10_period & 0xfff) < 0x71 {
+            state.n_10_period &= 0xf000;
+            state.n_10_period |= 0x71;
         }
-        mixer.set_period(chn, state.n_period as f64);  // MOVE.W  n_period(A6),6(A5)
+        // mt_por2
+        mixer.set_period(chn, (state.n_10_period & 0xfff) as f64);  // move.w $10(a6),d0; and.w #$fff,d0; move.w d0,$6(a5)
     }
 
     fn mt_portdown(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
-        state.n_period += (state.n_cmdlo & self.mt_low_mask) as u16;
-        self.mt_low_mask = 0xff;
-        if state.n_period > 856 {
-            state.n_period = 856;
+        state.n_10_period += state.n_3_cmdlo as i16;
+        if (state.n_10_period & 0xfff) >= 0x358 {
+            state.n_10_period &= 0xf000;
+            state.n_10_period |= 0x358;
         }
-        mixer.set_period(chn, state.n_period as f64);  // MOVE.W  D0,6(A5)
-    }
-
-    fn mt_myport(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        {
-            let state = &mut self.state[chn];
-            if state.n_cmdlo != 0 {
-                state.n_toneportspeed = state.n_cmdlo;
-                state.n_cmdlo = 0;
-            }
-        }
-        self.mt_tone_port_no_change(chn, &mut mixer);
-    }
-
-    fn mt_tone_port_no_change(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        if state.n_wantedperiod == 0 {
-            return;
-        }
-        if state.n_toneportdirec {
-            // mt_TonePortaDown
-            state.n_period += state.n_toneportspeed as u16;
-            if state.n_period > state.n_wantedperiod {
-                state.n_period = state.n_wantedperiod;
-                state.n_wantedperiod = 0;
-            }
-        } else {
-            // mt_TonePortaUp
-            if state.n_period > state.n_toneportspeed as u16 {
-                state.n_period -= state.n_toneportspeed as u16;
-            } else {
-                state.n_period = 0;
-            }
-            if state.n_period < state.n_wantedperiod {
-                state.n_period = state.n_wantedperiod;
-                state.n_wantedperiod = 0;
-            }
-        }
-        // mt_TonePortaSetPer
-        if state.n_glissfunk & 0x0f != 0 {
-        }
-        // mt_GlissSkip
-        mixer.set_period(chn, state.n_period as f64);
+        mixer.set_period(chn, (state.n_10_period & 0xfff) as f64);  // move.w $10(a6),d0; and.w #$fff,d0; move.w d0,$6(a5)
     }
 
     fn mt_checkcom2(&mut self, chn: usize, mut mixer: &mut Mixer) {
         // mt_UpdateFunk()
 
-        match self.state[chn].n_cmd {
+        match self.state[chn].n_2_cmd {
             0xe => self.mt_setfilt(),
             0xd => self.mt_pattbreak(chn),
             0xb => self.mt_posjmp(chn),
@@ -390,27 +313,27 @@ impl ModPlayer {
 
     fn mt_posjmp(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        self.mt_songpos = state.n_cmdlo.wrapping_sub(1);
+        self.mt_songpos = state.n_3_cmdlo.wrapping_sub(1);
         self.mt_break = !self.mt_break;
     }
 
     fn mt_setvol(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
-        if state.n_cmdlo > 0x40 {  // cmp.b   #$40,$3(a6)
-            state.n_cmdlo = 40     // move.b  #$40,$3(a6)
+        if state.n_3_cmdlo > 0x40 {  // cmp.b   #$40,$3(a6)
+            state.n_3_cmdlo = 40     // move.b  #$40,$3(a6)
         }
         // mt_vol4
-        mixer.set_volume(chn, (state.n_cmdlo as usize) << 4);  // move.b  $3(a6),$8(a5)
+        mixer.set_volume(chn, (state.n_3_cmdlo as usize) << 4);  // move.b  $3(a6),$8(a5)
     }
 
     fn mt_setspeed(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        if state.n_cmdlo > 0x1f {  // cmp.b   #$1f,$3(a6)
-            state.n_cmdlo = 0x1f;  // move.b  #$1f,$3(a6)
+        if state.n_3_cmdlo > 0x1f {  // cmp.b   #$1f,$3(a6)
+            state.n_3_cmdlo = 0x1f;  // move.b  #$1f,$3(a6)
         }
         // mt_sets
-        if state.n_cmdlo != 0 {
-            self.mt_speed = state.n_cmdlo;  // move.b  d0,mt_speed
+        if state.n_3_cmdlo != 0 {
+            self.mt_speed = state.n_3_cmdlo;  // move.b  d0,mt_speed
             self.mt_counter = 0;            // clr.b   mt_counter
         }
     }
@@ -445,8 +368,6 @@ impl FormatPlayer for ModPlayer {
         self.mt_songpos        = 0;
         self.mt_break      = false;
         self.mt_pos_jump_flag   = false;
-        self.mt_pbreak_flag     = false;
-        self.mt_low_mask        = 0;
         self.mt_patt_del_time   = 0;
         self.mt_patt_del_time_2 = 0;
         self.mt_pattpos     = 0;
@@ -458,28 +379,18 @@ impl FormatPlayer for ModPlayer {
 struct ChannelData {
     n_note         : u8,
     n_ins          : u8,   // not in PT2.1A
-    n_cmd          : u8,
-    n_cmdlo        : u8,
+    n_2_cmd          : u8,
+    n_3_cmdlo        : u8,
     n_length       : u16,
     n_loopstart    : u32,
     n_replen       : u16,
-    n_period       : u16,
-    n_finetune     : i8,
-    n_volume       : u8,
-    n_toneportdirec: bool,
-    n_toneportspeed: u8,
-    n_wantedperiod : u16,
-    n_vibratocmd   : u8,
-    n_vibratopos   : u8,
-    n_tremolocmd   : u8,
-    n_tremolopos   : u8,
-    n_wavecontrol  : u8,
-    n_glissfunk    : u8,
-    n_sampleoffset : u8,
-    n_pattpos      : u8,
-    n_loopcount    : u8,
-    n_funkoffset   : u8,
-    n_wavestart    : u32,
+    n_10_period       : i16,
+    n_12_volume       : u8,
+    n_16_portdir: bool,
+    n_17_toneportspd: u8,
+    n_18_wantperiod : u16,
+    n_1a_vibrato   : u8,
+    n_1b_vibpos   : u8,
 }
 
 impl ChannelData {
