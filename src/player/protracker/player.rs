@@ -119,7 +119,6 @@ impl ModPlayer {
         let event = module.patterns.event(pat, self.mt_pattern_pos, chn);
         let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
-        // mt_PlayVoice
         if { let e = &self.state[chn]; e.n_note | e.n_ins | e.n_cmd | e.n_cmdlo == 0 } {  // TST.L   (A6)
             self.per_nop(chn, &mut mixer);
         }
@@ -236,7 +235,7 @@ impl ModPlayer {
 
         let cmd = self.state[chn].n_cmd;
 
-        // mt_UpdateFunk()
+        // mt_UpdateFunk
         if cmd == 0 && self.state[chn].n_cmdlo == 0 {
             self.per_nop(chn, &mut mixer);
             return
@@ -578,7 +577,7 @@ impl ModPlayer {
     fn mt_e_commands(&mut self, chn: usize, mut mixer: &mut Mixer) {
 
         match self.state[chn].n_cmdlo >> 4 {
-           0x0 => self.mt_filter_on_off(chn, &mut mixer),
+           0x0 => self.mt_filter_on_off(),
            0x1 => self.mt_fine_porta_up(chn, &mut mixer),
            0x2 => self.mt_fine_porta_down(chn, &mut mixer),
            0x3 => self.mt_set_gliss_control(chn),
@@ -597,7 +596,7 @@ impl ModPlayer {
         }
     }
 
-    fn mt_filter_on_off(&self, _chn: usize, mut _mixer: &mut Mixer) {
+    fn mt_filter_on_off(&self) {
     }
 
     fn mt_set_gliss_control(&mut self, chn: usize) {
