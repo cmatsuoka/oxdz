@@ -112,8 +112,7 @@ impl ModInstrument {
 
 /// ModEvent defines the event format used in Protracker patterns.
 pub struct ModEvent {
-    pub note : u8,
-    pub ins  : u8,
+    pub note : u16,
     pub cmd  : u8,
     pub cmdlo: u8,
 }
@@ -121,9 +120,8 @@ pub struct ModEvent {
 impl ModEvent {
     fn from_slice(b: &[u8]) -> Self {
         ModEvent {
-            note : PeriodTable::period_to_note_all((((b[0] & 0x0f) as u16) << 8) | b[1] as u16),
-            ins  : (b[0] & 0xf0) | ((b[2] & 0xf0) >> 4),
-            cmd  : b[2] & 0x0f,
+            note : (((b[0] & 0x0f) as u16) << 8) | b[1] as u16,
+            cmd  : b[2],
             cmdlo: b[3],
         }
     }
