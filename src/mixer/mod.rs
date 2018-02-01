@@ -12,7 +12,7 @@ const SMIX_SHIFT   : usize = 16;
 const SMIX_MASK    : usize = 0xffff;
 const LIM16_HI     : i32 = 32767;
 const LIM16_LO     : i32 = -32768;
-const DOWNMIX_SHIFT: usize = 10;
+const DOWNMIX_SHIFT: usize = 12;
 
 macro_rules! try_voice {
     ( $a:expr, $b: expr ) => {
