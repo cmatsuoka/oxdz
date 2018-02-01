@@ -1,6 +1,6 @@
 use module::{Module, ModuleData};
 use player::{PlayerData, FormatPlayer};
-use format::mk::{ModData, PeriodTable};
+use format::mk::ModData;
 use mixer::Mixer;
 
 /// PT2.1A Replayer
@@ -12,8 +12,6 @@ use mixer::Mixer;
 ///
 /// Notes:
 /// * Mixer volumes are *16, so adjust when setting.
-/// * Pattern periods are decoded beforehand and stored as a note value.
-/// * Pattern instruments are decoded beforehand and stored in channel state.
 /// * CIA tempo support added to the original PT2.1A set speed command.
 
 pub struct ModPlayer {
@@ -102,7 +100,6 @@ impl ModPlayer {
         }
     }
 
-    // mt_GetNewNote
     fn mt_get_new_note(&mut self, module: &ModData, mut mixer: &mut Mixer) {
         let pat = match module.pattern_in_position(self.mt_song_pos as usize) {
             Some(val) => val,
@@ -112,58 +109,58 @@ impl ModPlayer {
         for chn in 0..module.channels() {
             self.mt_play_voice(pat, chn, &module, &mut mixer);
         }
+
+        // mt_SetDMA
+        for chn in 0..module.channels() {
+            let state = &mut self.state[chn];
+            mixer.set_loop_start(chn, state.n_loopstart * 2);
+            mixer.set_loop_end(chn, (state.n_loopstart + state.n_replen as u32) * 2);
+            mixer.enable_loop(chn, state.n_replen > 1);
+        }
     }
 
-    // mt_PlayVoice
     fn mt_play_voice(&mut self, pat: usize, chn: usize, module: &ModData, mut mixer: &mut Mixer) {
         let event = module.patterns.event(pat, self.mt_pattern_pos, chn);
-        let (note, ins, cmd, cmdlo) = (event.note, event.ins, event.cmd, event.cmdlo);
 
-        if { let e = &self.state[chn]; e.n_note | e.n_ins | e.n_cmd | e.n_cmdlo == 0 } {  // TST.L   (A6)
+        if { let e = &self.state[chn]; e.n_note == 0 && (e.n_cmd | e.n_cmdlo == 0) } {  // TST.L   (A6)
             self.per_nop(chn, &mut mixer);
         }
 
+        // mt_plvskip
         {
             let state = &mut self.state[chn];
 
-            // mt_plvskip
-            state.n_note = note;
-            state.n_ins = ins;
-            state.n_cmd = cmd;
-            state.n_cmdlo = cmdlo;
+            state.n_note = event.note;      // MOVE.L  (A0,D1.L),(A6)
+            state.n_cmd = event.cmd;
+            state.n_cmdlo = event.cmdlo;
 
-            if ins != 0 {
-                let instrument = &module.instruments[ins as usize - 1];
-                state.n_length = instrument.size;
+            let ins = (((event.note & 0xf000) >> 8) | ((event.cmd as u16 & 0xf0) >> 4)) as usize;
+
+            if ins > 0 && ins <= 31 {       // sanity check: was: ins != 0
+                let instrument = &module.instruments[ins - 1];
                 //state.n_reallength = instrument.size;
-                state.n_finetune = instrument.finetune as i8;
+                state.n_finetune = instrument.finetune;
                 state.n_volume = instrument.volume as u8;
-                mixer.set_patch(chn, ins as usize - 1, ins as usize - 1);
+                state.n_length = instrument.repeat + instrument.replen;
+                state.n_replen = instrument.replen;
+
+                mixer.set_patch(chn, ins - 1, ins - 1);
                 mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 if instrument.replen > 1 {
                     state.n_loopstart = instrument.repeat as u32;
                     state.n_wavestart = instrument.repeat as u32;
-                    state.n_length = instrument.repeat + instrument.replen;
-                    state.n_replen = instrument.replen;
-                    mixer.set_loop_start(chn, state.n_loopstart * 2);
-                    mixer.set_loop_end(chn, (state.n_loopstart + state.n_replen as u32) * 2);
-                    mixer.enable_loop(chn, true);
+                    state.n_length = instrument.repeat + state.n_replen;
                 } else {
                     // mt_NoLoop
                     state.n_length = instrument.repeat + instrument.replen;
                     state.n_replen = instrument.replen;
-                    mixer.enable_loop(chn, false);
                 }
             }
         }
 
-        self.mt_set_regs(chn, &mut mixer);
-    }
-
-    // mt_SetRegs
-    fn mt_set_regs(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        if self.state[chn].n_note != 0 {
-            match self.state[chn].n_cmd {
+        // mt_SetRegs
+        if self.state[chn].n_note & 0xfff != 0 {
+            match self.state[chn].n_cmd & 0x0f {
                 0xe => {
                            if (self.state[chn].n_cmdlo & 0xf0) == 0x50 {
                                // mt_DoSetFinetune
@@ -195,10 +192,20 @@ impl ModPlayer {
     fn mt_set_period(&mut self, chn: usize, mut mixer: &mut Mixer) {
         {
             let state = &mut self.state[chn];
-            let period = PeriodTable::note_to_period(state.n_note, state.n_finetune);
-            state.n_period = period;
-    
-            if state.n_cmd != 0x0e || (state.n_cmdlo & 0xf0) != 0xd0 {  // !Notedelay
+            let note = state.n_note & 0xfff;
+
+            let mut i = 0;      // MOVEQ   #0,D0
+            // mt_ftuloop
+            while i < 36 {
+                if note >= MT_PERIOD_TABLE[i] {   // CMP.W   (A1,D0.W),D1
+                    break;      // BHS.S   mt_ftufound
+                }
+                i += 1;         // ADDQ.L  #2,D0
+            }                   // DBRA    D7,mt_ftuloop
+            // mt_ftufound
+            state.n_period = MT_PERIOD_TABLE[36 * state.n_finetune as usize + i];
+
+            if state.n_cmd & 0x0f != 0x0e || (state.n_cmdlo & 0xf0) != 0xd0 {  // !Notedelay
                 if state.n_wavecontrol & 0x04 != 0x00 {
                     state.n_vibratopos = 0;
                 }
@@ -233,7 +240,7 @@ impl ModPlayer {
 
     fn mt_check_efx(&mut self, chn: usize, mut mixer: &mut Mixer) {
 
-        let cmd = self.state[chn].n_cmd;
+        let cmd = self.state[chn].n_cmd & 0x0f;
 
         // mt_UpdateFunk
         if cmd == 0 && self.state[chn].n_cmdlo == 0 {
@@ -279,12 +286,19 @@ impl ModPlayer {
             _ => {
                      state.n_cmdlo >> 4
                  },
-        } as u8;
+        } as usize;
+
         // Arpeggio3
-        // Arpeggio4
-        let note = PeriodTable::period_to_note(state.n_period, state.n_finetune);
-        let period = PeriodTable::note_to_period(note + val, state.n_finetune);
-        mixer.set_period(chn, period as f64);  // MOVE.W  D2,6(A5)
+        let ofs = 36 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D1 / MULU    #36*2,D1
+
+        // mt_arploop
+        for i in 0..36 {
+            if state.n_period >= MT_PERIOD_TABLE[ofs + i] {
+               // Arpeggio4
+               mixer.set_period(chn, MT_PERIOD_TABLE[ofs + i + val] as f64);  // MOVE.W  D2,6(A5)
+               return
+            }
+        }
     }
 
     fn mt_fine_porta_up(&mut self, chn: usize, mut mixer: &mut Mixer) {
@@ -325,8 +339,27 @@ impl ModPlayer {
 
     fn mt_set_tone_porta(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        state.n_wantedperiod = PeriodTable::note_to_period(state.n_note, state.n_finetune);
+        let note = state.n_note & 0xfff;
+        let ofs = 36 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D0 / MULU    #37*2,D0
+
+        let mut i = 0;       // MOVEQ   #0,D0
+        // mt_StpLoop
+        while note < MT_PERIOD_TABLE[ofs + i] {    // BHS.S   mt_StpFound
+            i += 1;          // ADDQ.W  #2,D0
+            if i >= 36 {     // CMP.W   #37*2,D0 / BLO.S   mt_StpLoop
+                i = 35;      // MOVEQ   #35*2,D0
+                break
+            }
+        }
+
+        // mt_StpFound
+        if state.n_finetune & 0x80 != 0 && i != 0 {
+            i -= 1;          // SUBQ.W  #2,D0
+        }
+        // mt_StpGoss
+        state.n_wantedperiod = MT_PERIOD_TABLE[ofs + i];
         state.n_toneportdirec = false;
+
         if state.n_period == state.n_wantedperiod {
             // mt_ClearTonePorta
             state.n_wantedperiod = 0;
@@ -371,10 +404,23 @@ impl ModPlayer {
             }
         }
         // mt_TonePortaSetPer
+        let mut period = state.n_period;         // MOVE.W  n_period(A6),D2
         if state.n_glissfunk & 0x0f != 0 {
+            let ofs = 36 * state.n_finetune;     // MULU    #36*2,D0
+            let mut i = 0;
+            // mt_GlissLoop
+            while period < MT_PERIOD_TABLE[i] {  // LEA     mt_PeriodTable(PC),A0 / CMP.W   (A0,D0.W),D2
+                i += 1;
+                if i >= 37 {
+                    i = 35;
+                    break;
+                }
+            }
+            // mt_GlissFound
+            period = MT_PERIOD_TABLE[i];         // MOVE.W  (A0,D0.W),D2
         }
         // mt_GlissSkip
-        mixer.set_period(chn, state.n_period as f64);
+        mixer.set_period(chn, period as f64);    // MOVE.W  D2,6(A5) ; Set period
     }
 
     fn mt_vibrato(&mut self, chn: usize, mut mixer: &mut Mixer) {
@@ -560,7 +606,7 @@ impl ModPlayer {
     fn mt_check_more_efx(&mut self, chn: usize, mut mixer: &mut Mixer) {
         // mt_UpdateFunk()
 
-        match self.state[chn].n_cmd {
+        match self.state[chn].n_cmd & 0x0f {
             0x9 => self.mt_sample_offset(chn, &mut mixer),
             0xb => self.mt_position_jump(chn),
             0xd => self.mt_pattern_break(chn),
@@ -570,7 +616,6 @@ impl ModPlayer {
             _   => {},
         }
 
-        // per_nop
         self.per_nop(chn, &mut mixer)
     }
 
@@ -612,7 +657,7 @@ impl ModPlayer {
 
     fn mt_set_finetune(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        state.n_finetune = (state.n_cmdlo << 4) as i8;
+        state.n_finetune = state.n_cmdlo & 0x0f;
     }
 
     fn mt_jump_loop(&mut self, chn: usize) {
@@ -656,7 +701,7 @@ impl ModPlayer {
             return;
         }
         if self.mt_counter == 0 {
-            if state.n_note != 0 {
+            if state.n_note & 0xfff != 0 {
                 return;
             }
         }
@@ -719,6 +764,121 @@ impl ModPlayer {
     }
 }
 
+
+static MT_FUNK_TABLE: [u8; 16] = [
+    0, 5, 6, 7, 8, 10, 11, 13, 16, 19, 22, 26, 32, 43, 64, 128
+];
+
+static MT_VIBRATO_TABLE: [u8; 32] = [
+      0,  24,  49,  74,  97, 120, 141, 161,
+    180, 197, 212, 224, 235, 244, 250, 253,
+    255, 253, 250, 244, 235, 224, 212, 197,
+    180, 161, 141, 120,  97,  74,  49,  24
+];
+
+
+static MT_PERIOD_TABLE: [u16; 16*12*3] = [
+// Tuning 0, Normal
+    856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
+    428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
+    214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113,
+// Tuning 1
+    850, 802, 757, 715, 674, 637, 601, 567, 535, 505, 477, 450,
+    425, 401, 379, 357, 337, 318, 300, 284, 268, 253, 239, 225,
+    213, 201, 189, 179, 169, 159, 150, 142, 134, 126, 119, 113,
+// Tuning 2
+    844, 796, 752, 709, 670, 632, 597, 563, 532, 502, 474, 447,
+    422, 398, 376, 355, 335, 316, 298, 282, 266, 251, 237, 224,
+    211, 199, 188, 177, 167, 158, 149, 141, 133, 125, 118, 112,
+// Tuning 3
+    838, 791, 746, 704, 665, 628, 592, 559, 528, 498, 470, 444,
+    419, 395, 373, 352, 332, 314, 296, 280, 264, 249, 235, 222,
+    209, 198, 187, 176, 166, 157, 148, 140, 132, 125, 118, 111,
+// Tuning 4
+    832, 785, 741, 699, 660, 623, 588, 555, 524, 495, 467, 441,
+    416, 392, 370, 350, 330, 312, 294, 278, 262, 247, 233, 220,
+    208, 196, 185, 175, 165, 156, 147, 139, 131, 124, 117, 110,
+// Tuning 5
+    826, 779, 736, 694, 655, 619, 584, 551, 520, 491, 463, 437,
+    413, 390, 368, 347, 328, 309, 292, 276, 260, 245, 232, 219,
+    206, 195, 184, 174, 164, 155, 146, 138, 130, 123, 116, 109,
+// Tuning 6
+    820, 774, 730, 689, 651, 614, 580, 547, 516, 487, 460, 434,
+    410, 387, 365, 345, 325, 307, 290, 274, 258, 244, 230, 217,
+    205, 193, 183, 172, 163, 154, 145, 137, 129, 122, 115, 109,
+// Tuning 7
+    814, 768, 725, 684, 646, 610, 575, 543, 513, 484, 457, 431,
+    407, 384, 363, 342, 323, 305, 288, 272, 256, 242, 228, 216,
+    204, 192, 181, 171, 161, 152, 144, 136, 128, 121, 114, 108,
+// Tuning -8
+    907, 856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480,
+    453, 428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240,
+    226, 214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120,
+// Tuning -7
+    900, 850, 802, 757, 715, 675, 636, 601, 567, 535, 505, 477,
+    450, 425, 401, 379, 357, 337, 318, 300, 284, 268, 253, 238,
+    225, 212, 200, 189, 179, 169, 159, 150, 142, 134, 126, 119,
+// Tuning -6
+    894, 844, 796, 752, 709, 670, 632, 597, 563, 532, 502, 474,
+    447, 422, 398, 376, 355, 335, 316, 298, 282, 266, 251, 237,
+    223, 211, 199, 188, 177, 167, 158, 149, 141, 133, 125, 118,
+// Tuning -5
+    887, 838, 791, 746, 704, 665, 628, 592, 559, 528, 498, 470,
+    444, 419, 395, 373, 352, 332, 314, 296, 280, 264, 249, 235,
+    222, 209, 198, 187, 176, 166, 157, 148, 140, 132, 125, 118,
+// Tuning -4
+    881, 832, 785, 741, 699, 660, 623, 588, 555, 524, 494, 467,
+    441, 416, 392, 370, 350, 330, 312, 294, 278, 262, 247, 233,
+    220, 208, 196, 185, 175, 165, 156, 147, 139, 131, 123, 117,
+// Tuning -3
+    875, 826, 779, 736, 694, 655, 619, 584, 551, 520, 491, 463,
+    437, 413, 390, 368, 347, 328, 309, 292, 276, 260, 245, 232,
+    219, 206, 195, 184, 174, 164, 155, 146, 138, 130, 123, 116,
+// Tuning -2
+    868, 820, 774, 730, 689, 651, 614, 580, 547, 516, 487, 460,
+    434, 410, 387, 365, 345, 325, 307, 290, 274, 258, 244, 230,
+    217, 205, 193, 183, 172, 163, 154, 145, 137, 129, 122, 115,
+// Tuning -1
+    862, 814, 768, 725, 684, 646, 610, 575, 543, 513, 484, 457,
+    431, 407, 384, 363, 342, 323, 305, 288, 272, 256, 242, 228,
+    216, 203, 192, 181, 171, 161, 152, 144, 136, 128, 121, 114
+];
+
+
+#[derive(Clone,Default)]
+struct ChannelData {
+    n_note         : u16,
+    n_cmd          : u8,
+    n_cmdlo        : u8,
+    n_length       : u16,
+    n_loopstart    : u32,
+    n_replen       : u16,
+    n_period       : u16,
+    n_finetune     : u8,
+    n_volume       : u8,
+    n_toneportdirec: bool,
+    n_toneportspeed: u8,
+    n_wantedperiod : u16,
+    n_vibratocmd   : u8,
+    n_vibratopos   : u8,
+    n_tremolocmd   : u8,
+    n_tremolopos   : u8,
+    n_wavecontrol  : u8,
+    n_glissfunk    : u8,
+    n_sampleoffset : u8,
+    n_pattpos      : u8,
+    n_loopcount    : u8,
+    n_funkoffset   : u8,
+    n_wavestart    : u32,
+}
+
+impl ChannelData {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+
 impl FormatPlayer for ModPlayer {
     fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, _mixer: &mut Mixer) {
         data.speed = 6;
@@ -755,51 +915,3 @@ impl FormatPlayer for ModPlayer {
         self.mt_pattern_pos     = 0;
     }
 }
-
-
-#[derive(Clone,Default)]
-struct ChannelData {
-    n_note         : u8,
-    n_ins          : u8,   // not in PT2.1A
-    n_cmd          : u8,
-    n_cmdlo        : u8,
-    n_length       : u16,
-    n_loopstart    : u32,
-    n_replen       : u16,
-    n_period       : u16,
-    n_finetune     : i8,
-    n_volume       : u8,
-    n_toneportdirec: bool,
-    n_toneportspeed: u8,
-    n_wantedperiod : u16,
-    n_vibratocmd   : u8,
-    n_vibratopos   : u8,
-    n_tremolocmd   : u8,
-    n_tremolopos   : u8,
-    n_wavecontrol  : u8,
-    n_glissfunk    : u8,
-    n_sampleoffset : u8,
-    n_pattpos      : u8,
-    n_loopcount    : u8,
-    n_funkoffset   : u8,
-    n_wavestart    : u32,
-}
-
-impl ChannelData {
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
-
-
-static MT_FUNK_TABLE: [u8; 16] = [
-    0, 5, 6, 7, 8, 10, 11, 13, 16, 19, 22, 26, 32, 43, 64, 128
-];
-
-static MT_VIBRATO_TABLE: [u8; 32] = [
-      0,  24,  49,  74,  97, 120, 141, 161,
-    180, 197, 212, 224, 235, 244, 250, 253,
-    255, 253, 250, 244, 235, 224, 212, 197,
-    180, 161, 141, 120,  97,  74,  49,  24
-];
-
