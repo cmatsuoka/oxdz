@@ -118,21 +118,21 @@ impl ModPlayer {
             self.per_nop(chn, &mut mixer);
         }
 
+        // mt_plvskip
         {
             let state = &mut self.state[chn];
 
-            // mt_plvskip
             state.n_note = event.note;      // MOVE.L  (A0,D1.L),(A6)
             state.n_cmd = event.cmd;
             state.n_cmdlo = event.cmdlo;
 
-            let ins = (((event.note & 0xf000) >> 8) | ((event.cmd & 0xf0) >> 4)) as usize;
+            let ins = (((event.note & 0xf000) >> 8) | ((event.cmd as u16 & 0xf0) >> 4)) as usize;
 
-            if ins != 0 {
+            if ins > 0 && ins <= 31 {       // sanity check: was: ins != 0
                 let instrument = &module.instruments[ins - 1];
                 state.n_length = instrument.size;
                 //state.n_reallength = instrument.size;
-                state.n_finetune = instrument.finetune as i8;
+                state.n_finetune = instrument.finetune;
                 state.n_volume = instrument.volume as u8;
                 mixer.set_patch(chn, ins - 1, ins - 1);
                 mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
@@ -190,10 +190,19 @@ impl ModPlayer {
     fn mt_set_period(&mut self, chn: usize, mut mixer: &mut Mixer) {
         {
             let state = &mut self.state[chn];
-            let note = PeriodTable::period_to_note(state.n_note, 0);
-            let period = PeriodTable::note_to_period(note, state.n_finetune);
-            state.n_period = period;
-    
+            let note = state.n_note & 0xfff;
+
+            let mut i = 0;      // MOVEQ   #0,D0
+            // mt_ftuloop
+            while i < 36 {
+                if note >= MT_PERIOD_TABLE[i] {   // CMP.W   (A1,D0.W),D1
+                    break;      // BHS.S   mt_ftufound
+                }
+                i += 1;         // ADDQ.L  #2,D0
+            }                   // DBRA    D7,mt_ftuloop
+            // mt_ftufound
+            state.n_period = MT_PERIOD_TABLE[36 * state.n_finetune as usize + i];
+
             if state.n_cmd & 0x0f != 0x0e || (state.n_cmdlo & 0xf0) != 0xd0 {  // !Notedelay
                 if state.n_wavecontrol & 0x04 != 0x00 {
                     state.n_vibratopos = 0;
@@ -329,7 +338,7 @@ impl ModPlayer {
     fn mt_set_tone_porta(&mut self, chn: usize) {
         let state = &mut self.state[chn];
         let note = state.n_note & 0xfff;
-        let ofs = 37 * state.n_finetune as usize;
+        let ofs = 37 * state.n_finetune as usize;  // 36?
 
         let mut i = 0;       // MOVEQ   #0,D0
         // mt_StpLoop
@@ -393,7 +402,7 @@ impl ModPlayer {
             }
         }
         // mt_TonePortaSetPer
-        let period = state.n_period;             // MOVE.W  n_period(A6),D2
+        let mut period = state.n_period;         // MOVE.W  n_period(A6),D2
         if state.n_glissfunk & 0x0f != 0 {
             let ofs = 36 * state.n_finetune;     // MULU    #36*2,D0
             let mut i = 0;
@@ -647,7 +656,7 @@ impl ModPlayer {
 
     fn mt_set_finetune(&mut self, chn: usize) {
         let state = &mut self.state[chn];
-        state.n_finetune = (state.n_cmdlo << 4) as i8;
+        state.n_finetune = state.n_cmdlo & 0x0f;
     }
 
     fn mt_jump_loop(&mut self, chn: usize) {
@@ -754,77 +763,6 @@ impl ModPlayer {
     }
 }
 
-impl FormatPlayer for ModPlayer {
-    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, _mixer: &mut Mixer) {
-        data.speed = 6;
-        data.tempo = 125;
-    }
-
-    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
-
-        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
-
-        self.mt_song_pos = data.pos as u8;
-        self.mt_pattern_pos = data.row as u8;
-        self.mt_counter = data.frame as u8;
-
-        self.mt_music(&module, &mut mixer);
-
-        data.frame = self.mt_counter as usize;
-        data.row = self.mt_pattern_pos as usize;
-        data.pos = self.mt_song_pos as usize;
-        data.speed = self.mt_speed as usize;
-        data.tempo = self.cia_tempo as usize;
-    }
-
-    fn reset(&mut self) {
-        self.mt_speed           = 6;
-        self.mt_counter         = 0;
-        self.mt_song_pos        = 0;
-        self.mt_pbreak_pos      = 0;
-        self.mt_pos_jump_flag   = false;
-        self.mt_pbreak_flag     = false;
-        self.mt_low_mask        = 0;
-        self.mt_patt_del_time   = 0;
-        self.mt_patt_del_time_2 = 0;
-        self.mt_pattern_pos     = 0;
-    }
-}
-
-
-#[derive(Clone,Default)]
-struct ChannelData {
-    n_note         : u16,
-    n_cmd          : u8,
-    n_cmdlo        : u8,
-    n_length       : u16,
-    n_loopstart    : u32,
-    n_replen       : u16,
-    n_period       : u16,
-    n_finetune     : i8,
-    n_volume       : u8,
-    n_toneportdirec: bool,
-    n_toneportspeed: u8,
-    n_wantedperiod : u16,
-    n_vibratocmd   : u8,
-    n_vibratopos   : u8,
-    n_tremolocmd   : u8,
-    n_tremolopos   : u8,
-    n_wavecontrol  : u8,
-    n_glissfunk    : u8,
-    n_sampleoffset : u8,
-    n_pattpos      : u8,
-    n_loopcount    : u8,
-    n_funkoffset   : u8,
-    n_wavestart    : u32,
-}
-
-impl ChannelData {
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
-
 
 static MT_FUNK_TABLE: [u8; 16] = [
     0, 5, 6, 7, 8, 10, 11, 13, 16, 19, 22, 26, 32, 43, 64, 128
@@ -905,28 +843,74 @@ static MT_PERIOD_TABLE: [u16; 16*12*3] = [
     216, 203, 192, 181, 171, 161, 152, 144, 136, 128, 121, 114
 ];
 
-pub struct PeriodTable;
 
-impl PeriodTable {
-    pub fn note_to_period(mut note: u8, fine: i8) -> u16 {
-        clamp!(note, 48, 83);
-        note -= 48;
-        MT_PERIOD_TABLE[fine as usize * 36 + note as usize]
+#[derive(Clone,Default)]
+struct ChannelData {
+    n_note         : u16,
+    n_cmd          : u8,
+    n_cmdlo        : u8,
+    n_length       : u16,
+    n_loopstart    : u32,
+    n_replen       : u16,
+    n_period       : u16,
+    n_finetune     : u8,
+    n_volume       : u8,
+    n_toneportdirec: bool,
+    n_toneportspeed: u8,
+    n_wantedperiod : u16,
+    n_vibratocmd   : u8,
+    n_vibratopos   : u8,
+    n_tremolocmd   : u8,
+    n_tremolopos   : u8,
+    n_wavecontrol  : u8,
+    n_glissfunk    : u8,
+    n_sampleoffset : u8,
+    n_pattpos      : u8,
+    n_loopcount    : u8,
+    n_funkoffset   : u8,
+    n_wavestart    : u32,
+}
+
+impl ChannelData {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+
+impl FormatPlayer for ModPlayer {
+    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, _mixer: &mut Mixer) {
+        data.speed = 6;
+        data.tempo = 125;
     }
 
-    pub fn period_to_note(period: u16, fine: i8) -> u8 {
-        if period == 0 {
-            return 0;
-        }
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
 
-        let ofs = fine as usize * 36;
-        let mut note = 48;
-        for p in MT_PERIOD_TABLE[ofs..ofs+36].iter() {
-            if period >= *p {
-               break;
-            }
-            note += 1;
-        }
-        note
+        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
+
+        self.mt_song_pos = data.pos as u8;
+        self.mt_pattern_pos = data.row as u8;
+        self.mt_counter = data.frame as u8;
+
+        self.mt_music(&module, &mut mixer);
+
+        data.frame = self.mt_counter as usize;
+        data.row = self.mt_pattern_pos as usize;
+        data.pos = self.mt_song_pos as usize;
+        data.speed = self.mt_speed as usize;
+        data.tempo = self.cia_tempo as usize;
+    }
+
+    fn reset(&mut self) {
+        self.mt_speed           = 6;
+        self.mt_counter         = 0;
+        self.mt_song_pos        = 0;
+        self.mt_pbreak_pos      = 0;
+        self.mt_pos_jump_flag   = false;
+        self.mt_pbreak_flag     = false;
+        self.mt_low_mask        = 0;
+        self.mt_patt_del_time   = 0;
+        self.mt_patt_del_time_2 = 0;
+        self.mt_pattern_pos     = 0;
     }
 }
