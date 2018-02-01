@@ -109,6 +109,14 @@ impl ModPlayer {
         for chn in 0..module.channels() {
             self.mt_play_voice(pat, chn, &module, &mut mixer);
         }
+
+        // mt_SetDMA
+        for chn in 0..module.channels() {
+            let state = &mut self.state[chn];
+            mixer.set_loop_start(chn, state.n_loopstart * 2);
+            mixer.set_loop_end(chn, (state.n_loopstart + state.n_replen as u32) * 2);
+            mixer.enable_loop(chn, state.n_replen > 1);
+        }
     }
 
     fn mt_play_voice(&mut self, pat: usize, chn: usize, module: &ModData, mut mixer: &mut Mixer) {
@@ -130,34 +138,28 @@ impl ModPlayer {
 
             if ins > 0 && ins <= 31 {       // sanity check: was: ins != 0
                 let instrument = &module.instruments[ins - 1];
-                state.n_length = instrument.size;
                 //state.n_reallength = instrument.size;
                 state.n_finetune = instrument.finetune;
                 state.n_volume = instrument.volume as u8;
+                state.n_length = instrument.repeat + instrument.replen;
+                state.n_replen = instrument.replen;
+
                 mixer.set_patch(chn, ins - 1, ins - 1);
                 mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 if instrument.replen > 1 {
                     state.n_loopstart = instrument.repeat as u32;
                     state.n_wavestart = instrument.repeat as u32;
-                    state.n_length = instrument.repeat + instrument.replen;
-                    state.n_replen = instrument.replen;
-                    mixer.set_loop_start(chn, state.n_loopstart * 2);
-                    mixer.set_loop_end(chn, (state.n_loopstart + state.n_replen as u32) * 2);
-                    mixer.enable_loop(chn, true);
+                    state.n_length = instrument.repeat + state.n_replen;
                 } else {
                     // mt_NoLoop
                     state.n_length = instrument.repeat + instrument.replen;
                     state.n_replen = instrument.replen;
-                    mixer.enable_loop(chn, false);
                 }
             }
         }
 
-        self.mt_set_regs(chn, &mut mixer);
-    }
-
-    fn mt_set_regs(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        if self.state[chn].n_note != 0 {
+        // mt_SetRegs
+        if self.state[chn].n_note & 0xfff != 0 {
             match self.state[chn].n_cmd & 0x0f {
                 0xe => {
                            if (self.state[chn].n_cmdlo & 0xf0) == 0x50 {
@@ -614,7 +616,6 @@ impl ModPlayer {
             _   => {},
         }
 
-        // per_nop
         self.per_nop(chn, &mut mixer)
     }
 
