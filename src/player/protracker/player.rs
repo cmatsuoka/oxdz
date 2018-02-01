@@ -284,16 +284,16 @@ impl ModPlayer {
             _ => {
                      state.n_cmdlo >> 4
                  },
-        } as u8;
+        } as usize;
 
         // Arpeggio3
         let ofs = 36 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D1 / MULU    #36*2,D1
 
         // mt_arploop
         for i in 0..36 {
-            if state.n_period >= MT_PERIOD_TABLE[i] {
+            if state.n_period >= MT_PERIOD_TABLE[ofs + i] {
                // Arpeggio4
-               mixer.set_period(chn, MT_PERIOD_TABLE[ofs + i] as f64);  // MOVE.W  D2,6(A5)
+               mixer.set_period(chn, MT_PERIOD_TABLE[ofs + i + val] as f64);  // MOVE.W  D2,6(A5)
                return
             }
         }
@@ -338,13 +338,13 @@ impl ModPlayer {
     fn mt_set_tone_porta(&mut self, chn: usize) {
         let state = &mut self.state[chn];
         let note = state.n_note & 0xfff;
-        let ofs = 37 * state.n_finetune as usize;  // 36?
+        let ofs = 36 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D0 / MULU    #37*2,D0
 
         let mut i = 0;       // MOVEQ   #0,D0
         // mt_StpLoop
-        while note < MT_PERIOD_TABLE[ofs] {  // BHS.S   mt_StpFound
+        while note < MT_PERIOD_TABLE[ofs + i] {    // BHS.S   mt_StpFound
             i += 1;          // ADDQ.W  #2,D0
-            if i >= 37 {     // CMP.W   #37*2,D0 / BLO.S   mt_StpLoop
+            if i >= 36 {     // CMP.W   #37*2,D0 / BLO.S   mt_StpLoop
                 i = 35;      // MOVEQ   #35*2,D0
                 break
             }
@@ -355,7 +355,7 @@ impl ModPlayer {
             i -= 1;          // SUBQ.W  #2,D0
         }
         // mt_StpGoss
-        state.n_wantedperiod = MT_PERIOD_TABLE[i];
+        state.n_wantedperiod = MT_PERIOD_TABLE[ofs + i];
         state.n_toneportdirec = false;
 
         if state.n_period == state.n_wantedperiod {
