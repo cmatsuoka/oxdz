@@ -1,5 +1,6 @@
 mod scan;
 mod protracker;
+mod noisetracker;
 mod st2;
 
 pub use mixer::Mixer;
@@ -99,6 +100,7 @@ impl<'a> Player<'a> {
     pub fn list() -> Vec<Box<PlayerListEntry>> {
         vec![
             Box::new(protracker::Pt21a),
+            Box::new(noisetracker::Nt11),
             Box::new(st2::St2),
         ]
     }

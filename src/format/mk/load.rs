@@ -50,7 +50,8 @@ impl Loader for ModLoader {
             return Err(Error::Format("file too short"));
         }
 
-        if b.read32b(1080)? == 0x4d2e4b2e {
+        let magic = b.read_string(1080, 4)?;
+        if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." {
             Ok(())
         } else {
             Err(Error::Format("bad magic"))
@@ -116,3 +117,27 @@ impl Loader for ModLoader {
     }
 }
 
+
+struct Fingerprint;
+
+impl Fingerprint {
+    fn has_restart_value(b: &[u8]) -> Result<bool, Error> {
+        let restart = b.read8(951)?;
+        Ok(restart != 0)
+    }
+
+    fn has_noisetracker_byte(b: &[u8]) -> Result<bool, Error> {
+        let restart = b.read8(951)?;
+        Ok(restart == 0x78)
+    }
+
+    fn has_noisetracker_magic(b: &[u8]) -> Result<bool, Error> {
+        let magic = b.read_string(1080, 4)?;
+        Ok(magic == "M&K!" || magic == "N.T.")
+    }
+
+    fn has_protracker_magic(b: &[u8]) -> Result<bool, Error> {
+        let magic = b.read_string(1080, 4)?;
+        Ok(magic == "M!K!")
+    }
+}

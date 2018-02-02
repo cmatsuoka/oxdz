@@ -5,7 +5,7 @@ use player::{PlayerListEntry, PlayerInfo, FormatPlayer};
 
 pub struct Nt11;
 
-impl PlayerListEntry for Pt21a {
+impl PlayerListEntry for Nt11 {
    fn info(&self) -> PlayerInfo {
        PlayerInfo {
           id         : "nt11",
