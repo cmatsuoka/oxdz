@@ -404,12 +404,12 @@ impl ModPlayer {
             }
         }
         // mt_TonePortaSetPer
-        let mut period = state.n_period;         // MOVE.W  n_period(A6),D2
+        let mut period = state.n_period;               // MOVE.W  n_period(A6),D2
         if state.n_glissfunk & 0x0f != 0 {
-            let ofs = 36 * state.n_finetune;     // MULU    #36*2,D0
+            let ofs = 36 * state.n_finetune as usize;  // MULU    #36*2,D0
             let mut i = 0;
             // mt_GlissLoop
-            while period < MT_PERIOD_TABLE[i] {  // LEA     mt_PeriodTable(PC),A0 / CMP.W   (A0,D0.W),D2
+            while period < MT_PERIOD_TABLE[ofs + i] {  // LEA     mt_PeriodTable(PC),A0 / CMP.W   (A0,D0.W),D2
                 i += 1;
                 if i >= 37 {
                     i = 35;
@@ -417,10 +417,10 @@ impl ModPlayer {
                 }
             }
             // mt_GlissFound
-            period = MT_PERIOD_TABLE[i];         // MOVE.W  (A0,D0.W),D2
+            period = MT_PERIOD_TABLE[ofs + i];         // MOVE.W  (A0,D0.W),D2
         }
         // mt_GlissSkip
-        mixer.set_period(chn, period as f64);    // MOVE.W  D2,6(A5) ; Set period
+        mixer.set_period(chn, period as f64);          // MOVE.W  D2,6(A5) ; Set period
     }
 
     fn mt_vibrato(&mut self, chn: usize, mut mixer: &mut Mixer) {
