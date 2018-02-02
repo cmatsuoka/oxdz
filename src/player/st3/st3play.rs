@@ -121,15 +121,15 @@ pub struct St3Play {
     np_patoff         : i16,
     patloopstart      : i16,
     jumptorow         : i16,
-    patternadd        : u16,
+    //patternadd        : u16,
     patmusicrand      : u16,
     aspdmax           : i32,
     aspdmin           : i32,
     np_patseg         : usize,  // u32,
     chn               : [Chn; 32],
     soundcardtype     : u8,
-    soundBufferSize   : i32,
-    audioFreq         : u32,
+    //soundBufferSize   : i32,
+    //audioFreq         : u32,
     //VOICE voice[32];
     //WAVEFORMATEX wfx;
     //WAVEHDR waveBlocks[MIX_BUF_NUM];
@@ -157,12 +157,12 @@ pub struct St3Play {
     fastvolslide : bool,
     amigalimits : bool,
     musicmax : u8,
-    numChannels : u8,
+    //numChannels : u8,
     tempo : i16,
     globalvol : i16,
     stereomode : i8,
     mastervol : u8,
-    mseg_len : u32,
+    //mseg_len : u32,
 } 
 
 
@@ -224,7 +224,7 @@ static VIBRAMP: [i16; 64] = [
 // CODE START
 
 impl St3Play {
-    pub fn new(module: &Module) -> Self {
+    pub fn new(_module: &Module) -> Self {
         Default::default()
     }
 
@@ -303,7 +303,7 @@ impl St3Play {
         mixer.set_pan(ch, self.chn[ch].apanpos as isize);
     }
 
-    fn setpan(&mut self, ch: usize, mut mixer: &mut Mixer) {
+    fn setpan(&mut self, ch: usize, mixer: &mut Mixer) {
         mixer.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0) * (self.chn[ch].chanvol as f64 / 64.0) *
                               (self.globalvol as f64 / 64.0) * 1024.0) as usize);
         mixer.set_pan(ch, self.chn[ch].apanpos as isize);
@@ -465,8 +465,8 @@ impl St3Play {
             return 255
         }
 
-        let mut ch = 255_usize;
-        let mut dat = 0_u8;
+        let ch;       // = 255
+        let mut dat;  // = 0
         let mut i = self.np_patoff as usize;
         let pat = &module.patterns[self.np_pat as usize];
         loop {
@@ -990,7 +990,7 @@ impl St3Play {
             'Q' => self.s_retrig(i, &mut mixer),
             'R' => self.s_ret(),
             'S' => self.s_scommand1(i, &mut mixer),
-            'T' => self.s_settempo(i, &mut mixer),
+            'T' => self.s_settempo(i),
             'U' => self.s_ret(),
             'V' => self.s_ret(),
             'W' => self.s_globvolslide(i, &mut mixer),  // NON-ST3
@@ -1021,9 +1021,9 @@ impl St3Play {
             'Q' => self.s_retrig(i, &mut mixer),
             'R' => self.s_tremolo(i, &mut mixer),
             'S' => self.s_scommand2(i, &module, &mut mixer),
-            'T' => self.s_settempo(i, &mut mixer),      // NON-ST3 (for tempo slides)
+            'T' => self.s_settempo(i),                  // NON-ST3 (for tempo slides)
             'U' => self.s_finevibrato(i, &mut mixer),
-            'V' => self.s_setgvol(i, &mut mixer),
+            'V' => self.s_setgvol(i),
             'W' => self.s_globvolslide(i, &mut mixer),  // NON-ST3
             'X' => self.s_ret(),
             'Y' => self.s_panbrello(i, &mut mixer),     // NON-ST3
@@ -1798,7 +1798,7 @@ impl St3Play {
     }
 
 
-    fn s_settempo(&mut self, i: usize, mixer: &Mixer) {
+    fn s_settempo(&mut self, i: usize) {
         {
             let ch = &mut self.chn[i];
 
@@ -1921,7 +1921,7 @@ impl St3Play {
         }
     }
 
-    fn s_setgvol(&mut self, i: usize, mixer: &Mixer) {
+    fn s_setgvol(&mut self, i: usize) {
         let ch = &mut self.chn[i];
 
         if ch.info <= 64 {
