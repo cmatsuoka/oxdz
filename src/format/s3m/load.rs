@@ -22,7 +22,7 @@ impl<'a> BinaryReadExt for &'a [u8] {
 pub struct S3mLoader;
 
 impl S3mLoader {
-    fn load_instrument(&self, b: &[u8], i: usize, ofs: usize, cvt: bool) -> Result<S3mInstrument, Error> {
+    fn load_instrument(&self, b: &[u8], ofs: usize) -> Result<S3mInstrument, Error> {
         let mut ins = S3mInstrument::new();
 
         ins.typ      = b.read8(ofs)?;
@@ -113,7 +113,7 @@ impl Loader for S3mLoader {
         let mut instruments = Vec::<S3mInstrument>::new();
         let mut samples = Vec::<Sample>::new();
         for i in 0..ins_num as usize {
-            let ins = self.load_instrument(b, i, instrum_pp[i], ffi != 1)?;
+            let ins = self.load_instrument(b, instrum_pp[i])?;
             let smp = self.load_sample(b, i, &ins, ffi != 1)?;
             instruments.push(ins);
             samples.push(smp);
