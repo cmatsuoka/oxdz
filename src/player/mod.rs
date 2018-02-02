@@ -1,6 +1,7 @@
 mod scan;
 mod protracker;
 mod st2;
+mod st3;
 
 pub use mixer::Mixer;
 
@@ -98,8 +99,9 @@ impl<'a> Player<'a> {
 
     pub fn list() -> Vec<Box<PlayerListEntry>> {
         vec![
-            Box::new(protracker::Pt21a),
+            Box::new(st3::St3),
             Box::new(st2::St2),
+            Box::new(protracker::Pt21a),
         ]
     }
 
