@@ -62,8 +62,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     println!("Default player for this format: {}", module.player);
     println!("Available players:");
     for p in player::Player::list() {
-        let info = p.info();
-        println!("{:5} {:40} {:?}", info.id, info.name, info.accepts);
+        println!("{:5} {:40} {:?}", p.id, p.name, p.accepts);
     }
 
     let mut player = player::Player::find_player(&module, module.player)?;

@@ -97,7 +97,7 @@ impl<'a> Player<'a> {
         })
     }
 
-    pub fn list() -> Vec<Box<PlayerListEntry>> {
+    fn all() -> Vec<Box<PlayerListEntry>> {
         vec![
             Box::new(st3::St3),
             Box::new(st2::St2),
@@ -105,8 +105,12 @@ impl<'a> Player<'a> {
         ]
     }
 
+    pub fn list() -> Vec<PlayerInfo> {
+        Self::all().iter().map(|p| p.info()).collect()
+    }
+
     fn find_by_id(player_id: &str) -> Result<Box<PlayerListEntry>, Error> {
-        for p in Self::list() {
+        for p in Self::all() {
             if player_id == p.info().id {
                 return Ok(p)
             }
