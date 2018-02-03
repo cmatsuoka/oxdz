@@ -48,8 +48,8 @@ use mixer::Mixer;
 ///     modules are still played exactly like they should. :-)
 ///
 
-const SOUNDCARD_GUS  : u8 = 0;  // Default to GUS
-const SOUNDCARD_SB   : u8 = 1;
+const SOUNDCARD_SB   : u8 = 0;
+const SOUNDCARD_GUS  : u8 = 1;
 
 // TRACKER ID
 const SCREAM_TRACKER : u8 = 1;
@@ -150,19 +150,19 @@ pub struct St3Play {
     //MusicPaused : i8,
     //Playing : i8,
 
-    //instrumentadd : u16,
-    lastachannelused : u8, // i8,
-    tracker : u8,
-    oldstvib : bool,
-    fastvolslide : bool,
-    amigalimits : bool,
-    musicmax : u8,
-    //numChannels : u8,
-    tempo : i16,
-    globalvol : i16,
-    stereomode : i8,
-    mastervol : u8,
-    //mseg_len : u32,
+    //instrumentadd   : u16,
+    lastachannelused: u8, // i8,
+    tracker         : u8,
+    oldstvib        : bool,
+    fastvolslide    : bool,
+    amigalimits     : bool,
+    musicmax        : u8,
+    //numChannels     : u8,
+    tempo           : i16,
+    globalvol       : i16,
+    //stereomode      : bool,
+    //mastervol       : u8,
+    //mseg_len        : u32,
 } 
 
 
@@ -225,7 +225,29 @@ static VIBRAMP: [i16; 64] = [
 
 impl St3Play {
     pub fn new(_module: &Module) -> Self {
-        Default::default()
+        let mut player: Self = Default::default();
+
+        for i in 0..32 {
+            player.chn[i].channelnum   = i as u8;
+            player.chn[i].achannelused = 0x80;
+            player.chn[i].chanvol      = 0x40;
+        }
+
+        player.lastachannelused = 1;
+
+        /*
+        // count *real* amount of orders
+        let mut i = module.ord_num;
+        while i != 0 {
+            if module.order[i-1] != 255 {
+                break
+            }
+            i -= 1;
+        }
+        module.ord_num = i;
+        */
+
+        player
     }
 
     fn getlastnfo(&mut self, i: usize) {
@@ -300,13 +322,13 @@ impl St3Play {
         self.chn[ch].achannelused |= 0x80;
         mixer.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0) * (self.chn[ch].chanvol as f64 / 64.0) *
                               (self.globalvol as f64 / 64.0) * 1024.0) as usize);
-        mixer.set_pan(ch, self.chn[ch].apanpos as isize);
+        mixer.set_pan(ch, self.chn[ch].apanpos as isize - 128);
     }
 
     fn setpan(&mut self, ch: usize, mixer: &mut Mixer) {
         mixer.set_volume(ch, ((self.chn[ch].avol as f64 / 63.0) * (self.chn[ch].chanvol as f64 / 64.0) *
                               (self.globalvol as f64 / 64.0) * 1024.0) as usize);
-        mixer.set_pan(ch, self.chn[ch].apanpos as isize);
+        mixer.set_pan(ch, self.chn[ch].apanpos as isize - 128);
     }
 
     fn stnote2herz(&mut self, note: u8) -> u16 {
@@ -827,12 +849,6 @@ impl St3Play {
     }
 
     fn loadheaderparms(&mut self, module: &S3mData) {
-        //uint8_t *insdat;
-        //uint16_t insnum;
-        //uint32_t i;
-        //uint32_t j;
-        //uint32_t inslen;
-        //uint32_t insoff;
 
         // set to init defaults first
         self.oldstvib = false;
@@ -2099,25 +2115,38 @@ impl St3Play {
 
 
 impl FormatPlayer for St3Play {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, _mixer: &mut Mixer) {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<S3mData>().unwrap();
 
+        self.soundcardtype == SOUNDCARD_GUS;
+
         self.loadheaderparms(&module);
 
-        for i in 0..32 {
-            self.chn[i].channelnum   = i as u8;
-            self.chn[i].achannelused = 0x80;
-            self.chn[i].chanvol      = 0x40;
-        }
+        self.np_ord = 0;
+        self.neworder(&module);
 
-        self.lastachannelused = 1;
+        // set up pans
+        for i in 0..32 {
+            let mut pan = 128_i16;
+            if module.ch_settings[i] != 0xff {
+                pan = if module.ch_settings[i] & 8 != 0 { 0x0c * 17 } else { 0x03 * 17 };
+            }
+
+            if module.d_p == 0xfc {  // non-default pannings follow
+                let dat = module.ch_pan[i] as i16;
+                if dat & 0x20 != 0 {
+                    pan = (dat & 0x0f) * 17;
+                }
+            }
+
+            self.chn[i].apanpos = pan;
+            self.setpan(i, &mut mixer);
+        }
 
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as usize;
 
-        self.np_ord = 0;
-        self.neworder(&module);
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
