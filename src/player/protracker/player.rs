@@ -35,7 +35,7 @@ impl ModPlayer {
     pub fn new(module: &Module, options: Options) -> Self {
         ModPlayer {
             options,
-            state: vec![ChannelData::new(); module.data.channels()],
+            state: vec![ChannelData::new(); 4],
 
             mt_speed          : 6,
             mt_counter        : 0,
@@ -97,7 +97,7 @@ impl ModPlayer {
     }
 
     fn mt_no_new_all_channels(&mut self, module: &ModData, mut mixer: &mut Mixer) {
-        for chn in 0..module.channels() {
+        for chn in 0..4 {
             self.mt_check_efx(chn, &mut mixer);
         }
     }
@@ -108,12 +108,12 @@ impl ModPlayer {
             None      => return,
         };
 
-        for chn in 0..module.channels() {
+        for chn in 0..4 {
             self.mt_play_voice(pat, chn, &module, &mut mixer);
         }
 
         // mt_SetDMA
-        for chn in 0..module.channels() {
+        for chn in 0..4 {
             let state = &mut self.state[chn];
             mixer.set_loop_start(chn, state.n_loopstart * 2);
             mixer.set_loop_end(chn, (state.n_loopstart + state.n_replen as u32) * 2);
@@ -887,6 +887,18 @@ impl FormatPlayer for ModPlayer {
     fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, mixer: &mut Mixer) {
         data.speed = 6;
         data.tempo = 125;
+
+        let pan = match self.options.option_int("pan") {
+            Some(val) => val,
+            None      => 70,
+        };
+        let panl = -128 * pan / 100;
+        let panr = 127 * pan / 100;
+
+        mixer.set_pan(0, panl);
+        mixer.set_pan(1, panr);
+        mixer.set_pan(2, panr);
+        mixer.set_pan(3, panl);
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
