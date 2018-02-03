@@ -12,6 +12,28 @@ use util::MemOpExt;
 use ::*;
 
 
+fn all() -> Vec<Box<PlayerListEntry>> {
+    vec![
+        Box::new(st3::St3),
+        Box::new(st2::St2),
+        Box::new(protracker::Pt21a),
+    ]
+}
+
+pub fn list() -> Vec<PlayerInfo> {
+    all().iter().map(|p| p.info()).collect()
+}
+
+pub fn list_by_id(player_id: &str) -> Result<Box<PlayerListEntry>, Error> {
+    for p in all() {
+        if player_id == p.info().id {
+            return Ok(p)
+        }
+    }
+    Err(Error::Format("player not found"))
+}
+
+
 // For the player list
 
 pub struct PlayerInfo {
@@ -81,9 +103,9 @@ pub struct Player<'a> {
 }
 
 impl<'a> Player<'a> {
-    pub fn find_player(module: &'a Module, player_id: &str, optstr: &str) -> Result<Self, Error> {
+    pub fn find(module: &'a Module, player_id: &str, optstr: &str) -> Result<Self, Error> {
 
-        let format_player = Player::find_by_id(player_id)?.player(&module, Options::from_str(optstr));
+        let format_player = list_by_id(player_id)?.player(&module, Options::from_str(optstr));
 
         let mixer = Mixer::new(module.data.channels(), &module.data.samples());
         Ok(Player {
@@ -97,27 +119,6 @@ impl<'a> Player<'a> {
             in_pos    : 0,
             in_size   : 0,
         })
-    }
-
-    fn all() -> Vec<Box<PlayerListEntry>> {
-        vec![
-            Box::new(st3::St3),
-            Box::new(st2::St2),
-            Box::new(protracker::Pt21a),
-        ]
-    }
-
-    pub fn list() -> Vec<PlayerInfo> {
-        Self::all().iter().map(|p| p.info()).collect()
-    }
-
-    fn find_by_id(player_id: &str) -> Result<Box<PlayerListEntry>, Error> {
-        for p in Self::all() {
-            if player_id == p.info().id {
-                return Ok(p)
-            }
-        }
-        Err(Error::Format("player not found"))
     }
 
     pub fn scan(&mut self) -> &Self {
