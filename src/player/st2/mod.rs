@@ -1,7 +1,7 @@
 mod st2play;
 
 use module::Module;
-use player::{PlayerListEntry, PlayerInfo, FormatPlayer};
+use player::{Options, PlayerListEntry, PlayerInfo, FormatPlayer};
 
 pub struct St2;
 
@@ -16,8 +16,8 @@ impl PlayerListEntry for St2 {
        }
    }
 
-   fn player(&self, module: &Module) -> Box<FormatPlayer> {
-       Box::new(self::st2play::St2Play::new(module))
+   fn player(&self, module: &Module, options: Options) -> Box<FormatPlayer> {
+       Box::new(self::st2play::St2Play::new(module, options))
    }
 }
 

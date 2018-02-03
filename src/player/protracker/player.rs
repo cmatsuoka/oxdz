@@ -1,5 +1,5 @@
 use module::{Module, ModuleData};
-use player::{PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer};
 use format::mk::ModData;
 use mixer::Mixer;
 
@@ -15,7 +15,8 @@ use mixer::Mixer;
 /// * CIA tempo support added to the original PT2.1A set speed command.
 
 pub struct ModPlayer {
-    state : Vec<ChannelData>,
+    state  : Vec<ChannelData>,
+    options: Options, 
 
     mt_speed          : u8,
     mt_counter        : u8,
@@ -31,8 +32,9 @@ pub struct ModPlayer {
 }
 
 impl ModPlayer {
-    pub fn new(module: &Module) -> Self {
+    pub fn new(module: &Module, options: Options) -> Self {
         ModPlayer {
+            options,
             state: vec![ChannelData::new(); module.data.channels()],
 
             mt_speed          : 6,
@@ -882,7 +884,7 @@ impl ChannelData {
 
 
 impl FormatPlayer for ModPlayer {
-    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, _mixer: &mut Mixer) {
+    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, mixer: &mut Mixer) {
         data.speed = 6;
         data.tempo = 125;
     }

@@ -6,9 +6,11 @@ mod st3;
 pub use mixer::Mixer;
 
 use std::cmp;
+use std::collections::HashMap;
 use module::{Module, ModuleData};
 use util::MemOpExt;
 use ::*;
+
 
 // For the player list
 
@@ -22,7 +24,7 @@ pub struct PlayerInfo {
 
 pub trait PlayerListEntry {
     fn info(&self) -> PlayerInfo;
-    fn player(&self, module: &Module) -> Box<FormatPlayer>;
+    fn player(&self, module: &Module, options: Options) -> Box<FormatPlayer>;
 }
 
 
@@ -79,9 +81,9 @@ pub struct Player<'a> {
 }
 
 impl<'a> Player<'a> {
-    pub fn find_player(module: &'a Module, player_id: &str) -> Result<Self, Error> {
+    pub fn find_player(module: &'a Module, player_id: &str, optstr: &str) -> Result<Self, Error> {
 
-        let format_player = Player::find_by_id(player_id)?.player(&module);
+        let format_player = Player::find_by_id(player_id)?.player(&module, Options::from_str(optstr));
 
         let mixer = Mixer::new(module.data.channels(), &module.data.samples());
         Ok(Player {
@@ -257,3 +259,27 @@ impl FrameInfo {
         Default::default()
     }
 }
+
+
+
+pub struct Options {
+    opt: HashMap<String, String>,
+}
+
+impl Options {
+    pub fn from_str(optstr: &str) -> Self {
+        Options{
+            opt: HashMap::new(),
+        }
+    }
+
+    pub fn has_option(&self, opt: &str) -> bool {
+        false
+    }
+
+    pub fn option_int(&self, opt: &str) -> Option<isize> {
+        None
+    }
+}
+
+

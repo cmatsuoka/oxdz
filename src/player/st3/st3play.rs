@@ -1,5 +1,5 @@
 use module::{Module, ModuleData};
-use player::{PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer};
 use format::s3m::S3mData;
 use mixer::Mixer;
 
@@ -224,7 +224,7 @@ static VIBRAMP: [i16; 64] = [
 // CODE START
 
 impl St3Play {
-    pub fn new(_module: &Module) -> Self {
+    pub fn new(_module: &Module, _options: Options) -> Self {
         let mut player: Self = Default::default();
 
         for i in 0..32 {
@@ -2146,7 +2146,6 @@ impl FormatPlayer for St3Play {
 
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as usize;
-
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {

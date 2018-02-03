@@ -65,7 +65,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
         println!("{:5} {:40} {:?}", p.id, p.name, p.accepts);
     }
 
-    let mut player = player::Player::find_player(&module, module.player)?;
+    let mut player = player::Player::find_player(&module, module.player, "")?;
 
     println!("Length: {}", module.len());
     println!("Patterns: {}", module.patterns());
@@ -79,7 +79,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     let writer = BufWriter::new(file);
     let mut wave_writer = try!(WaveWriter::new(2, 44100, 16, writer));
 
-    player.start();
+    player.start()?;
     for _ in 0..1000 {
         let buffer = player.info(&mut frame_info).play_frame().buffer();
         print!("info pos:{} row:{} frame:{} speed:{} tempo:{}    \r", frame_info.pos, frame_info.row, frame_info.frame, frame_info.speed, frame_info.tempo);

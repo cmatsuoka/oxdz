@@ -1,5 +1,5 @@
 use module::{Module, ModuleData};
-use player::{PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer};
 use format::stm::StmData;
 use mixer::Mixer;
 
@@ -87,7 +87,7 @@ pub struct St2Play {
 }
 
 impl St2Play {
-    pub fn new(module: &Module) -> Self {
+    pub fn new(module: &Module, _options: Options) -> Self {
         St2Play {
             //sample_rate     : 15909,
             pattern_current : 0,
