@@ -42,7 +42,7 @@ impl ModLoader {
 
 impl Loader for ModLoader {
     fn name(&self) -> &'static str {
-        "Protracker MOD"
+        "Amiga Protracker/Compatible"
     }
   
     fn probe(&self, b: &[u8]) -> Result<(), Error> {
