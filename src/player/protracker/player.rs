@@ -55,7 +55,7 @@ impl ModPlayer {
             // mt_NoNewNote
             self.mt_no_new_all_channels(&module, &mut mixer);
             self.mt_no_new_pos_yet(&module);
-            return;
+            return
         }
 
         self.mt_counter = 0;
@@ -382,7 +382,7 @@ impl ModPlayer {
     fn mt_tone_port_no_change(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
         if state.n_wantedperiod == 0 {
-            return;
+            return
         }
         if state.n_toneportdirec {
             // mt_TonePortaDown
@@ -679,7 +679,7 @@ impl ModPlayer {
             } else {
                 state.n_loopcount -= 1;
                 if state.n_loopcount == 0 {
-                    return;
+                    return
                 }
             }
             // mt_jmploop
@@ -698,16 +698,16 @@ impl ModPlayer {
         let state = &mut self.state[chn];
         let cmdlo = state.n_cmdlo & 0x0f;
         if cmdlo == 0 {
-            return;
+            return
         }
         if self.mt_counter == 0 {
             if state.n_note & 0xfff != 0 {
-                return;
+                return
             }
         }
         // mt_rtnskp
         if self.mt_counter % cmdlo != 0 {
-            return;
+            return
         }
         
         // mt_DoRetrig
@@ -716,14 +716,14 @@ impl ModPlayer {
 
     fn mt_volume_fine_up(&mut self, chn: usize, mut mixer: &mut Mixer) {
         if self.mt_counter != 0 {
-            return;
+            return
         }
         self.mt_vol_slide_up(chn, &mut mixer);
     }
 
     fn mt_volume_fine_down(&mut self, chn: usize, mut mixer: &mut Mixer) {
         if self.mt_counter != 0 {
-            return;
+            return
         }
         self.mt_vol_slide_down(chn, &mut mixer)
     }
@@ -731,7 +731,7 @@ impl ModPlayer {
     fn mt_note_cut(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
         if self.mt_counter != state.n_cmdlo {
-            return;
+            return
         }
         state.n_volume = 0;
         mixer.set_volume(chn, 0);  // MOVE.W  #0,8(A5)
@@ -740,10 +740,10 @@ impl ModPlayer {
     fn mt_note_delay(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
         if self.mt_counter != state.n_cmdlo {
-            return;
+            return
         }
         if state.n_note == 0 {
-            return;
+            return
         }
         // BRA mt_DoRetrig
         mixer.set_voicepos(chn, 0.0);
@@ -752,10 +752,10 @@ impl ModPlayer {
     fn mt_pattern_delay(&mut self, chn: usize) {
         let state = &mut self.state[chn];
         if self.mt_counter != 0 {
-            return;
+            return
         }
         if self.mt_patt_del_time_2 != 0 {
-            return;
+            return
         }
         self.mt_patt_del_time = state.n_cmdlo & 0x0f + 1;
     }
@@ -765,9 +765,11 @@ impl ModPlayer {
 }
 
 
+/*
 static MT_FUNK_TABLE: [u8; 16] = [
     0, 5, 6, 7, 8, 10, 11, 13, 16, 19, 22, 26, 32, 43, 64, 128
 ];
+*/
 
 static MT_VIBRATO_TABLE: [u8; 32] = [
       0,  24,  49,  74,  97, 120, 141, 161,
