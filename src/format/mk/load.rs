@@ -1,6 +1,7 @@
 use std::cmp;
 use format::Loader;
 use format::mk::{ModData, ModPatterns, ModInstrument};
+use format::mk::fingerprint::{Fingerprint, TrackerID};
 use module::{Module, Sample};
 use module::sample::SampleType;
 use util::{self, BinaryRead};
@@ -72,7 +73,7 @@ impl Loader for ModLoader {
         let song_length = b.read8(950)? as usize;
         let restart = b.read8(951)?;
         let orders = b.slice(952, 128)?;
-        let magic = b.slice(1080, 4)?;
+        let magic = b.read_string(1080, 4)?;
 
         let mut pat = 0_usize;
         orders[..song_length].iter().for_each(|x| { pat = cmp::max(pat, *x as usize); } );
@@ -96,23 +97,38 @@ impl Loader for ModLoader {
             song_length,
             restart,
             orders: [0; 128],
-            magic: [0; 4],
+            magic,
             patterns,
             samples,
         };
 
         data.orders.copy_from_slice(orders);
-        data.magic.copy_from_slice(magic);
+
+        let tracker_id = Fingerprint::id(&data);
+
+        let (creator, player) = match tracker_id {
+            TrackerID::Unknown            => ("unknown tracker",  "pt21"),
+            TrackerID::Protracker         => ("Protracker",       "pt21"),
+            TrackerID::Noisetracker       => ("Noisetracker",     "pt21"),
+            TrackerID::Soundtracker       => ("Soundtracker",     "pt21"),
+            TrackerID::Screamtracker3     => ("Scream Tracker 3", "pt21"),
+            TrackerID::FastTracker        => ("FastTracker",      "pt21"),
+            TrackerID::FlexTrax           => ("FlexTrax",         "pt21"),
+            TrackerID::OpenMPT            => ("OpenMPT",          "pt21"),
+            TrackerID::Converted          => ("Converted",        "pt21"),
+            TrackerID::ConvertedST        => ("Converted 15-ins", "pt21"),
+            TrackerID::UnknownOrConverted => ("Unknown tracker",  "pt21"),
+            TrackerID::ProtrackerClone    => ("Protracker clone", "pt21"),
+        };
 
         let m = Module {
             format_id  : "mod",
             description: "M.K.".to_owned(),
-            creator    : "Protracker".to_owned(),  // TODO: tracker fingerprinting
-            player     : "pt21",
+            creator    : creator.to_owned(),
+            player     : player,
             data       : Box::new(data),
         };
 
         Ok(m)
     }
 }
-

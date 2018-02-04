@@ -105,7 +105,8 @@ pub struct Player<'a> {
 impl<'a> Player<'a> {
     pub fn find(module: &'a Module, player_id: &str, optstr: &str) -> Result<Self, Error> {
 
-        let format_player = list_by_id(player_id)?.player(&module, Options::from_str(optstr));
+        let list_entry = list_by_id(player_id)?;
+        let format_player = list_entry.player(&module, Options::from_str(optstr));
 
         let mixer = Mixer::new(module.data.channels(), &module.data.samples());
         Ok(Player {

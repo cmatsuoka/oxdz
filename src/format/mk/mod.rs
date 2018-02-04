@@ -7,6 +7,8 @@ use module::{event, ModuleData, Sample};
 use util::BinaryRead;
 use ::*;
 
+mod fingerprint;
+
 
 pub struct ModData {
     pub song_name: String,
@@ -14,7 +16,7 @@ pub struct ModData {
     pub song_length: usize,
     pub restart: u8,  // Noisetracker restart
     pub orders: [u8; 128],
-    pub magic: [u8; 4],
+    pub magic: String,
     pub patterns: ModPatterns,
     pub samples: Vec<Sample>,
 }
