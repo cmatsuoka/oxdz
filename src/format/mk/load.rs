@@ -51,7 +51,8 @@ impl Loader for ModLoader {
             return Err(Error::Format("file too short"));
         }
 
-        if b.read32b(1080)? == 0x4d2e4b2e {
+        let magic = b.read_string(1080, 4)?;
+        if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." {
             Ok(())
         } else {
             Err(Error::Format("bad magic"))
@@ -109,14 +110,14 @@ impl Loader for ModLoader {
         let (creator, player) = match tracker_id {
             TrackerID::Unknown            => ("unknown tracker",  "pt21"),
             TrackerID::Protracker         => ("Protracker",       "pt21"),
-            TrackerID::Noisetracker       => ("Noisetracker",     "pt21"),
+            TrackerID::Noisetracker       => ("Noisetracker",     "nt11"),
             TrackerID::Soundtracker       => ("Soundtracker",     "pt21"),
             TrackerID::Screamtracker3     => ("Scream Tracker 3", "pt21"),
             TrackerID::FastTracker        => ("FastTracker",      "pt21"),
             TrackerID::FlexTrax           => ("FlexTrax",         "pt21"),
             TrackerID::OpenMPT            => ("OpenMPT",          "pt21"),
             TrackerID::Converted          => ("Converted",        "pt21"),
-            TrackerID::ConvertedST        => ("Converted 15-ins", "pt21"),
+            TrackerID::ConvertedST        => ("Converted 15-ins", "nt11"),
             TrackerID::UnknownOrConverted => ("Unknown tracker",  "pt21"),
             TrackerID::ProtrackerClone    => ("Protracker clone", "pt21"),
         };
