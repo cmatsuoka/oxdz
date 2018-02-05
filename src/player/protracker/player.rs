@@ -110,6 +110,8 @@ impl ModPlayer {
 
         for chn in 0..4 {
             self.mt_play_voice(pat, chn, &module, &mut mixer);
+            // PT2.3D: moved from various efx
+            mixer.set_volume(chn, (self.state[chn].n_volume as usize) << 4);
         }
 
         // mt_SetDMA
@@ -141,7 +143,8 @@ impl ModPlayer {
             if ins > 0 && ins <= 31 {       // sanity check: was: ins != 0
                 let instrument = &module.instruments[ins - 1];
                 //state.n_reallength = instrument.size;
-                state.n_finetune = instrument.finetune;
+                // PT2.3D fix: mask finetune
+                state.n_finetune = instrument.finetune & 0x0f;
                 state.n_volume = instrument.volume as u8;
                 state.n_length = instrument.repeat + instrument.replen;
                 state.n_replen = instrument.replen;
@@ -205,7 +208,7 @@ impl ModPlayer {
                 i += 1;         // ADDQ.L  #2,D0
             }                   // DBRA    D7,mt_ftuloop
             // mt_ftufound
-            state.n_period = MT_PERIOD_TABLE[36 * state.n_finetune as usize + i];
+            state.n_period = MT_PERIOD_TABLE[37 * state.n_finetune as usize + i];
 
             if state.n_cmd & 0x0f != 0x0e || (state.n_cmdlo & 0xf0) != 0xd0 {  // !Notedelay
                 if state.n_wavecontrol & 0x04 != 0x00 {
@@ -264,7 +267,7 @@ impl ModPlayer {
                        mixer.set_period(chn, self.state[chn].n_period as f64);  // MOVE.W  n_period(A6),6(A5)
                        match cmd {
                            0x7 => self.mt_tremolo(chn, &mut mixer),
-                           0xa => self.mt_volume_slide(chn, &mut mixer),
+                           0xa => self.mt_volume_slide(chn),
                            _   => {},
                        }
                    }
@@ -291,7 +294,7 @@ impl ModPlayer {
         } as usize;
 
         // Arpeggio3
-        let ofs = 36 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D1 / MULU    #36*2,D1
+        let ofs = 37 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D1 / MULU    #36*2,D1
 
         // mt_arploop
         for i in 0..36 {
@@ -342,13 +345,13 @@ impl ModPlayer {
     fn mt_set_tone_porta(&mut self, chn: usize) {
         let state = &mut self.state[chn];
         let note = state.n_note & 0xfff;
-        let ofs = 36 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D0 / MULU    #37*2,D0
+        let ofs = 37 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D0 / MULU    #37*2,D0
 
         let mut i = 0;       // MOVEQ   #0,D0
         // mt_StpLoop
         while note < MT_PERIOD_TABLE[ofs + i] {    // BHS.S   mt_StpFound
             i += 1;          // ADDQ.W  #2,D0
-            if i >= 36 {     // CMP.W   #37*2,D0 / BLO.S   mt_StpLoop
+            if i >= 37 {     // CMP.W   #37*2,D0 / BLO.S   mt_StpLoop
                 i = 35;      // MOVEQ   #35*2,D0
                 break
             }
@@ -408,7 +411,7 @@ impl ModPlayer {
         // mt_TonePortaSetPer
         let mut period = state.n_period;               // MOVE.W  n_period(A6),D2
         if state.n_glissfunk & 0x0f != 0 {
-            let ofs = 36 * state.n_finetune as usize;  // MULU    #36*2,D0
+            let ofs = 37 * state.n_finetune as usize;  // MULU    #36*2,D0
             let mut i = 0;
             // mt_GlissLoop
             while period < MT_PERIOD_TABLE[ofs + i] {  // LEA     mt_PeriodTable(PC),A0 / CMP.W   (A0,D0.W),D2
@@ -473,12 +476,12 @@ impl ModPlayer {
 
     fn mt_tone_plus_vol_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
         self.mt_tone_port_no_change(chn, &mut mixer);
-        self.mt_volume_slide(chn, &mut mixer);
+        self.mt_volume_slide(chn);
     }
 
     fn mt_vibrato_plus_vol_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
         self.mt_vibrato_2(chn, &mut mixer);
-        self.mt_volume_slide(chn, &mut mixer);
+        self.mt_volume_slide(chn);
     }
 
     fn mt_tremolo(&mut self, chn: usize, mixer: &mut Mixer) {
@@ -537,24 +540,25 @@ impl ModPlayer {
         mixer.set_voicepos(chn, ((state.n_sampleoffset as u32) << 8) as f64);
     }
 
-    fn mt_volume_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
+    fn mt_volume_slide(&mut self, chn: usize) {
         if self.state[chn].n_cmdlo >> 4 == 0 {
-            self.mt_vol_slide_down(chn, &mut mixer);
+            self.mt_vol_slide_down(chn);
         } else {
-            self.mt_vol_slide_up(chn, &mut mixer);
+            self.mt_vol_slide_up(chn);
         }
     }
 
-    fn mt_vol_slide_up(&mut self, chn: usize, mixer: &mut Mixer) {
+    fn mt_vol_slide_up(&mut self, chn: usize) {
         let state = &mut self.state[chn];
         state.n_volume += state.n_cmdlo >> 4;
         if state.n_volume > 0x40 {
             state.n_volume = 0x40;
         }
-        mixer.set_volume(chn, (state.n_volume as usize) << 4);
+        // PT2.3D: moved to mt_GetNewNote
+        //mixer.set_volume(chn, (state.n_volume as usize) << 4);
     }
 
-    fn mt_vol_slide_down(&mut self, chn: usize, mixer: &mut Mixer) {
+    fn mt_vol_slide_down(&mut self, chn: usize) {
         let state = &mut self.state[chn];
         let cmdlo = state.n_cmdlo & 0x0f;
         if state.n_volume > cmdlo {
@@ -562,7 +566,8 @@ impl ModPlayer {
         } else {
             state.n_volume = 0;
         }
-        mixer.set_volume(chn, (state.n_volume as usize) << 4);
+        // PT2.3D: moved to mt_GetNewNote
+        //mixer.set_volume(chn, (state.n_volume as usize) << 4);
     }
 
     fn mt_position_jump(&mut self, chn: usize) {
@@ -573,13 +578,14 @@ impl ModPlayer {
         self.mt_pos_jump_flag = true;
     }
 
-    fn mt_volume_change(&mut self, chn: usize, mixer: &mut Mixer) {
+    fn mt_volume_change(&mut self, chn: usize) {
         let state = &mut self.state[chn];
         if state.n_cmdlo > 0x40 {
             state.n_cmdlo = 40
         }
         state.n_volume = state.n_cmdlo;
-        mixer.set_volume(chn, (state.n_volume as usize) << 4);  // MOVE.W  D0,8(A5)
+        // PT2.3D: moved to mt_GetNewNote
+        //mixer.set_volume(chn, (state.n_volume as usize) << 4);  // MOVE.W  D0,8(A5)
     }
 
     fn mt_pattern_break(&mut self, chn: usize) {
@@ -614,7 +620,7 @@ impl ModPlayer {
             0xd => self.mt_pattern_break(chn),
             0xe => self.mt_e_commands(chn, &mut mixer),
             0xf => self.mt_set_speed(chn),
-            0xc => self.mt_volume_change(chn, &mut mixer),
+            0xc => self.mt_volume_change(chn),
             _   => {},
         }
 
@@ -633,8 +639,8 @@ impl ModPlayer {
            0x6 => self.mt_jump_loop(chn),
            0x7 => self.mt_set_tremolo_control(chn),
            0x9 => self.mt_retrig_note(chn, &mut mixer),
-           0xa => self.mt_volume_fine_up(chn, &mut mixer),
-           0xb => self.mt_volume_fine_down(chn, &mut mixer),
+           0xa => self.mt_volume_fine_up(chn),
+           0xb => self.mt_volume_fine_down(chn),
            0xc => self.mt_note_cut(chn, &mut mixer),
            0xd => self.mt_note_delay(chn, &mut mixer),
            0xe => self.mt_pattern_delay(chn),
@@ -716,18 +722,18 @@ impl ModPlayer {
         mixer.set_voicepos(chn, 0.0);
     }
 
-    fn mt_volume_fine_up(&mut self, chn: usize, mut mixer: &mut Mixer) {
+    fn mt_volume_fine_up(&mut self, chn: usize) {
         if self.mt_counter != 0 {
             return
         }
-        self.mt_vol_slide_up(chn, &mut mixer);
+        self.mt_vol_slide_up(chn);
     }
 
-    fn mt_volume_fine_down(&mut self, chn: usize, mut mixer: &mut Mixer) {
+    fn mt_volume_fine_down(&mut self, chn: usize) {
         if self.mt_counter != 0 {
             return
         }
-        self.mt_vol_slide_down(chn, &mut mixer)
+        self.mt_vol_slide_down(chn)
     }
 
     fn mt_note_cut(&mut self, chn: usize, mixer: &mut Mixer) {
@@ -744,7 +750,8 @@ impl ModPlayer {
         if self.mt_counter != state.n_cmdlo {
             return
         }
-        if state.n_note == 0 {
+        // PT2.3D/E fix: mask note
+        if state.n_note & 0xfff == 0 {
             return
         }
         // BRA mt_DoRetrig
@@ -781,71 +788,72 @@ static MT_VIBRATO_TABLE: [u8; 32] = [
 ];
 
 
-static MT_PERIOD_TABLE: [u16; 16*12*3] = [
+// PT2.3D fix: add trailing zeros
+static MT_PERIOD_TABLE: [u16; 16*37] = [
 // Tuning 0, Normal
     856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
     428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
-    214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113,
+    214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113, 0,
 // Tuning 1
     850, 802, 757, 715, 674, 637, 601, 567, 535, 505, 477, 450,
     425, 401, 379, 357, 337, 318, 300, 284, 268, 253, 239, 225,
-    213, 201, 189, 179, 169, 159, 150, 142, 134, 126, 119, 113,
+    213, 201, 189, 179, 169, 159, 150, 142, 134, 126, 119, 113, 0,
 // Tuning 2
     844, 796, 752, 709, 670, 632, 597, 563, 532, 502, 474, 447,
     422, 398, 376, 355, 335, 316, 298, 282, 266, 251, 237, 224,
-    211, 199, 188, 177, 167, 158, 149, 141, 133, 125, 118, 112,
+    211, 199, 188, 177, 167, 158, 149, 141, 133, 125, 118, 112, 0,
 // Tuning 3
     838, 791, 746, 704, 665, 628, 592, 559, 528, 498, 470, 444,
     419, 395, 373, 352, 332, 314, 296, 280, 264, 249, 235, 222,
-    209, 198, 187, 176, 166, 157, 148, 140, 132, 125, 118, 111,
+    209, 198, 187, 176, 166, 157, 148, 140, 132, 125, 118, 111, 0,
 // Tuning 4
     832, 785, 741, 699, 660, 623, 588, 555, 524, 495, 467, 441,
     416, 392, 370, 350, 330, 312, 294, 278, 262, 247, 233, 220,
-    208, 196, 185, 175, 165, 156, 147, 139, 131, 124, 117, 110,
+    208, 196, 185, 175, 165, 156, 147, 139, 131, 124, 117, 110, 0,
 // Tuning 5
     826, 779, 736, 694, 655, 619, 584, 551, 520, 491, 463, 437,
     413, 390, 368, 347, 328, 309, 292, 276, 260, 245, 232, 219,
-    206, 195, 184, 174, 164, 155, 146, 138, 130, 123, 116, 109,
+    206, 195, 184, 174, 164, 155, 146, 138, 130, 123, 116, 109, 0,
 // Tuning 6
     820, 774, 730, 689, 651, 614, 580, 547, 516, 487, 460, 434,
     410, 387, 365, 345, 325, 307, 290, 274, 258, 244, 230, 217,
-    205, 193, 183, 172, 163, 154, 145, 137, 129, 122, 115, 109,
+    205, 193, 183, 172, 163, 154, 145, 137, 129, 122, 115, 109, 0,
 // Tuning 7
     814, 768, 725, 684, 646, 610, 575, 543, 513, 484, 457, 431,
     407, 384, 363, 342, 323, 305, 288, 272, 256, 242, 228, 216,
-    204, 192, 181, 171, 161, 152, 144, 136, 128, 121, 114, 108,
+    204, 192, 181, 171, 161, 152, 144, 136, 128, 121, 114, 108, 0,
 // Tuning -8
     907, 856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480,
     453, 428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240,
-    226, 214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120,
+    226, 214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 0,
 // Tuning -7
     900, 850, 802, 757, 715, 675, 636, 601, 567, 535, 505, 477,
     450, 425, 401, 379, 357, 337, 318, 300, 284, 268, 253, 238,
-    225, 212, 200, 189, 179, 169, 159, 150, 142, 134, 126, 119,
+    225, 212, 200, 189, 179, 169, 159, 150, 142, 134, 126, 119, 0,
 // Tuning -6
     894, 844, 796, 752, 709, 670, 632, 597, 563, 532, 502, 474,
     447, 422, 398, 376, 355, 335, 316, 298, 282, 266, 251, 237,
-    223, 211, 199, 188, 177, 167, 158, 149, 141, 133, 125, 118,
+    223, 211, 199, 188, 177, 167, 158, 149, 141, 133, 125, 118, 0,
 // Tuning -5
     887, 838, 791, 746, 704, 665, 628, 592, 559, 528, 498, 470,
     444, 419, 395, 373, 352, 332, 314, 296, 280, 264, 249, 235,
-    222, 209, 198, 187, 176, 166, 157, 148, 140, 132, 125, 118,
+    222, 209, 198, 187, 176, 166, 157, 148, 140, 132, 125, 118, 0,
 // Tuning -4
     881, 832, 785, 741, 699, 660, 623, 588, 555, 524, 494, 467,
     441, 416, 392, 370, 350, 330, 312, 294, 278, 262, 247, 233,
-    220, 208, 196, 185, 175, 165, 156, 147, 139, 131, 123, 117,
+    220, 208, 196, 185, 175, 165, 156, 147, 139, 131, 123, 117, 0,
 // Tuning -3
     875, 826, 779, 736, 694, 655, 619, 584, 551, 520, 491, 463,
     437, 413, 390, 368, 347, 328, 309, 292, 276, 260, 245, 232,
-    219, 206, 195, 184, 174, 164, 155, 146, 138, 130, 123, 116,
+    219, 206, 195, 184, 174, 164, 155, 146, 138, 130, 123, 116, 0,
 // Tuning -2
     868, 820, 774, 730, 689, 651, 614, 580, 547, 516, 487, 460,
     434, 410, 387, 365, 345, 325, 307, 290, 274, 258, 244, 230,
-    217, 205, 193, 183, 172, 163, 154, 145, 137, 129, 122, 115,
+    217, 205, 193, 183, 172, 163, 154, 145, 137, 129, 122, 115, 0,
 // Tuning -1
     862, 814, 768, 725, 684, 646, 610, 575, 543, 513, 484, 457,
     431, 407, 384, 363, 342, 323, 305, 288, 272, 256, 242, 228,
-    216, 203, 192, 181, 171, 161, 152, 144, 136, 128, 121, 114
+    216, 203, 192, 181, 171, 161, 152, 144, 136, 128, 121, 114, 0
 ];
 
 

@@ -9,8 +9,8 @@ impl PlayerListEntry for Pt21a {
    fn info(&self) -> PlayerInfo {
        PlayerInfo {
           id         : "pt21",
-          name       : r#""Vinterstigen" Protracker 2.1A replayer"#,
-          description: "A mod player based on the on the original Protracker 2.1A replayer",
+          name       : r#""Vinterstigen" Protracker 2.1A + fixes"#,
+          description: "A mod player based on the on the Protracker 2.1A replayer + 2.3D fixes",
           author     : "Claudio Matsuoka",
           accepts    : &[ "mod" ],
        }
