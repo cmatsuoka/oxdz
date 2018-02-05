@@ -10,9 +10,13 @@ use mixer::Mixer;
 /// possible (converted to snake case according to Rust convention, i.e.
 /// mt_PosJumpFlag becomes mt_pos_jump_flag).
 ///
-/// Notes:
-/// * Mixer volumes are *16, so adjust when setting.
-/// * CIA tempo support added to the original PT2.1A set speed command.
+/// Bug fixes backported from Protracker 2.3D:
+/// * Mask finetune when playing voice
+/// * Mask note value in note delay command processing
+/// * Fix period table lookup by adding trailing zero values
+///
+/// Optimizations backported from Protracker 2.3D:
+/// * Move volume setting from command processing to the voice playing loop
 
 pub struct ModPlayer {
     state  : Vec<ChannelData>,
@@ -150,6 +154,7 @@ impl ModPlayer {
                 state.n_replen = instrument.replen;
 
                 mixer.set_patch(chn, ins - 1, ins - 1);
+                // PT2.3D: moved to mt_GetNewNote
                 mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 if instrument.replen > 1 {
                     state.n_loopstart = instrument.repeat as u32;
@@ -750,7 +755,7 @@ impl ModPlayer {
         if self.mt_counter != state.n_cmdlo {
             return
         }
-        // PT2.3D/E fix: mask note
+        // PT2.3D fix: mask note
         if state.n_note & 0xfff == 0 {
             return
         }

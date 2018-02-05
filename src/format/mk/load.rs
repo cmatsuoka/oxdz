@@ -108,18 +108,18 @@ impl Loader for ModLoader {
         let tracker_id = Fingerprint::id(&data);
 
         let (creator, player) = match tracker_id {
-            TrackerID::Unknown            => ("unknown tracker",  "pt21"),
-            TrackerID::Protracker         => ("Protracker",       "pt21"),
+            TrackerID::Unknown            => ("unknown tracker",  "pt2"),
+            TrackerID::Protracker         => ("Protracker",       "pt2"),
             TrackerID::Noisetracker       => ("Noisetracker",     "nt11"),
-            TrackerID::Soundtracker       => ("Soundtracker",     "pt21"),
-            TrackerID::Screamtracker3     => ("Scream Tracker 3", "pt21"),
-            TrackerID::FastTracker        => ("FastTracker",      "pt21"),
-            TrackerID::FlexTrax           => ("FlexTrax",         "pt21"),
-            TrackerID::OpenMPT            => ("OpenMPT",          "pt21"),
-            TrackerID::Converted          => ("Converted",        "pt21"),
+            TrackerID::Soundtracker       => ("Soundtracker",     "pt2"),
+            TrackerID::Screamtracker3     => ("Scream Tracker 3", "pt2"),
+            TrackerID::FastTracker        => ("FastTracker",      "pt2"),
+            TrackerID::FlexTrax           => ("FlexTrax",         "pt2"),
+            TrackerID::OpenMPT            => ("OpenMPT",          "pt2"),
+            TrackerID::Converted          => ("Converted",        "pt2"),
             TrackerID::ConvertedST        => ("Converted 15-ins", "nt11"),
-            TrackerID::UnknownOrConverted => ("Unknown tracker",  "pt21"),
-            TrackerID::ProtrackerClone    => ("Protracker clone", "pt21"),
+            TrackerID::UnknownOrConverted => ("Unknown tracker",  "pt2"),
+            TrackerID::ProtrackerClone    => ("Protracker clone", "pt2"),
         };
 
         let m = Module {
