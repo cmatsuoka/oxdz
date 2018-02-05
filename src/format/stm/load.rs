@@ -20,7 +20,6 @@ impl StmLoader {
         ins.volume = b.read8(ofs + 22)?;
         ins.c2spd = b.read16l(ofs + 24)?;
 
-
         Ok(ins)
     }
 
@@ -42,23 +41,28 @@ impl StmLoader {
 
 impl Loader for StmLoader {
     fn name(&self) -> &'static str {
-        "Scream Tracker 2 STM"
+        "Scream Tracker 2"
     }
   
-    fn probe(&self, b: &[u8]) -> Result<(), Error> {
+    fn probe(&self, b: &[u8]) -> Result<&str, Error> {
         if b.len() < 1084 {
             return Err(Error::Format("file too short"));
         }
 
         let magic = b.read_string(20, 10)?;
         if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {
-            Ok(())
+            Ok("stm")
         } else {
             Err(Error::Format("bad magic"))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], format: &str) -> Result<Module, Error> {
+
+        if format != "stm" {
+            return Err(Error::Format("unsupported format"));
+        }
+
         let name = b.read_string(0, 20)?;
 
         let version_major = b.read8(30)?;

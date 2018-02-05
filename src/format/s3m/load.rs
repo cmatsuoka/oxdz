@@ -62,24 +62,35 @@ impl S3mLoader {
 
 impl Loader for S3mLoader {
     fn name(&self) -> &'static str {
-        "Scream Tracker 3 S3M"
+        "Scream Tracker 3"
     }
   
-    fn probe(&self, b: &[u8]) -> Result<(), Error> {
+    fn probe(&self, b: &[u8]) -> Result<&str, Error> {
         if b.len() < 256 {
             return Err(Error::Format("file too short"));
+        }
+
+        if b.len() > 1084 {
+            // check for ST3 xCHN, xxCH
+
+            // check for ST3 MOD
         }
 
         let typ = b.read8(0x1d)?;
         let magic = b.read_string(0x2c, 4)?;
         if typ == 16 && magic == "SCRM" {
-            Ok(())
+            Ok("s3m")
         } else {
             Err(Error::Format("bad magic"))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], format: &str) -> Result<Module, Error> {
+
+        if format != "s3m" {
+            return Err(Error::Format("unsupported format"));
+        }
+
         let song_name = b.read_string(0, 28)?;
         let ord_num = b.read16l(0x20)?;
         let ins_num = b.read16l(0x22)?;
