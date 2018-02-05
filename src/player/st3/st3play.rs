@@ -2123,7 +2123,7 @@ impl FormatPlayer for St3Play {
 
         self.loadheaderparms(&module);
 
-        self.np_ord = 0;
+        self.np_ord = data.pos as i16;
         self.neworder(&module);
 
         // set up pans
