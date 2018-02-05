@@ -8,37 +8,6 @@ use ::*;
 /// Scream Tracker 2 module loader
 pub struct StmLoader;
 
-impl StmLoader {
-    fn load_instrument(&self, b: &[u8], i: usize) -> Result<StmInstrument, Error> {
-        let mut ins = StmInstrument::new();
-
-        let ofs = 48 + i * 32;
-        ins.name = b.read_string(ofs, 12)?;
-        ins.size = b.read16l(ofs + 16)?;
-        ins.loop_start = b.read16l(ofs + 18)?;
-        ins.loop_end = b.read16l(ofs + 20)?;
-        ins.volume = b.read8(ofs + 22)?;
-        ins.c2spd = b.read16l(ofs + 24)?;
-
-        Ok(ins)
-    }
-
-    fn load_sample(&self, b: &[u8], i: usize, ins: &StmInstrument) -> Sample {
-        let mut smp = Sample::new();
-
-        smp.num = i + 1;
-        smp.name = ins.name.to_owned();
-        smp.rate = ins.c2spd as f64;
-        smp.size = ins.size as u32;
-        if smp.size > 0 {
-            smp.sample_type = SampleType::Sample8;
-        }
-        smp.store(b);
-
-        smp
-    }
-}
-
 impl Loader for StmLoader {
     fn name(&self) -> &'static str {
         "Scream Tracker 2"
@@ -83,7 +52,7 @@ impl Loader for StmLoader {
 
         // Load instruments
         for i in 0..31 {
-            let ins = self.load_instrument(b, i)?;
+            let ins = load_instrument(b, i)?;
             instruments.push(ins);
         }
 
@@ -97,7 +66,7 @@ impl Loader for StmLoader {
         let mut ofs = 1168 + 1024*num_patterns as usize;
         for i in 0..31 {
             let size = instruments[i].size as usize;
-            let smp = self.load_sample(b.slice(ofs, size)?, i, &instruments[i]);
+            let smp = load_sample(b.slice(ofs, size)?, i, &instruments[i]);
             samples.push(smp);
             ofs += size;
         }
@@ -130,5 +99,34 @@ impl Loader for StmLoader {
 
         Ok(m)
     }
+}
+
+fn load_instrument(b: &[u8], i: usize) -> Result<StmInstrument, Error> {
+    let mut ins = StmInstrument::new();
+
+    let ofs = 48 + i * 32;
+    ins.name = b.read_string(ofs, 12)?;
+    ins.size = b.read16l(ofs + 16)?;
+    ins.loop_start = b.read16l(ofs + 18)?;
+    ins.loop_end = b.read16l(ofs + 20)?;
+    ins.volume = b.read8(ofs + 22)?;
+    ins.c2spd = b.read16l(ofs + 24)?;
+
+    Ok(ins)
+}
+
+fn load_sample(b: &[u8], i: usize, ins: &StmInstrument) -> Sample {
+    let mut smp = Sample::new();
+
+    smp.num = i + 1;
+    smp.name = ins.name.to_owned();
+    smp.rate = ins.c2spd as f64;
+    smp.size = ins.size as u32;
+    if smp.size > 0 {
+        smp.sample_type = SampleType::Sample8;
+    }
+    smp.store(b);
+
+    smp
 }
 

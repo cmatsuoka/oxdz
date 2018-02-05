@@ -21,45 +21,6 @@ impl<'a> BinaryReadExt for &'a [u8] {
 /// Scream Tracker 2 module loader
 pub struct S3mLoader;
 
-impl S3mLoader {
-    fn load_instrument(&self, b: &[u8], ofs: usize) -> Result<S3mInstrument, Error> {
-        let mut ins = S3mInstrument::new();
-
-        ins.typ      = b.read8(ofs)?;
-        ins.memseg   = b.read16l(ofs + 0x0e)?;
-        ins.length   = b.read16l_lo_hi(ofs + 0x10)?;
-        ins.loop_beg = b.read16l_lo_hi(ofs + 0x14)?;
-        ins.loop_end = b.read16l_lo_hi(ofs + 0x18)?;
-        ins.vol      = b.read8i(ofs + 0x1c)?;
-        ins.flags    = b.read8i(ofs + 0x1f)?;
-        ins.c2spd    = b.read16l_lo_hi(ofs + 0x20)?;
-        ins.name     = b.read_string(ofs + 0x30, 28)?;
-
-        Ok(ins)
-    }
-
-    fn load_sample(&self, b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sample, Error> {
-        let mut smp = Sample::new();
-
-        smp.num  = i + 1;
-        smp.name = ins.name.to_owned();
-        smp.size = ins.length;
-        smp.rate = 8363.0;
-
-        if smp.size > 0 {
-            smp.sample_type = if ins.flags & 0x04 != 0 { SampleType::Sample16 } else { SampleType::Sample8 };
-        }
-
-        let sample_size = if ins.flags & 0x04 != 0 { smp.size*2 } else { smp.size };
-        smp.store(b.slice(ins.memseg as usize * 16, sample_size as usize)?);
-        if cvt {
-            smp.to_signed();
-        }
-
-        Ok(smp)
-    }
-}
-
 impl Loader for S3mLoader {
     fn name(&self) -> &'static str {
         "Scream Tracker 3"
@@ -74,6 +35,9 @@ impl Loader for S3mLoader {
             // check for ST3 xCHN, xxCH
 
             // check for ST3 MOD
+            if is_st3_mod(b) {
+                return Ok("m.k.")
+            }
         }
 
         let typ = b.read8(0x1d)?;
@@ -85,9 +49,11 @@ impl Loader for S3mLoader {
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], format: &str) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], fmt: &str) -> Result<Module, Error> {
 
-        if format != "s3m" {
+        if fmt == "m.k." {
+            //return format::s3m::import::from_mod(b: &[u8]);
+        } else if fmt != "s3m" {
             return Err(Error::Format("unsupported format"));
         }
 
@@ -124,8 +90,8 @@ impl Loader for S3mLoader {
         let mut instruments = Vec::<S3mInstrument>::new();
         let mut samples = Vec::<Sample>::new();
         for i in 0..ins_num as usize {
-            let ins = self.load_instrument(b, instrum_pp[i])?;
-            let smp = self.load_sample(b, i, &ins, ffi != 1)?;
+            let ins = load_instrument(b, instrum_pp[i])?;
+            let smp = load_sample(b, i, &ins, ffi != 1)?;
             instruments.push(ins);
             samples.push(smp);
         }
@@ -195,3 +161,43 @@ impl Loader for S3mLoader {
     }
 }
 
+fn load_instrument(b: &[u8], ofs: usize) -> Result<S3mInstrument, Error> {
+    let mut ins = S3mInstrument::new();
+
+    ins.typ      = b.read8(ofs)?;
+    ins.memseg   = b.read16l(ofs + 0x0e)?;
+    ins.length   = b.read16l_lo_hi(ofs + 0x10)?;
+    ins.loop_beg = b.read16l_lo_hi(ofs + 0x14)?;
+    ins.loop_end = b.read16l_lo_hi(ofs + 0x18)?;
+    ins.vol      = b.read8i(ofs + 0x1c)?;
+    ins.flags    = b.read8i(ofs + 0x1f)?;
+    ins.c2spd    = b.read16l_lo_hi(ofs + 0x20)?;
+    ins.name     = b.read_string(ofs + 0x30, 28)?;
+
+    Ok(ins)
+}
+
+fn load_sample(b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sample, Error> {
+    let mut smp = Sample::new();
+
+    smp.num  = i + 1;
+    smp.name = ins.name.to_owned();
+    smp.size = ins.length;
+    smp.rate = 8363.0;
+
+    if smp.size > 0 {
+        smp.sample_type = if ins.flags & 0x04 != 0 { SampleType::Sample16 } else { SampleType::Sample8 };
+    }
+
+    let sample_size = if ins.flags & 0x04 != 0 { smp.size*2 } else { smp.size };
+    smp.store(b.slice(ins.memseg as usize * 16, sample_size as usize)?);
+    if cvt {
+        smp.to_signed();
+    }
+
+    Ok(smp)
+}
+
+fn is_st3_mod(b: &[u8]) -> bool {
+    false
+}

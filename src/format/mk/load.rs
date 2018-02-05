@@ -10,37 +10,6 @@ use ::*;
 /// Protracker module loader
 pub struct ModLoader;
 
-impl ModLoader {
-    fn load_instrument(&self, b: &[u8], i: usize) -> Result<ModInstrument, Error> {
-        let mut ins = ModInstrument::new();
-
-        let ofs = 20 + i * 30;
-        ins.name = b.read_string(ofs, 22)?;
-        ins.size = b.read16b(ofs + 22)?;
-        ins.finetune = b.read8(ofs + 24)?;
-        ins.volume = b.read8(ofs + 25)?;
-        ins.repeat = b.read16b(ofs + 26)?;
-        ins.replen = b.read16b(ofs + 28)?;
-
-        Ok(ins)
-    }
-
-    fn load_sample(&self, b: &[u8], i: usize, ins: &ModInstrument) -> Sample {
-        let mut smp = Sample::new();
-
-        smp.num  = i + 1;
-        smp.name = ins.name.to_owned();
-        smp.size = ins.size as u32 * 2;
-        smp.rate = util::C4_PAL_RATE;
-        if smp.size > 0 {
-            smp.sample_type = SampleType::Sample8;
-        }
-        smp.store(b);
-
-        smp
-    }
-}
-
 impl Loader for ModLoader {
     fn name(&self) -> &'static str {
         "Amiga Protracker/Compatible"
@@ -71,7 +40,7 @@ impl Loader for ModLoader {
         let mut instruments: Vec<ModInstrument> = Vec::new();
         let mut samples: Vec<Sample> = Vec::new();
         for i in 0..31 {
-            let ins = self.load_instrument(b, i)?;
+            let ins = load_instrument(b, i)?;
             instruments.push(ins);
         }
 
@@ -92,7 +61,7 @@ impl Loader for ModLoader {
         let mut ofs = 1084 + 1024*pat;
         for i in 0..31 {
             let size = instruments[i].size as usize * 2;
-            let smp = self.load_sample(b.slice(ofs, size)?, i, &instruments[i]);
+            let smp = load_sample(b.slice(ofs, size)?, i, &instruments[i]);
             samples.push(smp);
             ofs += size;
         }
@@ -138,3 +107,34 @@ impl Loader for ModLoader {
         Ok(m)
     }
 }
+
+
+fn load_instrument(b: &[u8], i: usize) -> Result<ModInstrument, Error> {
+    let mut ins = ModInstrument::new();
+
+    let ofs = 20 + i * 30;
+    ins.name = b.read_string(ofs, 22)?;
+    ins.size = b.read16b(ofs + 22)?;
+    ins.finetune = b.read8(ofs + 24)?;
+    ins.volume = b.read8(ofs + 25)?;
+    ins.repeat = b.read16b(ofs + 26)?;
+    ins.replen = b.read16b(ofs + 28)?;
+
+    Ok(ins)
+}
+
+fn load_sample(b: &[u8], i: usize, ins: &ModInstrument) -> Sample {
+    let mut smp = Sample::new();
+
+    smp.num  = i + 1;
+    smp.name = ins.name.to_owned();
+    smp.size = ins.size as u32 * 2;
+    smp.rate = util::C4_PAL_RATE;
+    if smp.size > 0 {
+        smp.sample_type = SampleType::Sample8;
+    }
+    smp.store(b);
+
+    smp
+}
+
