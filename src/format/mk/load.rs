@@ -15,25 +15,20 @@ impl Loader for ModLoader {
         "Amiga Protracker/Compatible"
     }
   
-    fn probe(&self, b: &[u8]) -> Result<&str, Error> {
+    fn probe(&self, b: &[u8]) -> Result<(), Error> {
         if b.len() < 1084 {
             return Err(Error::Format("file too short"));
         }
 
         let magic = b.read_string(1080, 4)?;
         if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." {
-            Ok("m.k.")
+            Ok(())
         } else {
             Err(Error::Format("bad magic"))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], format: &str) -> Result<Module, Error> {
-
-        if format != "m.k." {
-            return Err(Error::Format("unsupported format"));
-        }
-
+    fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
         let song_name = b.read_string(0, 20)?;
 
         // Load instruments

@@ -13,25 +13,20 @@ impl Loader for StmLoader {
         "Scream Tracker 2"
     }
   
-    fn probe(&self, b: &[u8]) -> Result<&str, Error> {
+    fn probe(&self, b: &[u8]) -> Result<(), Error> {
         if b.len() < 1084 {
             return Err(Error::Format("file too short"));
         }
 
         let magic = b.read_string(20, 10)?;
         if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {
-            Ok("stm")
+            Ok(())
         } else {
             Err(Error::Format("bad magic"))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], format: &str) -> Result<Module, Error> {
-
-        if format != "stm" {
-            return Err(Error::Format("unsupported format"));
-        }
-
+    fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
         let name = b.read_string(0, 20)?;
 
         let version_major = b.read8(30)?;
