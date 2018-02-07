@@ -114,8 +114,6 @@ impl ModPlayer {
 
         for chn in 0..4 {
             self.mt_play_voice(pat, chn, &module, &mut mixer);
-            // PT2.3D: moved from various efx
-            mixer.set_volume(chn, (self.state[chn].n_volume as usize) << 4);
         }
 
         // mt_SetDMA
@@ -149,12 +147,11 @@ impl ModPlayer {
                 //state.n_reallength = instrument.size;
                 // PT2.3D fix: mask finetune
                 state.n_finetune = instrument.finetune & 0x0f;
-                state.n_volume = instrument.volume as u8;
+                state.n_volume = instrument.volume;
                 state.n_length = instrument.repeat + instrument.replen;
                 state.n_replen = instrument.replen;
 
                 mixer.set_patch(chn, ins - 1, ins - 1);
-                // PT2.3D: moved to mt_GetNewNote
                 mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 if instrument.replen > 1 {
                     state.n_loopstart = instrument.repeat as u32;
@@ -268,14 +265,18 @@ impl ModPlayer {
             0x6 => self.mt_vibrato_plus_vol_slide(chn, &mut mixer),
             0xe => self.mt_e_commands(chn, &mut mixer),
             _   => {
-                       // SetBack
-                       mixer.set_period(chn, self.state[chn].n_period as f64);  // MOVE.W  n_period(A6),6(A5)
-                       match cmd {
-                           0x7 => self.mt_tremolo(chn, &mut mixer),
-                           0xa => self.mt_volume_slide(chn),
-                           _   => {},
-                       }
-                   }
+                // SetBack
+                mixer.set_period(chn, self.state[chn].n_period as f64);  // MOVE.W  n_period(A6),6(A5)
+                match cmd {
+                    0x7 => self.mt_tremolo(chn, &mut mixer),
+                    0xa => self.mt_volume_slide(chn, &mut mixer),
+                    _   => (),
+                }
+            }
+        }
+
+        if cmd != 0x7 {
+            mixer.set_volume(chn, (self.state[chn].n_volume as usize) << 4);
         }
     }
 
@@ -481,12 +482,12 @@ impl ModPlayer {
 
     fn mt_tone_plus_vol_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
         self.mt_tone_port_no_change(chn, &mut mixer);
-        self.mt_volume_slide(chn);
+        self.mt_volume_slide(chn, &mut mixer);
     }
 
     fn mt_vibrato_plus_vol_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
         self.mt_vibrato_2(chn, &mut mixer);
-        self.mt_volume_slide(chn);
+        self.mt_volume_slide(chn, &mut mixer);
     }
 
     fn mt_tremolo(&mut self, chn: usize, mixer: &mut Mixer) {
@@ -545,25 +546,24 @@ impl ModPlayer {
         mixer.set_voicepos(chn, ((state.n_sampleoffset as u32) << 8) as f64);
     }
 
-    fn mt_volume_slide(&mut self, chn: usize) {
+    fn mt_volume_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
         if self.state[chn].n_cmdlo >> 4 == 0 {
-            self.mt_vol_slide_down(chn);
+            self.mt_vol_slide_down(chn, &mut mixer);
         } else {
-            self.mt_vol_slide_up(chn);
+            self.mt_vol_slide_up(chn, &mut mixer);
         }
     }
 
-    fn mt_vol_slide_up(&mut self, chn: usize) {
+    fn mt_vol_slide_up(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
         state.n_volume += state.n_cmdlo >> 4;
         if state.n_volume > 0x40 {
             state.n_volume = 0x40;
         }
-        // PT2.3D: moved to mt_GetNewNote
-        //mixer.set_volume(chn, (state.n_volume as usize) << 4);
+        mixer.set_volume(chn, (state.n_volume as usize) << 4);
     }
 
-    fn mt_vol_slide_down(&mut self, chn: usize) {
+    fn mt_vol_slide_down(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
         let cmdlo = state.n_cmdlo & 0x0f;
         if state.n_volume > cmdlo {
@@ -571,8 +571,7 @@ impl ModPlayer {
         } else {
             state.n_volume = 0;
         }
-        // PT2.3D: moved to mt_GetNewNote
-        //mixer.set_volume(chn, (state.n_volume as usize) << 4);
+        mixer.set_volume(chn, (state.n_volume as usize) << 4);
     }
 
     fn mt_position_jump(&mut self, chn: usize) {
@@ -583,14 +582,13 @@ impl ModPlayer {
         self.mt_pos_jump_flag = true;
     }
 
-    fn mt_volume_change(&mut self, chn: usize) {
+    fn mt_volume_change(&mut self, chn: usize, mixer: &mut Mixer) {
         let state = &mut self.state[chn];
         if state.n_cmdlo > 0x40 {
             state.n_cmdlo = 40
         }
         state.n_volume = state.n_cmdlo;
-        // PT2.3D: moved to mt_GetNewNote
-        //mixer.set_volume(chn, (state.n_volume as usize) << 4);  // MOVE.W  D0,8(A5)
+        mixer.set_volume(chn, (state.n_volume as usize) << 4);  // MOVE.W  D0,8(A5)
     }
 
     fn mt_pattern_break(&mut self, chn: usize) {
@@ -625,7 +623,7 @@ impl ModPlayer {
             0xd => self.mt_pattern_break(chn),
             0xe => self.mt_e_commands(chn, &mut mixer),
             0xf => self.mt_set_speed(chn),
-            0xc => self.mt_volume_change(chn),
+            0xc => self.mt_volume_change(chn, &mut mixer),
             _   => {},
         }
 
@@ -644,8 +642,8 @@ impl ModPlayer {
            0x6 => self.mt_jump_loop(chn),
            0x7 => self.mt_set_tremolo_control(chn),
            0x9 => self.mt_retrig_note(chn, &mut mixer),
-           0xa => self.mt_volume_fine_up(chn),
-           0xb => self.mt_volume_fine_down(chn),
+           0xa => self.mt_volume_fine_up(chn, &mut mixer),
+           0xb => self.mt_volume_fine_down(chn, &mut mixer),
            0xc => self.mt_note_cut(chn, &mut mixer),
            0xd => self.mt_note_delay(chn, &mut mixer),
            0xe => self.mt_pattern_delay(chn),
@@ -727,18 +725,18 @@ impl ModPlayer {
         mixer.set_voicepos(chn, 0.0);
     }
 
-    fn mt_volume_fine_up(&mut self, chn: usize) {
+    fn mt_volume_fine_up(&mut self, chn: usize, mut mixer: &mut Mixer) {
         if self.mt_counter != 0 {
             return
         }
-        self.mt_vol_slide_up(chn);
+        self.mt_vol_slide_up(chn, &mut mixer);
     }
 
-    fn mt_volume_fine_down(&mut self, chn: usize) {
+    fn mt_volume_fine_down(&mut self, chn: usize, mut mixer: &mut Mixer) {
         if self.mt_counter != 0 {
             return
         }
-        self.mt_vol_slide_down(chn)
+        self.mt_vol_slide_down(chn, &mut mixer)
     }
 
     fn mt_note_cut(&mut self, chn: usize, mixer: &mut Mixer) {
