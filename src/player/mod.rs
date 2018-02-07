@@ -35,6 +35,34 @@ pub fn list_by_id(player_id: &str) -> Result<Box<PlayerListEntry>, Error> {
     Err(Error::Format("player not found"))
 }
 
+fn accepted(player_id: &str) -> &'static [&'static str] {
+    let list_entry = match list_by_id(player_id) {
+        Ok(val) => val,
+        Err(_)  => return &[],
+    };
+
+    list_entry.info().accepts
+}
+
+pub fn check_accepted(player_id: &str, my_fmt: &str) -> Result<bool, Error> {
+    let accepted = if player_id.is_empty() {
+        &[]  // accept all
+    } else {
+        accepted(player_id)
+    };
+
+    if accepted.is_empty() {
+        return Ok(false)
+    } else {
+        if !accepted.contains(&my_fmt) {
+           return Err(Error::Format("not accepted by player"))
+        }
+    }
+
+    Ok(true)
+}
+
+
 
 // For the player list
 

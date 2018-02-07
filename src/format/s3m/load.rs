@@ -26,25 +26,26 @@ impl Loader for S3mLoader {
         "Scream Tracker 3"
     }
   
-    fn probe(&self, b: &[u8]) -> Result<&str, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<&str, Error> {
         if b.len() < 256 {
             return Err(Error::Format("file too short"));
-        }
-
-        if b.len() > 1084 {
-            // check for ST3 xCHN, xxCH
-
-            // check for ST3 MOD
-            if is_st3_mod(b) {
-                return Ok("m.k.")
-            }
         }
 
         let typ = b.read8(0x1d)?;
         let magic = b.read_string(0x2c, 4)?;
         if typ == 16 && magic == "SCRM" {
+            // is S3M
+            player::check_accepted(player_id, "s3m")?;
             Ok("s3m")
         } else {
+            // not S3M
+            if is_st3_xxch(b) {  // check for ST3 xCHN, xxCH
+                player::check_accepted(player_id, "xxch")?;
+                return Ok("xxch")
+            } else if is_st3_mod(b) {  // check for ST3 M.K.
+                player::check_accepted(player_id, "m.k.")?;
+                return Ok("m.k.")
+            }
             Err(Error::Format("bad magic"))
         }
     }
@@ -199,5 +200,9 @@ fn load_sample(b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sam
 }
 
 fn is_st3_mod(b: &[u8]) -> bool {
+    false
+}
+
+fn is_st3_xxch(b: &[u8]) -> bool {
     false
 }

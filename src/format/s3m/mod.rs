@@ -112,8 +112,8 @@ impl ModuleData for S3mData {
 
         let p = &self.patterns[pat].data;
 
+        let mut ch;
         let mut row = 0;
-        let mut ch = 0;
         let mut i = 2;
         loop {
             let b = p[i]; i += 1;

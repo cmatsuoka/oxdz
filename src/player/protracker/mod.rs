@@ -12,7 +12,7 @@ impl PlayerListEntry for Pt21a {
           name       : r#""Vinterstigen" PT2.1A replayer + fixes"#,
           description: "A mod player based on the on the Protracker 2.1A replayer + 2.3D fixes",
           author     : "Claudio Matsuoka",
-          accepts    : &[ "mod" ],
+          accepts    : &[ "m.k." ],
        }
    }
 

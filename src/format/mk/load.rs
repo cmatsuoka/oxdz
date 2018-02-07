@@ -15,10 +15,12 @@ impl Loader for ModLoader {
         "Amiga Protracker/Compatible"
     }
   
-    fn probe(&self, b: &[u8]) -> Result<&str, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<&str, Error> {
         if b.len() < 1084 {
             return Err(Error::Format("file too short"));
         }
+
+        player::check_accepted(player_id, "m.k.")?;
 
         let magic = b.read_string(1080, 4)?;
         if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." {
@@ -81,7 +83,7 @@ impl Loader for ModLoader {
 
         let tracker_id = Fingerprint::id(&data);
 
-        let (creator, player) = match tracker_id {
+        let (creator, player_id) = match tracker_id {
             TrackerID::Unknown            => ("unknown tracker",  "pt2"),
             TrackerID::Protracker         => ("Protracker",       "pt2"),
             TrackerID::Noisetracker       => ("Noisetracker",     "nt11"),
@@ -100,7 +102,7 @@ impl Loader for ModLoader {
             format_id  : "mod",
             description: "M.K.".to_owned(),
             creator    : creator.to_owned(),
-            player     : player,
+            player     : player_id,
             data       : Box::new(data),
         };
 

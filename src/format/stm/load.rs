@@ -13,10 +13,12 @@ impl Loader for StmLoader {
         "Scream Tracker 2"
     }
   
-    fn probe(&self, b: &[u8]) -> Result<&str, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<&str, Error> {
         if b.len() < 1084 {
             return Err(Error::Format("file too short"));
         }
+
+        player::check_accepted(player_id, "stm")?;
 
         let magic = b.read_string(20, 10)?;
         if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {

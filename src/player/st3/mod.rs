@@ -12,7 +12,7 @@ impl PlayerListEntry for St3 {
           name       : "st3play 0.78 replayer",
           description: "An accurate port of the Scream Tracker 3.21 replayer",
           author     : r#"Olav "8bitbubsy" Sørensen, Claudio Matsuoka"#,
-          accepts    : &[ "s3m" ],
+          accepts    : &[ "s3m", "m.k.", "xxch" ],
        }
    }
 
@@ -20,5 +20,3 @@ impl PlayerListEntry for St3 {
        Box::new(self::st3play::St3Play::new(module, options))
    }
 }
-
-

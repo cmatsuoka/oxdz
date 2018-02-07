@@ -12,7 +12,7 @@ impl PlayerListEntry for Nt11 {
           name       : "Noisetracker v1.1 replayer",
           description: "A mod player based on the on the original Noisetracker V1.1 replayer",
           author     : "Claudio Matsuoka",
-          accepts    : &[ "mod" ],
+          accepts    : &[ "m.k." ],
        }
    }
 
