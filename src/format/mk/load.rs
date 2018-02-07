@@ -99,7 +99,7 @@ impl Loader for ModLoader {
         };
 
         let m = Module {
-            format_id  : "mod",
+            format_id  : "m.k.",
             description: "M.K.".to_owned(),
             creator    : creator.to_owned(),
             player     : player_id,

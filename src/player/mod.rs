@@ -136,6 +136,12 @@ impl<'a> Player<'a> {
     pub fn find(module: &'a Module, player_id: &str, optstr: &str) -> Result<Self, Error> {
 
         let list_entry = list_by_id(player_id)?;
+
+        println!(".. check if player {:?} supports format {:?}", player_id, module.format_id);
+        if !list_entry.info().accepts.contains(&module.format_id) {
+            return Err(Error::Format("player does not support this format"))
+        }
+
         let format_player = list_entry.player(&module, Options::from_str(optstr));
 
         let mixer = Mixer::new(module.data.channels(), &module.data.samples());

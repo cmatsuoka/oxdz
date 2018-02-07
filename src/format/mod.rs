@@ -22,12 +22,12 @@ pub fn list() -> Vec<Box<Loader>> {
     ]
 }
 
-pub fn load(b: &[u8]) -> Result<Module, Error> {
+pub fn load(b: &[u8], player_id: &str) -> Result<Module, Error> {
 
     for f in list() {
         println!("Probing format: {}", f.name());
 
-        let fmt = match f.probe(b, "") {
+        let fmt = match f.probe(b, player_id) {
             Ok(val) => val.to_owned(),
             Err(_)  => continue,
         };
