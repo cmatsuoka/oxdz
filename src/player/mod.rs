@@ -105,7 +105,7 @@ pub struct Player<'a> {
 }
 
 impl<'a> Player<'a> {
-    pub fn find(module: &'a mut Module, player_id: &str, optstr: &str) -> Result<Self, Error> {
+    pub fn find(module: &'a Module, player_id: &str, optstr: &str) -> Result<Self, Error> {
 
         let list_entry = list_by_id(player_id)?;
         let format_player = list_entry.player(&module, Options::from_str(optstr));
@@ -122,10 +122,6 @@ impl<'a> Player<'a> {
             in_pos    : 0,
             in_size   : 0,
         })
-    }
-
-    pub fn module(&mut self) -> &'a Module {
-        self.module
     }
 
     pub fn scan(&mut self) -> &Self {

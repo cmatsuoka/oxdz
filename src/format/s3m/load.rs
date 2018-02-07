@@ -26,21 +26,37 @@ impl Loader for S3mLoader {
         "Scream Tracker 3"
     }
   
-    fn probe(&self, b: &[u8]) -> Result<(), Error> {
+    fn probe(&self, b: &[u8]) -> Result<&str, Error> {
         if b.len() < 256 {
             return Err(Error::Format("file too short"));
+        }
+
+        if b.len() > 1084 {
+            // check for ST3 xCHN, xxCH
+
+            // check for ST3 MOD
+            if is_st3_mod(b) {
+                return Ok("m.k.")
+            }
         }
 
         let typ = b.read8(0x1d)?;
         let magic = b.read_string(0x2c, 4)?;
         if typ == 16 && magic == "SCRM" {
-            Ok(())
+            Ok("s3m")
         } else {
             Err(Error::Format("bad magic"))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8]) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], fmt: &str) -> Result<Module, Error> {
+
+        if fmt == "m.k." {
+            //return format::s3m::import::from_mod(b: &[u8]);
+        } else if fmt != "s3m" {
+            return Err(Error::Format("unsupported format"));
+        }
+
         let song_name = b.read_string(0, 28)?;
         let ord_num = b.read16l(0x20)?;
         let ins_num = b.read16l(0x22)?;
