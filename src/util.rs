@@ -149,11 +149,6 @@ mod tests {
     }
 
     #[test]
-    fn test_period_to_note() {
-        assert_eq!(period_to_note(500), 57);
-    }
-
-    #[test]
     fn test_note_to_period_mix() {
         assert_delta!(note_to_period_mix(60, 1000), 426.072926);
         assert_delta!(note_to_period_mix(60, -1000), 429.935790);

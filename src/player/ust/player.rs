@@ -8,8 +8,8 @@ use mixer::Mixer;
 /// An oxdz player based on the Ultimate Soundtracker V27, written 1987/1988 by
 /// Karsten Obarski. "All bugs removed".
 ///
-///         "Just look at it -- so small, innocent and cute. :)"
-///                                   -- Olav "8bitbubsy" Sørensen
+/// > "Just look at it -- so small, innocent and cute. :)"
+/// > -- Olav "8bitbubsy" Sørensen
 
 pub struct USTPlayer {
     options   : Options,
