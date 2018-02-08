@@ -3,6 +3,7 @@ mod protracker;
 mod noisetracker;
 mod st2;
 mod st3;
+mod ust;
 
 pub use mixer::Mixer;
 
@@ -19,6 +20,7 @@ fn all() -> Vec<Box<PlayerListEntry>> {
         Box::new(noisetracker::Nt11),
         Box::new(st2::St2),
         Box::new(st3::St3),
+        Box::new(ust::Ust27),
     ]
 }
 
