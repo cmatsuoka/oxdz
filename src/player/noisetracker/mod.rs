@@ -9,7 +9,7 @@ impl PlayerListEntry for Nt11 {
    fn info(&self) -> PlayerInfo {
        PlayerInfo {
           id         : "nt11",
-          name       : "Noisetracker v1.1 replayer",
+          name       : "NT11 Noisetracker V1.1 replayer",
           description: "A mod player based on the on the original Noisetracker V1.1 replayer",
           author     : "Claudio Matsuoka",
           accepts    : &[ "m.k." ],

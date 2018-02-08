@@ -10,7 +10,7 @@ impl PlayerListEntry for Pt21a {
        PlayerInfo {
           id         : "pt2",
           name       : r#""Vinterstigen" PT2.1A replayer + fixes"#,
-          description: "A mod player based on the on the Protracker 2.1A replayer + 2.3D fixes",
+          description: "A mod player based on the on the Protracker V2.1A replayer + V2.3D fixes",
           author     : "Claudio Matsuoka",
           accepts    : &[ "m.k." ],
        }
