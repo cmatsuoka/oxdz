@@ -103,7 +103,7 @@ impl ModPlayer {
     
             let ins = (((event.note & 0xf000) >> 8) | ((event.cmd as u16 & 0xf0) >> 4)) as usize;
     
-            if ins != 0 {
+            if ins > 0 && ins < 31 {  // sanity check added: was: ins != 0
                 let instrument = &module.instruments[ins as usize - 1];
                 state.n_8_length = instrument.size;                            // move.w  (a3,d4.l),$8(a6)
                 state.n_12_volume = instrument.volume as u8;                   // move.w  $2(a3,d4.l),$12(a6)
@@ -111,18 +111,15 @@ impl ModPlayer {
                     state.n_a_loopstart = instrument.repeat as u32;
                     state.n_8_length = instrument.repeat + instrument.replen;
                     state.n_e_replen = instrument.replen;                      // move.w  $6(a3,d4.l),$e(a6)
-    
-                    state.n_8_length = instrument.repeat + instrument.replen;
                     mixer.set_volume(chn, (state.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
-                    mixer.enable_loop(chn, true);
                 } else {
                     // mt_noloop
-                    state.n_8_length = instrument.size;
+                    state.n_a_loopstart = instrument.repeat as u32;
                     state.n_e_replen = instrument.replen;
-                    mixer.enable_loop(chn, false);
                     mixer.set_volume(chn, (state.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
                 }
                 mixer.set_patch(chn, ins as usize - 1, ins as usize - 1);
+                mixer.enable_loop(chn, instrument.replen != 0);
                 mixer.set_loop_start(chn, state.n_a_loopstart * 2);
                 mixer.set_loop_end(chn, (state.n_a_loopstart + state.n_e_replen as u32) * 2);
             }
@@ -387,6 +384,7 @@ struct ChannelData {
     n_e_replen      : u16,
     n_10_period     : i16,
     n_12_volume     : u8,
+    //n_14_dma_control: u16,
     n_16_portdir    : bool,
     n_17_toneportspd: u8,
     n_18_wantperiod : i16,

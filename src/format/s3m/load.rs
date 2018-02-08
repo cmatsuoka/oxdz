@@ -41,9 +41,11 @@ impl Loader for S3mLoader {
             // not S3M
             if is_st3_xxch(b) {  // check for ST3 xCHN, xxCH
                 player::check_accepted(player_id, "xxch")?;
+                println!(".. we can play this xxCH module");
                 return Ok("xxch")
             } else if is_st3_mod(b) {  // check for ST3 M.K.
                 player::check_accepted(player_id, "m.k.")?;
+                println!(".. we can play this M.K. module");
                 return Ok("m.k.")
             }
             Err(Error::Format("bad magic"))
@@ -53,7 +55,10 @@ impl Loader for S3mLoader {
     fn load(self: Box<Self>, b: &[u8], fmt: &str) -> Result<Module, Error> {
 
         if fmt == "m.k." {
+            println!(".. load this module as M.K.");
             //return format::s3m::import::from_mod(b: &[u8]);
+        } else if fmt == "xxch" {
+            println!(".. load this module as xxCH");
         } else if fmt != "s3m" {
             return Err(Error::Format("unsupported format"));
         }

@@ -44,7 +44,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     let file = try!(File::open(name));
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
-    let module = try!(format::load(&mmap[..]));
+    let module = try!(format::load(&mmap[..], ""));
     println!("Title: {}", module.title());
 
     println!("Instruments:");
