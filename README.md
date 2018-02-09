@@ -18,17 +18,23 @@ correctly implemented. Sound quality will be improved later.
 
 ## Task list
 
-* Protracker mod player :heavy_check_mark:
+* Standard M.K. loader :heavy_check_mark:
   * M.K. fingerprinting :heavy_check_mark:
+* 15-instrument
+  * UST/ST fingerprinting
+* Multichannel
+  * xCHN/xxCH fingerprinting
+* Protracker mod player :heavy_check_mark:
   * Player variation for the same format (e.g. Noisetracker) :heavy_check_mark:
   * 15-instrument variant (Soundtrackers)
   * Amiga sound emulation
 * Scream Tracker 2 support :heavy_check_mark:
 * Scream Tracker 3 support :heavy_check_mark:
-  * Play mod file with ST3 quirks (e.g. Sundance)
+  * Play ST3 M.K. file (e.g. Sundance.mod)
+  * Play ST3 xCHN/xxCH files
 * Quirk table
 * Fast Tracker II support
-  * Play xCHN and xxCH files
+  * Play non-ST3 xCHN and xxCH files
 * Better mixer
   * Better interpolation
   * Bidirectional loop
