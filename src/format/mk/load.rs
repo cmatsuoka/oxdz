@@ -1,5 +1,5 @@
 use std::cmp;
-use format::Loader;
+use format::{Format, Loader};
 use format::mk::{ModData, ModPatterns, ModInstrument};
 use format::mk::fingerprint::{Fingerprint, TrackerID};
 use module::{Module, Sample};
@@ -15,7 +15,7 @@ impl Loader for ModLoader {
         "Amiga Protracker/Compatible"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<&str, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
         if b.len() < 1084 {
             return Err(Error::Format("file too short"));
         }
@@ -24,15 +24,15 @@ impl Loader for ModLoader {
 
         let magic = b.read_string(1080, 4)?;
         if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." {
-            Ok("m.k.")
+            Ok(Format::MK)
         } else {
             Err(Error::Format("bad magic"))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], format: &str) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
 
-        if format != "m.k." {
+        if fmt != Format::MK {
             return Err(Error::Format("unsupported format"));
         }
 

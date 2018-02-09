@@ -5,12 +5,23 @@ pub mod mk;
 pub mod stm;
 pub mod s3m;
 
+// Supported formats
+
+#[derive(PartialEq, Debug)]
+pub enum Format {
+    MK,
+    ST,
+    xxCH,
+    S3M,
+    STM,
+}
+
 // Trait for module loader
 
 pub trait Loader {
     fn name(&self) -> &'static str;
-    fn probe(&self, &[u8], &str) -> Result<&str, Error>;
-    fn load(self: Box<Self>, &[u8], &str) -> Result<Module, Error>;
+    fn probe(&self, &[u8], &str) -> Result<Format, Error>;
+    fn load(self: Box<Self>, &[u8], Format) -> Result<Module, Error>;
 }
 
 
@@ -28,12 +39,12 @@ pub fn load(b: &[u8], player_id: &str) -> Result<Module, Error> {
         println!("Probing format: {}", f.name());
 
         let fmt = match f.probe(b, player_id) {
-            Ok(val) => val.to_owned(),
+            Ok(val) => val,
             Err(_)  => continue,
         };
 
         println!("Probe ok, load format {:?}", fmt);
-        return f.load(b, &fmt)
+        return f.load(b, fmt)
     }
 
     Err(Error::Format("unsupported module format"))

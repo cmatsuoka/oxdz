@@ -1,4 +1,4 @@
-use format::Loader;
+use format::{Loader, Format};
 use format::s3m::{S3mData, S3mPattern, S3mInstrument};
 use module::{Module, Sample};
 use module::sample::SampleType;
@@ -26,7 +26,7 @@ impl Loader for S3mLoader {
         "Scream Tracker 3"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<&str, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
         if b.len() < 256 {
             return Err(Error::Format("file too short"));
         }
@@ -36,30 +36,30 @@ impl Loader for S3mLoader {
         if typ == 16 && magic == "SCRM" {
             // is S3M
             player::check_accepted(player_id, "s3m")?;
-            Ok("s3m")
+            Ok(Format::S3M)
         } else {
             // not S3M
             if is_st3_xxch(b) {  // check for ST3 xCHN, xxCH
                 player::check_accepted(player_id, "xxch")?;
                 println!(".. we can play this xxCH module");
-                return Ok("xxch")
+                return Ok(Format::xxCH)
             } else if is_st3_mod(b) {  // check for ST3 M.K.
                 player::check_accepted(player_id, "m.k.")?;
                 println!(".. we can play this M.K. module");
-                return Ok("m.k.")
+                return Ok(Format::MK)
             }
             Err(Error::Format("bad magic"))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], fmt: &str) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
 
-        if fmt == "m.k." {
+        if fmt == Format::MK {
             println!(".. load this module as M.K.");
             //return format::s3m::import::from_mod(b: &[u8]);
-        } else if fmt == "xxch" {
+        } else if fmt == Format::xxCH {
             println!(".. load this module as xxCH");
-        } else if fmt != "s3m" {
+        } else if fmt != Format::S3M {
             return Err(Error::Format("unsupported format"));
         }
 
