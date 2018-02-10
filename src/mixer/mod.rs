@@ -52,7 +52,7 @@ impl<'a> Mixer<'a> {
             framesize: 0,
             buf32    : [0; MAX_FRAMESIZE],
             buffer   : [0; MAX_FRAMESIZE],
-            interp   : Interpolator::Linear,
+            interp   : Interpolator::Spline,
             sample,
         };
 
@@ -400,6 +400,7 @@ impl MixerData {
         let bmax = match interp {
             &Interpolator::Nearest => interpolator::Nearest::bsize(),
             &Interpolator::Linear  => interpolator::Linear::bsize(),
+            &Interpolator::Spline  => interpolator::Spline::bsize(),
         } - 1;
 
         for _ in 0..self.size {
@@ -419,6 +420,7 @@ impl MixerData {
             let smp = match interp {
                 &Interpolator::Nearest => interpolator::Nearest.get_sample(&ibuf, frac as i32),
                 &Interpolator::Linear  => interpolator::Linear.get_sample(&ibuf, frac as i32),
+                &Interpolator::Spline  => interpolator::Spline.get_sample(&ibuf, frac as i32),
             };
 
             // Store stereo
