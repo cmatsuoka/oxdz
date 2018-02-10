@@ -647,38 +647,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_interpolate_nearest_i8() {
+    fn test_interpolate_nearest() {
         let interp = Nearest;
-        let i: &[i8] = &[0, 0x10, 0x40, 0x70];
+        let i: &[i32] = &[0, 0x1000, 0x4000, 0x7000];
         assert_eq!(interp.get_sample(i, 0), 0x1000);
         assert_eq!(interp.get_sample(i, 32767), 0x1000);
         assert_eq!(interp.get_sample(i, 65535), 0x1000);
     }
 
     #[test]
-    fn test_interpolate_nearest_i16() {
-        let interp = Nearest;
-        let i: &[i16] = &[0, 0x1000, 0x4000, 0x7000];
-        assert_eq!(interp.get_sample(i, 0), 0x1000);
-        assert_eq!(interp.get_sample(i, 32767), 0x1000);
-        assert_eq!(interp.get_sample(i, 65535), 0x1000);
-    }
-
-    #[test]
-    fn test_interpolate_linear_i8() {
+    fn test_interpolate_linear() {
         let interp = Linear;
-        let i: &[i8] = &[0, 0x10, 0x40, 0x70];
+        let i: &[i32] = &[0x1000, 0x4000, 0x7000, 0x8000];
         assert_eq!(interp.get_sample(i, 0), 0x1000);
         assert_eq!(interp.get_sample(i, 32767), 0x27ff);
         assert_eq!(interp.get_sample(i, 65535), 0x3fff);
     }
 
     #[test]
-    fn test_interpolate_linear_i16() {
-        let interp = Linear;
-        let i: &[i16] = &[0, 0x1000, 0x4000, 0x7000];
-        assert_eq!(interp.get_sample(i, 0), 0x1000);
-        assert_eq!(interp.get_sample(i, 32767), 0x27ff);
-        assert_eq!(interp.get_sample(i, 65535), 0x3fff);
+    fn test_interpolate_spline() {
+        let interp = Spline;
+        let i: &[i32] = &[0x1000, 0x4000, 0x7000, 0x8000];
+        assert_eq!(interp.get_sample(i, 0), 0x4000);
+        assert_eq!(interp.get_sample(i, 32767), 0x59f3);
+        assert_eq!(interp.get_sample(i, 65535), 0x6ff8);
     }
 }
