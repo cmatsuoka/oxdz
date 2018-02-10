@@ -36,7 +36,7 @@ correctly implemented. Sound quality will be improved later.
 * Fast Tracker II support
   * Play non-ST3 xCHN and xxCH files
 * Better mixer
-  * Better interpolation
+  * Better interpolation :heavy_check_mark:
   * Bidirectional loop
 * Impulse Tracker support
 * Module pre-scan
