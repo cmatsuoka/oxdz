@@ -1,11 +1,9 @@
 use mixer::SMIX_SHIFT;
 
-pub trait InterpolatorBase {
+pub trait Interpolate {
     fn name() -> &'static str;
-}
-
-pub trait Interpolate<T> {
-    fn get_sample(&self, &[T], i32) -> i32;
+    fn bsize() -> usize;
+    fn get_sample(&self, &[i32], i32) -> i32;
 }
 
 pub enum Interpolator {
@@ -16,21 +14,17 @@ pub enum Interpolator {
 // Nearest neighbor interpolator
 pub struct Nearest;
 
-impl InterpolatorBase for Nearest {
+impl Interpolate for Nearest {
     fn name() -> &'static str {
         "nearest neighbor"
     }
-}
 
-impl Interpolate<i8> for Nearest {
-    fn get_sample(&self, i: &[i8], _frac: i32) -> i32 {
-        (i[1] as i32) << 8
+    fn bsize() -> usize {
+        2
     }
-}
 
-impl Interpolate<i16> for Nearest {
-    fn get_sample(&self, i: &[i16], _frac: i32) -> i32 {
-        i[1] as i32
+    fn get_sample(&self, i: &[i32], _frac: i32) -> i32 {
+        i[1]
     }
 }
 
@@ -38,25 +32,19 @@ impl Interpolate<i16> for Nearest {
 // Linear interpolator
 pub struct Linear;
 
-impl InterpolatorBase for Linear {
+impl Interpolate for Linear {
     fn name() -> &'static str {
         "linear"
     }
-}
 
-impl Interpolate<i8> for Linear {
-    fn get_sample(&self, i: &[i8], frac: i32) -> i32 {
-        let l1 = (i[1] as i32) << 8;
-        let dt = ((i[2] as i32) << 8) - l1;
-        l1 as i32 + (((frac >> 1) * dt as i32) >> (SMIX_SHIFT - 1)) as i32
+    fn bsize() -> usize {
+        2
     }
-}
 
-impl Interpolate<i16> for Linear {
-    fn get_sample(&self, i: &[i16], frac: i32) -> i32 {
-        let l1 = i[1] as i32;
-        let dt = i[2] as i32 - l1;
-        l1 as i32 + (((frac >> 1) * dt as i32) >> (SMIX_SHIFT - 1)) as i32
+    fn get_sample(&self, i: &[i32], frac: i32) -> i32 {
+        let l1 = i[0];
+        let dt = i[1] - l1;
+        l1 + (((frac >> 1) * dt) >> (SMIX_SHIFT - 1))
     }
 }
 

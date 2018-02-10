@@ -159,9 +159,8 @@ impl<'a> Mixer<'a> {
 
         v.pos = 0_f64;
         v.end = sample.size;
-        
-        // ...
 
+        // ...
     }
 
     pub fn set_loop_start(&mut self, voice: usize, val: u32) {
@@ -238,7 +237,7 @@ impl<'a> Mixer<'a> {
                     let mix_size = samples * 2;
 
                     if samples > 0 {
-                        md.pos = v.pos + 2.0;
+                        md.pos = v.pos;
                         md.buf_pos = buf_pos;
                         md.step = (step * (1_u32 << SMIX_SHIFT) as f64) as usize;
                         md.size = samples;
@@ -247,8 +246,8 @@ impl<'a> Mixer<'a> {
 
                         match sample.sample_type {
                             SampleType::Empty    => {},
-                            SampleType::Sample8  => md.mix::<i8>(&self.interp, &sample.data_8(), &mut self.buf32),
-                            SampleType::Sample16 => md.mix::<i16>(&self.interp, &sample.data_16(), &mut self.buf32),
+                            SampleType::Sample8  => md.mix::<i8>(&self.interp, &sample.data_8(), &mut self.buf32, &mut v.i_buffer),
+                            SampleType::Sample16 => md.mix::<i16>(&self.interp, &sample.data_16(), &mut self.buf32, &mut v.i_buffer),
                         };
 
                         buf_pos += mix_size as usize;
@@ -328,6 +327,8 @@ struct Voice {
     loop_end  : u32,
     has_loop  : bool,
     sample_end: bool,
+
+    i_buffer  : [i32; 4],
 }
 
 impl Voice {
@@ -389,29 +390,62 @@ struct MixerData {
 }
 
 impl MixerData {
-    fn mix<T>(&mut self, interp: &Interpolator, data: &[T], buf32: &mut [i32])
-    where interpolator::Nearest: interpolator::Interpolate<T>,
-          interpolator::Linear : interpolator::Interpolate<T>
+    fn mix<T>(&mut self, interp: &Interpolator, data: &[T], buf32: &mut [i32], ibuf: &mut [i32])
+    where Sampler: SamplerOperations<T>
     {
         let mut pos = self.pos as usize;
         let mut frac = ((1 << SMIX_SHIFT) as f64 * (self.pos - pos as f64)) as usize;
         let mut bpos = self.buf_pos;
 
+        let bmax = match interp {
+            &Interpolator::Nearest => interpolator::Nearest::bsize(),
+            &Interpolator::Linear  => interpolator::Linear::bsize(),
+        } - 1;
+
         for _ in 0..self.size {
-            let i = &data[pos-1..pos+2];
+            frac += self.step;
+            let istep = frac >> SMIX_SHIFT;
+            frac &= SMIX_MASK;
+
+            // add sample to interpolation buffer
+            if istep > 0 {
+                for i in 0..bmax {
+                    ibuf[i] = ibuf[i+1]
+                }
+                ibuf[bmax] = Sampler::get(&data[pos]);
+                pos += istep;
+            }
 
             let smp = match interp {
-                &Interpolator::Nearest => interpolator::Nearest.get_sample(i, frac as i32),
-                &Interpolator::Linear  => interpolator::Linear.get_sample(i, frac as i32),
+                &Interpolator::Nearest => interpolator::Nearest.get_sample(&ibuf, frac as i32),
+                &Interpolator::Linear  => interpolator::Linear.get_sample(&ibuf, frac as i32),
             };
 
+            // Store stereo
             buf32[bpos    ] += smp * self.vol_r as i32;
             buf32[bpos + 1] += smp * self.vol_l as i32;
             bpos += 2;
 
-            frac += self.step;
-            pos += frac >> SMIX_SHIFT;
-            frac &= SMIX_MASK;
         }
     }
 }
+
+
+struct Sampler;
+
+trait SamplerOperations<T> {
+    fn get(&T) -> i32;
+}
+
+impl SamplerOperations<i16> for Sampler {
+    fn get(i: &i16) -> i32 {
+        *i as i32
+    }
+}
+
+impl SamplerOperations<i8> for Sampler {
+    fn get(i: &i8) -> i32 {
+        (*i as i32) << 8
+    }
+}
+
