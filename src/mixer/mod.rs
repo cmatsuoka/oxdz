@@ -1,10 +1,12 @@
 use module::sample::{Sample, SampleType};
 use mixer::interpolator::{Interpolator, Interpolate};
+use mixer::paula::Paula;
 use util::MemOpExt;
 use util;
 use ::*;
 
 mod interpolator;
+mod paula;
 
 const PAL_RATE     : f64 = 250.0;
 const C4_PERIOD    : f64 = 428.0;
@@ -428,6 +430,45 @@ impl MixerData {
             buf32[bpos + 1] += smp * self.vol_l as i32;
             bpos += 2;
 
+        }
+    }
+
+    fn mix_paula(&self, data: &[i8], buf32: &mut [i32], paula: &mut Paula) {
+        let mut pos = self.pos as usize;
+        let mut frac = ((1 << SMIX_SHIFT) as f64 * (self.pos - pos as f64)) as usize;
+        let mut bpos = self.buf_pos;
+        let filter = 0;
+
+        for _ in 0..self.size {
+            let num_in = paula.remainder as usize / paula::MINIMUM_INTERVAL;
+            let ministep = self.step / num_in;
+
+            // input is always sampled at a higher rate than output
+            for i in 0..num_in - 1 {
+                paula.input_sample(*&data[pos] as i16);
+                paula.do_clock(paula::MINIMUM_INTERVAL as i16);
+                frac += ministep;
+                pos += frac >> SMIX_SHIFT;
+                frac &= SMIX_MASK;
+            }
+            paula.input_sample(*&data[pos] as i16);
+            paula.remainder -= (num_in * paula::MINIMUM_INTERVAL) as f64;
+
+            let remainder = paula.remainder as i16;
+            paula.do_clock(remainder);
+            let smp = paula.output_sample(filter) as i32;
+            let cycles = (paula::MINIMUM_INTERVAL - paula.remainder as usize) as i16;
+            paula.do_clock(cycles);
+            frac += self.step - (num_in-1)*ministep;
+            pos += frac >> SMIX_SHIFT;
+            frac &= SMIX_MASK;
+
+            paula.remainder += paula.fdiv;
+
+            // Store stereo
+            buf32[bpos    ] += smp * self.vol_r as i32;
+            buf32[bpos + 1] += smp * self.vol_l as i32;
+            bpos += 2;
         }
     }
 }
