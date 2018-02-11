@@ -14,6 +14,7 @@ struct Blep {
     age  : i16,
 }
 
+#[derive(Clone)]
 pub struct Paula {
     // the instantenous value of Paula output
     global_output_level: i16,

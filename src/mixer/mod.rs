@@ -69,6 +69,16 @@ impl<'a> Mixer<'a> {
         self.voices.len()
     }
 
+    pub fn enable_paula(&mut self, enable: bool) {
+        for v in &mut self.voices {
+            v.paula = if enable {
+                Some(Paula::new(self.rate))
+            } else {
+                None
+            }
+        }
+    }
+
     pub fn set_tempo(&mut self, tempo: usize) {
         self.framesize = ((self.rate as f64 * PAL_RATE) / (self.factor * tempo as f64 * 100.0)) as usize;
     }
@@ -246,11 +256,16 @@ impl<'a> Mixer<'a> {
                         md.vol_l = vol_l >> 8;
                         md.vol_r = vol_r >> 8;
 
-                        match sample.sample_type {
-                            SampleType::Empty    => {},
-                            SampleType::Sample8  => md.mix::<i8>(&self.interp, &sample.data_8(), &mut self.buf32, &mut v.i_buffer),
-                            SampleType::Sample16 => md.mix::<i16>(&self.interp, &sample.data_16(), &mut self.buf32, &mut v.i_buffer),
-                        };
+                        match v.paula {
+                            Some(ref mut val) => md.mix_paula(&sample.data_8(), &mut self.buf32, val),
+                            None          => {
+                                match sample.sample_type {
+                                    SampleType::Empty    => {},
+                                    SampleType::Sample8  => md.mix::<i8>(&self.interp, &sample.data_8(), &mut self.buf32, &mut v.i_buffer),
+                                    SampleType::Sample16 => md.mix::<i16>(&self.interp, &sample.data_16(), &mut self.buf32, &mut v.i_buffer),
+                                };
+                            }
+                        }
 
                         buf_pos += mix_size as usize;
                     }
@@ -314,7 +329,7 @@ impl<'a> Mixer<'a> {
 }
 
 
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Default)]
 struct Voice {
     num       : usize,
     pos       : f64,
@@ -331,6 +346,8 @@ struct Voice {
     sample_end: bool,
 
     i_buffer  : [i32; 4],
+
+    paula     : Option<Paula>,
 }
 
 impl Voice {
@@ -440,11 +457,11 @@ impl MixerData {
         let filter = 0;
 
         for _ in 0..self.size {
-            let num_in = paula.remainder as usize / paula::MINIMUM_INTERVAL;
+            let num_in = paula.remainder.ceil() as usize / paula::MINIMUM_INTERVAL;
             let ministep = self.step / num_in;
 
             // input is always sampled at a higher rate than output
-            for i in 0..num_in - 1 {
+            for i in 0..num_in-1 {
                 paula.input_sample(*&data[pos] as i16);
                 paula.do_clock(paula::MINIMUM_INTERVAL as i16);
                 frac += ministep;
@@ -456,7 +473,7 @@ impl MixerData {
 
             let remainder = paula.remainder as i16;
             paula.do_clock(remainder);
-            let smp = paula.output_sample(filter) as i32;
+            let smp = (paula.output_sample(filter) << 8) as i32;
             let cycles = (paula::MINIMUM_INTERVAL - paula.remainder as usize) as i16;
             paula.do_clock(cycles);
             frac += self.step - (num_in-1)*ministep;

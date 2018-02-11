@@ -191,6 +191,8 @@ impl FormatPlayer for USTPlayer {
         mixer.set_pan(1, panr);
         mixer.set_pan(2, panr);
         mixer.set_pan(3, panl);
+
+        mixer.enable_paula(true);
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
