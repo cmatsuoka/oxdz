@@ -18,45 +18,49 @@ correctly implemented. Sound quality will be improved later.
 
 ## Task list
 
-* Standard M.K. loader :heavy_check_mark:
+### Must have
+
+* Formats and players
+  * Standard M.K. loader :heavy_check_mark:
   * M.K. fingerprinting :heavy_check_mark:
-* 15-instrument
-  * UST/ST fingerprinting
-* Multichannel
+  * Multichannel
   * xCHN/xxCH fingerprinting
-* Protracker mod player :heavy_check_mark:
-  * Player variation for the same format (e.g. Noisetracker) :heavy_check_mark:
-  * 15-instrument variant (Soundtrackers)
-  * Amiga sound emulation
-* Scream Tracker 2 support :heavy_check_mark:
-* Scream Tracker 3 support :heavy_check_mark:
-  * Play ST3 M.K. file (e.g. Sundance.mod)
-  * Play ST3 xCHN/xxCH files
+  * Protracker M.K. mod player :heavy_check_mark:
+  * Player variation for M.K. (e.g. Noisetracker) :heavy_check_mark:
+  * 15-instrument variant (Soundtracker)
+  * Scream Tracker 2 :heavy_check_mark:
+  * Scream Tracker 3 :heavy_check_mark:
+    * Play ST3 M.K. file (e.g. Sundance.mod)
+    * Play ST3 xCHN/xxCH files
+  * Fast Tracker II support
+    * Also play non-ST3 xCHN and xxCH files
+  * Impulse Tracker support
 * Quirk table
-* Fast Tracker II support
-  * Play non-ST3 xCHN and xxCH files
-* Better mixer
+* Mixer
   * Better interpolation :heavy_check_mark:
+  * Amiga sound emulation :heavy_check_mark:
   * Bidirectional loop
-* Impulse Tracker support
 * Module pre-scan
 * Skip patterns forward/backwards
 * Other language bindings
   * C
-  * Something else (Go, Python, Java)
 * Stable API
   * Public crate
 * Player application
   * Proof of concept :heavy_check_mark:
   * CLI-based
+
+
+### Nice to have, wishlist, etc
+
+* Format support
+  * Digitrakker player based on original sources
+  * Imago Orpheus player based on original sources
+  * SoundFX
+* Other language bindings
+  * Something else (Go, Python, Java, etc)
+* Player application
   * Mobile app
   * Web-based
   * GUI player
-
-
-## Nice to have, wishlist, etc
-
-* Digitrakker player based on original sources
-* Imago Orpheus player based on original sources
-* SoundFX
 
