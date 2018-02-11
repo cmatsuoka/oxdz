@@ -457,28 +457,32 @@ impl MixerData {
         let filter = 0;
 
         for _ in 0..self.size {
-            let num_in = paula.remainder.ceil() as usize / paula::MINIMUM_INTERVAL;
+            let num_in = paula.remainder as usize / paula::MINIMUM_INTERVAL;
             let ministep = self.step / num_in;
 
-            // input is always sampled at a higher rate than output
+            // input is sampled at a higher rate than output
             for i in 0..num_in-1 {
                 paula.input_sample(*&data[pos] as i16);
                 paula.do_clock(paula::MINIMUM_INTERVAL as i16);
+
                 frac += ministep;
                 pos += frac >> SMIX_SHIFT;
                 frac &= SMIX_MASK;
             }
-            paula.input_sample(*&data[pos] as i16);
-            paula.remainder -= (num_in * paula::MINIMUM_INTERVAL) as f64;
 
+            paula.input_sample(*&data[pos] as i16);
+
+            paula.remainder -= (num_in * paula::MINIMUM_INTERVAL) as f64;
             let remainder = paula.remainder as i16;
             paula.do_clock(remainder);
-            let smp = (paula.output_sample(filter) << 8) as i32;
-            let cycles = (paula::MINIMUM_INTERVAL - paula.remainder as usize) as i16;
-            paula.do_clock(cycles);
+
             frac += self.step - (num_in-1)*ministep;
             pos += frac >> SMIX_SHIFT;
             frac &= SMIX_MASK;
+
+            let smp = (paula.output_sample(filter) << 8) as i32;
+            let cycles = (paula::MINIMUM_INTERVAL - paula.remainder as usize) as i16;
+            paula.do_clock(cycles);
 
             paula.remainder += paula.fdiv;
 

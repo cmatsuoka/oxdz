@@ -35,11 +35,17 @@ impl Sample {
 
     pub fn store(&mut self, b: &[u8]) {
         self.data.extend(b);
+        self.data.extend([0; 2].iter());
+        let i = self.data.len();
+        if i >= 3 {     // FIXME: workaround for Amiga blep ministeps
+            self.data[i-2] = self.data[i-3];
+            self.data[i-1] = self.data[i-3];
+        }
     }
 
     pub fn data_8(&self) -> &[i8] {
         unsafe {
-            slice::from_raw_parts(self.data.as_ptr() as *const i8, self.size as usize)
+            slice::from_raw_parts(self.data.as_ptr() as *const i8, self.size as usize + 2)
         }
     }
 
