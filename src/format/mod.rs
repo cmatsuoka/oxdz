@@ -2,6 +2,7 @@ use module::Module;
 use ::*;
 
 pub mod mk;
+pub mod st;
 pub mod stm;
 pub mod s3m;
 
@@ -30,6 +31,7 @@ pub fn list() -> Vec<Box<Loader>> {
         Box::new(s3m::S3mLoader),
         Box::new(stm::StmLoader),
         Box::new(mk::ModLoader),
+        Box::new(st::StLoader),
     ]
 }
 

@@ -70,30 +70,34 @@ impl ModuleData for ModData {
         }
     }
 
-    fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
-        let mut i = 0;
-        for _ in 0..num {
-            let (row, ch) = (i / 4, i % 4);
-            let ofs = i * 6;
-            let e = &self.patterns.data[pat*256 + row*4 + ch];
-
-            let mut flags = 0;
-            let note = e.note & 0xfff;
-            let ins = (((e.note & 0xf000) >> 8) | ((e.cmd as u16 & 0xf0) >> 4)) as u8;
-
-            if note  != 0 { flags |= event::HAS_NOTE; buffer[ofs+1] = period_to_note(note) }
-            if ins   != 0 { flags |= event::HAS_INS ; buffer[ofs+2] = ins }
-            if e.cmd != 0 || e.cmdlo != 0 { flags |= event::HAS_CMD; buffer[ofs+4] = e.cmd; buffer[ofs+5] = e.cmdlo }
-            buffer[ofs] = flags;
-
-            i += 1;
-        }
-        i
+    fn pattern_data(&self, pat: usize, num: usize, mut buffer: &mut [u8]) -> usize {
+        get_mod_pattern(&self.patterns.data, pat, num, &mut buffer)
     }
 
     fn samples(&self) -> &Vec<Sample> {
         &self.samples
     }
+}
+
+pub fn get_mod_pattern(data: &Vec<ModEvent>, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
+    let mut i = 0;
+    for _ in 0..num {
+        let (row, ch) = (i / 4, i % 4);
+        let ofs = i * 6;
+        let e = &data[pat*256 + row*4 + ch];
+
+        let mut flags = 0;
+        let note = e.note & 0xfff;
+        let ins = (((e.note & 0xf000) >> 8) | ((e.cmd as u16 & 0xf0) >> 4)) as u8;
+
+        if note  != 0 { flags |= event::HAS_NOTE; buffer[ofs+1] = period_to_note(note) }
+        if ins   != 0 { flags |= event::HAS_INS ; buffer[ofs+2] = ins }
+        if e.cmd != 0 || e.cmdlo != 0 { flags |= event::HAS_CMD; buffer[ofs+4] = e.cmd; buffer[ofs+5] = e.cmdlo }
+        buffer[ofs] = flags;
+
+        i += 1;
+    }
+    i
 }
 
 
@@ -138,7 +142,7 @@ pub struct ModPatterns {
 }
 
 impl ModPatterns {
-    fn from_slice(num: usize, b: &[u8]) -> Result<Self, Error> {
+    pub fn from_slice(num: usize, b: &[u8]) -> Result<Self, Error> {
         let mut pat = ModPatterns{
             num,
             data: Vec::new(),
@@ -159,6 +163,10 @@ impl ModPatterns {
 
     pub fn num(&self) -> usize {
         self.num
+    }
+
+    pub fn data(&self) -> &Vec<ModEvent> {
+        &self.data
     }
 
     pub fn event(&self, pat: usize, row: u8, chn: usize) -> &ModEvent {
