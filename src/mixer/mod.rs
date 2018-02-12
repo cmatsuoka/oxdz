@@ -181,19 +181,13 @@ impl<'a> Mixer<'a> {
         if smp == 0 {
             return
         }
-        smp -= 1;
 
         let v = &mut self.voices[voice];
-        v.smp = smp;
+        v.smp = smp - 1;
+        v.pos = 0_f64;
+        v.end = self.sample[smp].size;
         v.has_loop = false;
         v.sample_end = true;
-
-        let sample = &self.sample[v.smp];
-
-        v.pos = 0_f64;
-        v.end = sample.size;
-
-        // ...
     }
 
     pub fn set_sample_ptr(&mut self, voice: usize, addr: u32) {

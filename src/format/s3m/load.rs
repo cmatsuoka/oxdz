@@ -187,6 +187,7 @@ fn load_sample(b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sam
     let mut smp = Sample::new();
 
     smp.num  = i + 1;
+    smp.address = (ins.memseg as u32) << 4;
     smp.name = ins.name.to_owned();
     smp.size = ins.length;
     smp.rate = 8363.0;
@@ -196,7 +197,7 @@ fn load_sample(b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sam
     }
 
     let sample_size = if ins.flags & 0x04 != 0 { smp.size*2 } else { smp.size };
-    smp.store(b.slice(ins.memseg as usize * 16, sample_size as usize)?);
+    smp.store(b.slice((ins.memseg as usize) << 4, sample_size as usize)?);
     if cvt {
         smp.to_signed();
     }

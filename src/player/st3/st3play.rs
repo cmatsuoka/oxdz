@@ -579,10 +579,7 @@ impl St3Play {
 
                         // This specific portion differs from what sound card driver you use in ST3...
                         if self.soundcardtype == SOUNDCARD_SB || cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64) {
-                            /*self.voice_set_source(ch, (const int8_t *)(&mseg[insoffs]), inslen,
-                                insrepend - insrepbeg, insrepend, loop,
-                                insdat[0x1F] & 4, insdat[0x1F] & 2);*/
-                            mixer.set_patch(ch, ins - 1, ins - 1);
+                            mixer.set_sample(ch, ins);
                             mixer.set_loop_start(ch, insrepbeg);
                             mixer.set_loop_end(ch, insrepend);
                             mixer.enable_loop(ch, has_loop);
