@@ -175,6 +175,42 @@ impl<'a> Mixer<'a> {
         // ...
     }
 
+    pub fn set_sample(&mut self, voice: usize, mut smp: usize) {
+        try_voice!(voice, self.voices);
+
+        if smp == 0 {
+            return
+        }
+        smp -= 1;
+
+        let v = &mut self.voices[voice];
+        v.smp = smp;
+        v.has_loop = false;
+        v.sample_end = true;
+
+        let sample = &self.sample[v.smp];
+
+        v.pos = 0_f64;
+        v.end = sample.size;
+
+        // ...
+    }
+
+    pub fn set_sample_ptr(&mut self, voice: usize, addr: u32) {
+        try_voice!(voice, self.voices);
+
+        let v = &mut self.voices[voice];
+
+        for s in self.sample {
+            if addr >= s.address && addr < s.address + s.size {
+                v.smp = s.num - 1;
+                v.pos = (addr - s.address) as f64;
+                v.end = s.size;
+                break
+            }
+        }
+    }
+
     pub fn set_loop_start(&mut self, voice: usize, val: u32) {
         try_voice!(voice, self.voices);
         self.voices[voice].loop_start = val;

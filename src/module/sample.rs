@@ -15,6 +15,7 @@ pub enum SampleType {
 pub struct Sample {
     pub sample_type : SampleType,
     pub num         : usize,
+    pub address     : u32,
     pub size        : u32,
     pub rate        : f64,
     pub name        : String,
@@ -26,6 +27,7 @@ impl Sample {
         Sample {
             sample_type : SampleType::Empty,
             num         : 0,
+            address     : 0,
             size        : 0,
             rate        : 8000_f64,
             name        : "".to_owned(),

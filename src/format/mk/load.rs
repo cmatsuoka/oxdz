@@ -63,7 +63,7 @@ impl Loader for ModLoader {
         let mut ofs = 1084 + 1024*pat;
         for i in 0..31 {
             let size = instruments[i].size as usize * 2;
-            let smp = load_sample(b.slice(ofs, size)?, i, &instruments[i]);
+            let smp = load_sample(b.slice(ofs, size)?, ofs, i, &instruments[i]);
             samples.push(smp);
             ofs += size;
         }
@@ -125,11 +125,12 @@ fn load_instrument(b: &[u8], i: usize) -> Result<ModInstrument, Error> {
     Ok(ins)
 }
 
-fn load_sample(b: &[u8], i: usize, ins: &ModInstrument) -> Sample {
+fn load_sample(b: &[u8], ofs: usize, i: usize, ins: &ModInstrument) -> Sample {
     let mut smp = Sample::new();
 
     smp.num  = i + 1;
     smp.name = ins.name.to_owned();
+    smp.address = ofs as u32;
     smp.size = ins.size as u32 * 2;
     smp.rate = util::C4_PAL_RATE;
     if smp.size > 0 {

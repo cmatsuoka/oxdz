@@ -19,7 +19,6 @@ use mixer::Mixer;
 /// * Move volume setting from command processing to the voice playing loop
 
 pub struct ModPlayer {
-    state  : Vec<ChannelData>,
     options: Options, 
 
     mt_speed          : u8,
@@ -33,13 +32,15 @@ pub struct ModPlayer {
     mt_patt_del_time_2: u8,
     mt_pattern_pos    : u8,
     cia_tempo         : u8,
+
+    mt_chantemp       : Vec<ChannelData>,
+    mt_samplestarts   : [u32; 31],
 }
 
 impl ModPlayer {
     pub fn new(module: &Module, options: Options) -> Self {
         ModPlayer {
             options,
-            state: vec![ChannelData::new(); 4],
 
             mt_speed          : 6,
             mt_counter        : 0,
@@ -52,6 +53,9 @@ impl ModPlayer {
             mt_patt_del_time_2: 0,
             mt_pattern_pos    : 0,
             cia_tempo         : 125,
+
+            mt_chantemp       : vec![ChannelData::new(); 4],
+            mt_samplestarts   : [0; 31],
         }
     }
 
@@ -118,58 +122,60 @@ impl ModPlayer {
 
         // mt_SetDMA
         for chn in 0..4 {
-            let state = &mut self.state[chn];
-            mixer.set_loop_start(chn, state.n_loopstart * 2);
-            mixer.set_loop_end(chn, (state.n_loopstart + state.n_replen as u32) * 2);
-            mixer.enable_loop(chn, state.n_replen > 1);
+            let ch = &mut self.mt_chantemp[chn];
+            mixer.set_loop_start(chn, ch.n_loopstart - ch.n_start);
+            mixer.set_loop_end(chn, ch.n_loopstart - ch.n_start + ch.n_replen as u32);
+            mixer.enable_loop(chn, ch.n_replen > 1);
         }
     }
 
     fn mt_play_voice(&mut self, pat: usize, chn: usize, module: &ModData, mut mixer: &mut Mixer) {
         let event = module.patterns.event(pat, self.mt_pattern_pos, chn);
 
-        if { let e = &self.state[chn]; e.n_note == 0 && (e.n_cmd | e.n_cmdlo == 0) } {  // TST.L   (A6)
+        if { let e = &self.mt_chantemp[chn]; e.n_note == 0 && (e.n_cmd | e.n_cmdlo == 0) } {  // TST.L   (A6)
             self.per_nop(chn, &mut mixer);
         }
 
         // mt_plvskip
         {
-            let state = &mut self.state[chn];
+            let ch = &mut self.mt_chantemp[chn];
 
-            state.n_note = event.note;      // MOVE.L  (A0,D1.L),(A6)
-            state.n_cmd = event.cmd;
-            state.n_cmdlo = event.cmdlo;
+            ch.n_note = event.note;      // MOVE.L  (A0,D1.L),(A6)
+            ch.n_cmd = event.cmd;
+            ch.n_cmdlo = event.cmdlo;
 
             let ins = (((event.note & 0xf000) >> 8) | ((event.cmd as u16 & 0xf0) >> 4)) as usize;
 
             if ins > 0 && ins <= 31 {       // sanity check: was: ins != 0
                 let instrument = &module.instruments[ins - 1];
-                //state.n_reallength = instrument.size;
+                ch.n_start = self.mt_samplestarts[ins - 1];
+                ch.n_length = instrument.repeat + instrument.replen * 2;
+                //ch.n_reallength = instrument.size;
                 // PT2.3D fix: mask finetune
-                state.n_finetune = instrument.finetune & 0x0f;
-                state.n_volume = instrument.volume;
-                state.n_length = instrument.repeat + instrument.replen;
-                state.n_replen = instrument.replen;
+                ch.n_finetune = instrument.finetune & 0x0f;
+                ch.n_volume = instrument.volume;
+                ch.n_replen = instrument.replen * 2;
 
-                mixer.set_patch(chn, ins - 1, ins - 1);
-                mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
-                if instrument.replen > 1 {
-                    state.n_loopstart = instrument.repeat as u32;
-                    state.n_wavestart = instrument.repeat as u32;
-                    state.n_length = instrument.repeat + state.n_replen;
+                if instrument.repeat > 0 {
+                    ch.n_loopstart = ch.n_start + instrument.repeat as u32 * 2;
+                    ch.n_wavestart = ch.n_loopstart;
+                    ch.n_length = instrument.repeat + ch.n_replen;
+                    mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 } else {
                     // mt_NoLoop
-                    state.n_length = instrument.repeat + instrument.replen;
-                    state.n_replen = instrument.replen;
+                    ch.n_loopstart = ch.n_start;
+                    ch.n_wavestart = ch.n_start;
+                    ch.n_replen = instrument.replen * 2;  // MOVE.W  6(A3,D4.L),n_replen(A6) ; Save replen
+                    mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 }
             }
         }
 
         // mt_SetRegs
-        if self.state[chn].n_note & 0xfff != 0 {
-            match self.state[chn].n_cmd & 0x0f {
-                0xe => {
-                           if (self.state[chn].n_cmdlo & 0xf0) == 0x50 {
+        if self.mt_chantemp[chn].n_note & 0xfff != 0 {
+            match self.mt_chantemp[chn].n_cmd & 0x0f {
+                0xe =>  {
+                           if (self.mt_chantemp[chn].n_cmdlo & 0xf0) == 0x50 {
                                // mt_DoSetFinetune
                                self.mt_set_finetune(chn);
                            }
@@ -198,8 +204,8 @@ impl ModPlayer {
 
     fn mt_set_period(&mut self, chn: usize, mut mixer: &mut Mixer) {
         {
-            let state = &mut self.state[chn];
-            let note = state.n_note & 0xfff;
+            let ch = &mut self.mt_chantemp[chn];
+            let note = ch.n_note & 0xfff;
 
             let mut i = 0;      // MOVEQ   #0,D0
             // mt_ftuloop
@@ -210,17 +216,20 @@ impl ModPlayer {
                 i += 1;         // ADDQ.L  #2,D0
             }                   // DBRA    D7,mt_ftuloop
             // mt_ftufound
-            state.n_period = MT_PERIOD_TABLE[37 * state.n_finetune as usize + i];
+            ch.n_period = MT_PERIOD_TABLE[37 * ch.n_finetune as usize + i];
 
-            if state.n_cmd & 0x0f != 0x0e || (state.n_cmdlo & 0xf0) != 0xd0 {  // !Notedelay
-                if state.n_wavecontrol & 0x04 != 0x00 {
-                    state.n_vibratopos = 0;
+            if ch.n_cmd & 0x0f != 0x0e || (ch.n_cmdlo & 0xf0) != 0xd0 {  // !Notedelay
+                if ch.n_wavecontrol & 0x04 != 0x00 {
+                    ch.n_vibratopos = 0;
                 }
-                if state.n_wavecontrol & 0x40 != 0x00 {
-                    state.n_tremolopos = 0;
+                // mt_vibnoc
+                if ch.n_wavecontrol & 0x40 != 0x00 {
+                    ch.n_tremolopos = 0;
                 }
-                mixer.set_voicepos(chn, 0.0);
-                mixer.set_period(chn, state.n_period as f64);
+                // mt_trenoc
+                mixer.set_sample_ptr(chn, ch.n_start);
+                mixer.set_period(chn, ch.n_period as f64);
+                //mixer.set_voicepos(chn, 0.0);
             }
         }
 
@@ -247,10 +256,10 @@ impl ModPlayer {
 
     fn mt_check_efx(&mut self, chn: usize, mut mixer: &mut Mixer) {
 
-        let cmd = self.state[chn].n_cmd & 0x0f;
+        let cmd = self.mt_chantemp[chn].n_cmd & 0x0f;
 
         // mt_UpdateFunk
-        if cmd == 0 && self.state[chn].n_cmdlo == 0 {
+        if cmd == 0 && self.mt_chantemp[chn].n_cmdlo == 0 {
             self.per_nop(chn, &mut mixer);
             return
         }
@@ -266,7 +275,7 @@ impl ModPlayer {
             0xe => self.mt_e_commands(chn, &mut mixer),
             _   => {
                 // SetBack
-                mixer.set_period(chn, self.state[chn].n_period as f64);  // MOVE.W  n_period(A6),6(A5)
+                mixer.set_period(chn, self.mt_chantemp[chn].n_period as f64);  // MOVE.W  n_period(A6),6(A5)
                 match cmd {
                     0x7 => self.mt_tremolo(chn, &mut mixer),
                     0xa => self.mt_volume_slide(chn, &mut mixer),
@@ -276,35 +285,35 @@ impl ModPlayer {
         }
 
         if cmd != 0x7 {
-            mixer.set_volume(chn, (self.state[chn].n_volume as usize) << 4);
+            mixer.set_volume(chn, (self.mt_chantemp[chn].n_volume as usize) << 4);
         }
     }
 
     fn per_nop(&self, chn: usize, mixer: &mut Mixer) {
-        let period = self.state[chn].n_period;
+        let period = self.mt_chantemp[chn].n_period;
         mixer.set_period(chn, period as f64);  // MOVE.W  n_period(A6),6(A5)
     }
 
     fn mt_arpeggio(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
+        let ch = &mut self.mt_chantemp[chn];
         let val = match self.mt_counter % 3 {
             2 => {  // Arpeggio1
-                     state.n_cmdlo & 15
+                     ch.n_cmdlo & 15
                  },
             0 => {  // Arpeggio2
                      0
                  },
             _ => {
-                     state.n_cmdlo >> 4
+                     ch.n_cmdlo >> 4
                  },
         } as usize;
 
         // Arpeggio3
-        let ofs = 37 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D1 / MULU    #36*2,D1
+        let ofs = 37 * ch.n_finetune as usize;  // MOVE.B  n_finetune(A6),D1 / MULU    #36*2,D1
 
         // mt_arploop
         for i in 0..36 {
-            if state.n_period >= MT_PERIOD_TABLE[ofs + i] {
+            if ch.n_period >= MT_PERIOD_TABLE[ofs + i] {
                // Arpeggio4
                mixer.set_period(chn, MT_PERIOD_TABLE[ofs + i + val] as f64);  // MOVE.W  D2,6(A5)
                return
@@ -321,13 +330,13 @@ impl ModPlayer {
     }
 
     fn mt_porta_up(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        state.n_period -= (state.n_cmdlo & self.mt_low_mask) as u16;
+        let ch = &mut self.mt_chantemp[chn];
+        ch.n_period -= (ch.n_cmdlo & self.mt_low_mask) as u16;
         self.mt_low_mask = 0xff;
-        if state.n_period < 113 {
-            state.n_period = 113;
+        if ch.n_period < 113 {
+            ch.n_period = 113;
         }
-        mixer.set_period(chn, state.n_period as f64);  // MOVE.W  n_period(A6),6(A5)
+        mixer.set_period(chn, ch.n_period as f64);  // MOVE.W  n_period(A6),6(A5)
     }
 
     fn mt_fine_porta_down(&mut self, chn: usize, mut mixer: &mut Mixer) {
@@ -339,19 +348,19 @@ impl ModPlayer {
     }
 
     fn mt_porta_down(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        state.n_period += (state.n_cmdlo & self.mt_low_mask) as u16;
+        let ch = &mut self.mt_chantemp[chn];
+        ch.n_period += (ch.n_cmdlo & self.mt_low_mask) as u16;
         self.mt_low_mask = 0xff;
-        if state.n_period > 856 {
-            state.n_period = 856;
+        if ch.n_period > 856 {
+            ch.n_period = 856;
         }
-        mixer.set_period(chn, state.n_period as f64);  // MOVE.W  D0,6(A5)
+        mixer.set_period(chn, ch.n_period as f64);  // MOVE.W  D0,6(A5)
     }
 
     fn mt_set_tone_porta(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
-        let note = state.n_note & 0xfff;
-        let ofs = 37 * state.n_finetune as usize;  // MOVE.B  n_finetune(A6),D0 / MULU    #37*2,D0
+        let ch = &mut self.mt_chantemp[chn];
+        let note = ch.n_note & 0xfff;
+        let ofs = 37 * ch.n_finetune as usize;  // MOVE.B  n_finetune(A6),D0 / MULU    #37*2,D0
 
         let mut i = 0;       // MOVEQ   #0,D0
         // mt_StpLoop
@@ -364,60 +373,60 @@ impl ModPlayer {
         }
 
         // mt_StpFound
-        if state.n_finetune & 0x80 != 0 && i != 0 {
+        if ch.n_finetune & 0x80 != 0 && i != 0 {
             i -= 1;          // SUBQ.W  #2,D0
         }
         // mt_StpGoss
-        state.n_wantedperiod = MT_PERIOD_TABLE[ofs + i];
-        state.n_toneportdirec = false;
+        ch.n_wantedperiod = MT_PERIOD_TABLE[ofs + i];
+        ch.n_toneportdirec = false;
 
-        if state.n_period == state.n_wantedperiod {
+        if ch.n_period == ch.n_wantedperiod {
             // mt_ClearTonePorta
-            state.n_wantedperiod = 0;
-        } else if state.n_period < state.n_wantedperiod {
-            state.n_toneportdirec = true;
+            ch.n_wantedperiod = 0;
+        } else if ch.n_period < ch.n_wantedperiod {
+            ch.n_toneportdirec = true;
         }
     }
 
     fn mt_tone_portamento(&mut self, chn: usize, mut mixer: &mut Mixer) {
         {
-            let state = &mut self.state[chn];
-            if state.n_cmdlo != 0 {
-                state.n_toneportspeed = state.n_cmdlo;
-                state.n_cmdlo = 0;
+            let ch = &mut self.mt_chantemp[chn];
+            if ch.n_cmdlo != 0 {
+                ch.n_toneportspeed = ch.n_cmdlo;
+                ch.n_cmdlo = 0;
             }
         }
         self.mt_tone_port_no_change(chn, &mut mixer);
     }
 
     fn mt_tone_port_no_change(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        if state.n_wantedperiod == 0 {
+        let ch = &mut self.mt_chantemp[chn];
+        if ch.n_wantedperiod == 0 {
             return
         }
-        if state.n_toneportdirec {
+        if ch.n_toneportdirec {
             // mt_TonePortaDown
-            state.n_period += state.n_toneportspeed as u16;
-            if state.n_period > state.n_wantedperiod {
-                state.n_period = state.n_wantedperiod;
-                state.n_wantedperiod = 0;
+            ch.n_period += ch.n_toneportspeed as u16;
+            if ch.n_period > ch.n_wantedperiod {
+                ch.n_period = ch.n_wantedperiod;
+                ch.n_wantedperiod = 0;
             }
         } else {
             // mt_TonePortaUp
-            if state.n_period > state.n_toneportspeed as u16 {
-                state.n_period -= state.n_toneportspeed as u16;
+            if ch.n_period > ch.n_toneportspeed as u16 {
+                ch.n_period -= ch.n_toneportspeed as u16;
             } else {
-                state.n_period = 0;
+                ch.n_period = 0;
             }
-            if state.n_period < state.n_wantedperiod {
-                state.n_period = state.n_wantedperiod;
-                state.n_wantedperiod = 0;
+            if ch.n_period < ch.n_wantedperiod {
+                ch.n_period = ch.n_wantedperiod;
+                ch.n_wantedperiod = 0;
             }
         }
         // mt_TonePortaSetPer
-        let mut period = state.n_period;               // MOVE.W  n_period(A6),D2
-        if state.n_glissfunk & 0x0f != 0 {
-            let ofs = 37 * state.n_finetune as usize;  // MULU    #36*2,D0
+        let mut period = ch.n_period;               // MOVE.W  n_period(A6),D2
+        if ch.n_glissfunk & 0x0f != 0 {
+            let ofs = 37 * ch.n_finetune as usize;  // MULU    #36*2,D0
             let mut i = 0;
             // mt_GlissLoop
             while period < MT_PERIOD_TABLE[ofs + i] {  // LEA     mt_PeriodTable(PC),A0 / CMP.W   (A0,D0.W),D2
@@ -436,14 +445,14 @@ impl ModPlayer {
 
     fn mt_vibrato(&mut self, chn: usize, mut mixer: &mut Mixer) {
         {
-            let state = &mut self.state[chn];
-            if state.n_cmdlo != 0 {
-                if state.n_cmdlo & 0x0f != 0 {
-                    state.n_vibratocmd = (state.n_vibratocmd & 0xf0) | (state.n_cmdlo & 0x0f)
+            let ch = &mut self.mt_chantemp[chn];
+            if ch.n_cmdlo != 0 {
+                if ch.n_cmdlo & 0x0f != 0 {
+                    ch.n_vibratocmd = (ch.n_vibratocmd & 0xf0) | (ch.n_cmdlo & 0x0f)
                 }
                 // mt_vibskip
-                if state.n_cmdlo & 0xf0 != 0 {
-                    state.n_vibratocmd = (state.n_vibratocmd & 0x0f) | (state.n_cmdlo & 0xf0)
+                if ch.n_cmdlo & 0xf0 != 0 {
+                    ch.n_vibratocmd = (ch.n_vibratocmd & 0x0f) | (ch.n_cmdlo & 0xf0)
                 }
                 // mt_vibskip2
             }
@@ -452,9 +461,9 @@ impl ModPlayer {
     }
 
     fn mt_vibrato_2(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        let mut pos = (state.n_vibratopos >> 2) & 0x1f;
-        let val = match state.n_wavecontrol & 0x03 {
+        let ch = &mut self.mt_chantemp[chn];
+        let mut pos = (ch.n_vibratopos >> 2) & 0x1f;
+        let val = match ch.n_wavecontrol & 0x03 {
             0 => {  // mt_vib_sine
                      MT_VIBRATO_TABLE[pos as usize]
                  },
@@ -467,9 +476,9 @@ impl ModPlayer {
                  }
         };
         // mt_vib_set
-        let mut period = state.n_period;
-        let amt = (val as usize * (state.n_vibratocmd & 15) as usize) >> 7;
-        if state.n_vibratopos & 0x80 == 0 {
+        let mut period = ch.n_period;
+        let amt = (val as usize * (ch.n_vibratocmd & 15) as usize) >> 7;
+        if ch.n_vibratopos & 0x80 == 0 {
             period += amt as u16
         } else {
             period -= amt as u16
@@ -477,7 +486,7 @@ impl ModPlayer {
 
         // mt_Vibrato3
         mixer.set_period(chn, period as f64);
-        state.n_vibratopos = state.n_vibratopos.wrapping_add((state.n_vibratocmd >> 2) & 0x3c);
+        ch.n_vibratopos = ch.n_vibratopos.wrapping_add((ch.n_vibratocmd >> 2) & 0x3c);
     }
 
     fn mt_tone_plus_vol_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
@@ -491,20 +500,20 @@ impl ModPlayer {
     }
 
     fn mt_tremolo(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        if state.n_cmdlo != 0 {
-            if state.n_cmdlo & 0x0f != 0 {
-                 state.n_tremolocmd = (state.n_cmdlo & 0x0f) | (state.n_tremolocmd & 0xf0)
+        let ch = &mut self.mt_chantemp[chn];
+        if ch.n_cmdlo != 0 {
+            if ch.n_cmdlo & 0x0f != 0 {
+                 ch.n_tremolocmd = (ch.n_cmdlo & 0x0f) | (ch.n_tremolocmd & 0xf0)
             }
             // mt_treskip
-            if state.n_cmdlo & 0xf0 != 0 {
-                 state.n_tremolocmd = (state.n_cmdlo & 0xf0) | (state.n_tremolocmd & 0x0f)
+            if ch.n_cmdlo & 0xf0 != 0 {
+                 ch.n_tremolocmd = (ch.n_cmdlo & 0xf0) | (ch.n_tremolocmd & 0x0f)
             }
             // mt_treskip2
         }
         // mt_Tremolo2
-        let mut pos = (state.n_tremolopos >> 2) & 0x1f;
-        let val = match (state.n_wavecontrol >> 4) & 0x03 {
+        let mut pos = (ch.n_tremolopos >> 2) & 0x1f;
+        let val = match (ch.n_wavecontrol >> 4) & 0x03 {
             0 => {  // mt_tre_sine
                      MT_VIBRATO_TABLE[pos as usize]
                  },
@@ -517,9 +526,9 @@ impl ModPlayer {
                  },
         };
         // mt_tre_set
-        let mut volume = state.n_volume as isize;
-        let amt = ((val as usize * (state.n_tremolocmd & 15) as usize) >> 6) as isize;
-        if state.n_tremolopos & 0x80 == 0 {
+        let mut volume = ch.n_volume as isize;
+        let amt = ((val as usize * (ch.n_tremolocmd & 15) as usize) >> 6) as isize;
+        if ch.n_tremolopos & 0x80 == 0 {
             volume += amt;
         } else {
             volume -= amt;
@@ -535,19 +544,19 @@ impl ModPlayer {
 
         // mt_TremoloOk
         mixer.set_volume(chn, (volume as usize) << 4);  // MOVE.W  D0,8(A5)
-        state.n_tremolopos = state.n_tremolopos.wrapping_add((state.n_tremolocmd >> 2) & 0x3c);
+        ch.n_tremolopos = ch.n_tremolopos.wrapping_add((ch.n_tremolocmd >> 2) & 0x3c);
     }
 
     fn mt_sample_offset(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        if state.n_cmdlo != 0 {
-            state.n_sampleoffset = state.n_cmdlo;
+        let ch = &mut self.mt_chantemp[chn];
+        if ch.n_cmdlo != 0 {
+            ch.n_sampleoffset = ch.n_cmdlo;
         }
-        mixer.set_voicepos(chn, ((state.n_sampleoffset as u32) << 8) as f64);
+        mixer.set_voicepos(chn, ((ch.n_sampleoffset as u32) << 8) as f64);
     }
 
     fn mt_volume_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        if self.state[chn].n_cmdlo >> 4 == 0 {
+        if self.mt_chantemp[chn].n_cmdlo >> 4 == 0 {
             self.mt_vol_slide_down(chn, &mut mixer);
         } else {
             self.mt_vol_slide_up(chn, &mut mixer);
@@ -555,45 +564,45 @@ impl ModPlayer {
     }
 
     fn mt_vol_slide_up(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        state.n_volume += state.n_cmdlo >> 4;
-        if state.n_volume > 0x40 {
-            state.n_volume = 0x40;
+        let ch = &mut self.mt_chantemp[chn];
+        ch.n_volume += ch.n_cmdlo >> 4;
+        if ch.n_volume > 0x40 {
+            ch.n_volume = 0x40;
         }
-        mixer.set_volume(chn, (state.n_volume as usize) << 4);
+        mixer.set_volume(chn, (ch.n_volume as usize) << 4);
     }
 
     fn mt_vol_slide_down(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        let cmdlo = state.n_cmdlo & 0x0f;
-        if state.n_volume > cmdlo {
-            state.n_volume -= cmdlo;
+        let ch = &mut self.mt_chantemp[chn];
+        let cmdlo = ch.n_cmdlo & 0x0f;
+        if ch.n_volume > cmdlo {
+            ch.n_volume -= cmdlo;
         } else {
-            state.n_volume = 0;
+            ch.n_volume = 0;
         }
-        mixer.set_volume(chn, (state.n_volume as usize) << 4);
+        mixer.set_volume(chn, (ch.n_volume as usize) << 4);
     }
 
     fn mt_position_jump(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
-        self.mt_song_pos = state.n_cmdlo.wrapping_sub(1);
+        let ch = &mut self.mt_chantemp[chn];
+        self.mt_song_pos = ch.n_cmdlo.wrapping_sub(1);
         // mt_pj2
         self.mt_pbreak_pos = 0;
         self.mt_pos_jump_flag = true;
     }
 
     fn mt_volume_change(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        if state.n_cmdlo > 0x40 {
-            state.n_cmdlo = 40
+        let ch = &mut self.mt_chantemp[chn];
+        if ch.n_cmdlo > 0x40 {
+            ch.n_cmdlo = 40
         }
-        state.n_volume = state.n_cmdlo;
-        mixer.set_volume(chn, (state.n_volume as usize) << 4);  // MOVE.W  D0,8(A5)
+        ch.n_volume = ch.n_cmdlo;
+        mixer.set_volume(chn, (ch.n_volume as usize) << 4);  // MOVE.W  D0,8(A5)
     }
 
     fn mt_pattern_break(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
-        let row = (state.n_cmdlo >> 4) * 10 + (state.n_cmdlo & 0x0f);
+        let ch = &mut self.mt_chantemp[chn];
+        let row = (ch.n_cmdlo >> 4) * 10 + (ch.n_cmdlo & 0x0f);
         if row <= 63 {
             // mt_pj2
             self.mt_pbreak_pos = row;
@@ -602,14 +611,14 @@ impl ModPlayer {
     }
 
     fn mt_set_speed(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
-        if state.n_cmdlo != 0 {
+        let ch = &mut self.mt_chantemp[chn];
+        if ch.n_cmdlo != 0 {
             self.mt_counter = 0;
             // also check CIA tempo
-            if state.n_cmdlo < 0x20 {
-                self.mt_speed = state.n_cmdlo;
+            if ch.n_cmdlo < 0x20 {
+                self.mt_speed = ch.n_cmdlo;
             } else {
-                self.cia_tempo = state.n_cmdlo;
+                self.cia_tempo = ch.n_cmdlo;
             }
         }
     }
@@ -617,7 +626,7 @@ impl ModPlayer {
     fn mt_check_more_efx(&mut self, chn: usize, mut mixer: &mut Mixer) {
         // mt_UpdateFunk()
 
-        match self.state[chn].n_cmd & 0x0f {
+        match self.mt_chantemp[chn].n_cmd & 0x0f {
             0x9 => self.mt_sample_offset(chn, &mut mixer),
             0xb => self.mt_position_jump(chn),
             0xd => self.mt_pattern_break(chn),
@@ -632,7 +641,7 @@ impl ModPlayer {
 
     fn mt_e_commands(&mut self, chn: usize, mut mixer: &mut Mixer) {
 
-        match self.state[chn].n_cmdlo >> 4 {
+        match self.mt_chantemp[chn].n_cmdlo >> 4 {
            0x0 => self.mt_filter_on_off(),
            0x1 => self.mt_fine_porta_up(chn, &mut mixer),
            0x2 => self.mt_fine_porta_down(chn, &mut mixer),
@@ -656,63 +665,63 @@ impl ModPlayer {
     }
 
     fn mt_set_gliss_control(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
-        state.n_glissfunk = state.n_cmdlo;
+        let ch = &mut self.mt_chantemp[chn];
+        ch.n_glissfunk = ch.n_cmdlo;
     }
 
     fn mt_set_vibrato_control(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
-        state.n_wavecontrol &= 0xf0;
-        state.n_wavecontrol |= state.n_cmdlo & 0x0f;
+        let ch = &mut self.mt_chantemp[chn];
+        ch.n_wavecontrol &= 0xf0;
+        ch.n_wavecontrol |= ch.n_cmdlo & 0x0f;
     }
 
     fn mt_set_finetune(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
-        state.n_finetune = state.n_cmdlo & 0x0f;
+        let ch = &mut self.mt_chantemp[chn];
+        ch.n_finetune = ch.n_cmdlo & 0x0f;
     }
 
     fn mt_jump_loop(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
+        let ch = &mut self.mt_chantemp[chn];
 
         if self.mt_counter != 0 {
             return
         }
 
-        let cmdlo = state.n_cmdlo & 0x0f;
+        let cmdlo = ch.n_cmdlo & 0x0f;
 
         if cmdlo == 0 {
             // mt_SetLoop
-            state.n_pattpos = self.mt_pattern_pos as u8;
+            ch.n_pattpos = self.mt_pattern_pos as u8;
         } else {
-            if state.n_loopcount == 0 {
+            if ch.n_loopcount == 0 {
                 // mt_jmpcnt
-                state.n_loopcount = cmdlo;
+                ch.n_loopcount = cmdlo;
             } else {
-                state.n_loopcount -= 1;
-                if state.n_loopcount == 0 {
+                ch.n_loopcount -= 1;
+                if ch.n_loopcount == 0 {
                     return
                 }
             }
             // mt_jmploop
-            self.mt_pbreak_pos = state.n_pattpos;
+            self.mt_pbreak_pos = ch.n_pattpos;
             self.mt_pbreak_flag = true;
         }
     }
 
     fn mt_set_tremolo_control(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
-        state.n_wavecontrol &= 0x0f;
-        state.n_wavecontrol |= (state.n_cmdlo & 0x0f) << 4;
+        let ch = &mut self.mt_chantemp[chn];
+        ch.n_wavecontrol &= 0x0f;
+        ch.n_wavecontrol |= (ch.n_cmdlo & 0x0f) << 4;
     }
 
     fn mt_retrig_note(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        let cmdlo = state.n_cmdlo & 0x0f;
+        let ch = &mut self.mt_chantemp[chn];
+        let cmdlo = ch.n_cmdlo & 0x0f;
         if cmdlo == 0 {
             return
         }
         if self.mt_counter == 0 {
-            if state.n_note & 0xfff != 0 {
+            if ch.n_note & 0xfff != 0 {
                 return
             }
         }
@@ -740,21 +749,21 @@ impl ModPlayer {
     }
 
     fn mt_note_cut(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        if self.mt_counter != state.n_cmdlo {
+        let ch = &mut self.mt_chantemp[chn];
+        if self.mt_counter != ch.n_cmdlo {
             return
         }
-        state.n_volume = 0;
+        ch.n_volume = 0;
         mixer.set_volume(chn, 0);  // MOVE.W  #0,8(A5)
     }
 
     fn mt_note_delay(&mut self, chn: usize, mixer: &mut Mixer) {
-        let state = &mut self.state[chn];
-        if self.mt_counter != state.n_cmdlo {
+        let ch = &mut self.mt_chantemp[chn];
+        if self.mt_counter != ch.n_cmdlo {
             return
         }
         // PT2.3D fix: mask note
-        if state.n_note & 0xfff == 0 {
+        if ch.n_note & 0xfff == 0 {
             return
         }
         // BRA mt_DoRetrig
@@ -762,14 +771,14 @@ impl ModPlayer {
     }
 
     fn mt_pattern_delay(&mut self, chn: usize) {
-        let state = &mut self.state[chn];
+        let ch = &mut self.mt_chantemp[chn];
         if self.mt_counter != 0 {
             return
         }
         if self.mt_patt_del_time_2 != 0 {
             return
         }
-        self.mt_patt_del_time = state.n_cmdlo & 0x0f + 1;
+        self.mt_patt_del_time = ch.n_cmdlo & 0x0f + 1;
     }
 
     fn mt_funk_it(&self, _chn: usize, _mixer: &mut Mixer) {
@@ -865,6 +874,7 @@ struct ChannelData {
     n_note         : u16,
     n_cmd          : u8,
     n_cmdlo        : u8,
+    n_start        : u32,
     n_length       : u16,
     n_loopstart    : u32,
     n_replen       : u16,
@@ -895,9 +905,16 @@ impl ChannelData {
 
 
 impl FormatPlayer for ModPlayer {
-    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, mixer: &mut Mixer) {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
+
         data.speed = 6;
         data.tempo = 125;
+
+        for i in 0..31 {
+            self.mt_samplestarts[i] = module.samples[i].address;
+        }
 
         let pan = match self.options.option_int("pan") {
             Some(val) => val,
