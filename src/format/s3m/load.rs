@@ -28,7 +28,7 @@ impl Loader for S3mLoader {
   
     fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
         if b.len() < 256 {
-            return Err(Error::Format("file too short"));
+            return Err(Error::Format(format!("file too short ({})", b.len())));
         }
 
         let typ = b.read8(0x1d)?;
@@ -48,7 +48,7 @@ impl Loader for S3mLoader {
                 println!(".. we can play this M.K. module");
                 return Ok(Format::MK)
             }
-            Err(Error::Format("bad magic"))
+            Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
 
@@ -60,7 +60,7 @@ impl Loader for S3mLoader {
         } else if fmt == Format::xxCH {
             println!(".. load this module as xxCH");
         } else if fmt != Format::S3M {
-            return Err(Error::Format("unsupported format"));
+            return Err(Error::Format("unsupported format".to_owned()));
         }
 
         let song_name = b.read_string(0, 28)?;

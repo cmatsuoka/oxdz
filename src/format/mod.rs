@@ -49,5 +49,5 @@ pub fn load(b: &[u8], player_id: &str) -> Result<Module, Error> {
         return f.load(b, fmt)
     }
 
-    Err(Error::Format("unsupported module format"))
+    Err(Error::Format("unsupported module format".to_owned()))
 }

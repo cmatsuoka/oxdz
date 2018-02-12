@@ -31,18 +31,17 @@ pub enum PeriodType {
 
 #[derive(Debug)]
 pub enum Error {
-    //Format(&'static str),
-    Format(&'static str),
-    Load(&'static str),
+    Format(String),
+    Load(String),
     Io(io::Error),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Format(descr) => write!(f, "{}", descr),
-            Error::Load(descr)   => write!(f, "{}", descr),
-            Error::Io(ref err)   => write!(f, "{}", err),
+        match self {
+            &Error::Format(ref descr) => write!(f, "{}", descr),
+            &Error::Load(ref descr)   => write!(f, "{}", descr),
+            &Error::Io(ref err)       => write!(f, "{}", err),
         }
     }
 }

@@ -15,7 +15,7 @@ impl Loader for StmLoader {
   
     fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
         if b.len() < 1084 {
-            return Err(Error::Format("file too short"));
+            return Err(Error::Format(format!("file too short ({})", b.len())));
         }
 
         player::check_accepted(player_id, "stm")?;
@@ -24,14 +24,14 @@ impl Loader for StmLoader {
         if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {
             Ok(Format::STM)
         } else {
-            Err(Error::Format("bad magic"))
+            Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
 
     fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
 
         if fmt != Format::STM {
-            return Err(Error::Format("unsupported format"));
+            return Err(Error::Format("unsupported format".to_owned()));
         }
 
         let name = b.read_string(0, 20)?;
@@ -40,7 +40,7 @@ impl Loader for StmLoader {
         let version_minor = b.read8(31)?;
 
         if version_major != 2 || version_minor < 21 {
-            return Err(Error::Format("unsupported version"));
+            return Err(Error::Format(format!("unsupported version {}.{}", version_major, version_minor)));
         }
 
         let speed = b.read8(32)?;

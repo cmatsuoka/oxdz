@@ -34,7 +34,7 @@ pub fn list_by_id(player_id: &str) -> Result<Box<PlayerListEntry>, Error> {
             return Ok(p)
         }
     }
-    Err(Error::Format("player not found"))
+    Err(Error::Format(format!("player {:?} not found", player_id)))
 }
 
 fn accepted(player_id: &str) -> &'static [&'static str] {
@@ -57,7 +57,7 @@ pub fn check_accepted(player_id: &str, my_fmt: &str) -> Result<bool, Error> {
         return Ok(false)
     } else {
         if !accepted.contains(&my_fmt) {
-           return Err(Error::Format("not accepted by player"))
+           return Err(Error::Format(format!("format {:?} not accepted by player {:?}", my_fmt, player_id)))
         }
     }
 
@@ -141,7 +141,7 @@ impl<'a> Player<'a> {
 
         println!(".. check if player {:?} supports format {:?}", player_id, module.format_id);
         if !list_entry.info().accepts.contains(&module.format_id) {
-            return Err(Error::Format("player does not support this format"))
+            return Err(Error::Format(format!("player {:?} does not support format {:?}", list_entry.info().id, player_id)))
         }
 
         let format_player = list_entry.player(&module, Options::from_str(optstr));

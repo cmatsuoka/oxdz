@@ -17,7 +17,7 @@ impl Loader for ModLoader {
   
     fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
         if b.len() < 1084 {
-            return Err(Error::Format("file too short"));
+            return Err(Error::Format(format!("file too short ({})", b.len())));
         }
 
         player::check_accepted(player_id, "m.k.")?;
@@ -26,14 +26,14 @@ impl Loader for ModLoader {
         if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." {
             Ok(Format::MK)
         } else {
-            Err(Error::Format("bad magic"))
+            Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
 
     fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
 
         if fmt != Format::MK {
-            return Err(Error::Format("unsupported format"));
+            return Err(Error::Format("unsupported format".to_owned()));
         }
 
         let song_name = b.read_string(0, 20)?;
