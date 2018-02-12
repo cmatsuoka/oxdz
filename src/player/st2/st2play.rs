@@ -251,7 +251,7 @@ impl St2Play {
             }
     
             //self.channels[chn].smp_data_ptr = ctx->samples[smp].data;
-            mixer.set_patch(chn, smp - 1, smp - 1);
+            mixer.set_sample(chn, smp);
     
             if module.instruments[smp-1].loop_end != 0xffff {
                 //self.channels[chn].smp_loop_end = ctx->samples[smp].loop_end;

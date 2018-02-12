@@ -154,27 +154,6 @@ impl<'a> Mixer<'a> {
         self.voices[voice].period = period;
     }
 
-    pub fn set_patch(&mut self, voice: usize, ins: usize, smp: usize) {
-        try_voice!(voice, self.voices);
-
-        self.set_voicepos(voice, 0.0);
-
-        let v = &mut self.voices[voice];
-        v.ins = ins;
-        v.smp = smp;
-        //v.vol = 0;
-        //v.pan = 0; 
-        v.has_loop = false;
-        v.sample_end = true;
-
-        let sample = &self.sample[v.smp];
-
-        v.pos = 0_f64;
-        v.end = sample.size;
-
-        // ...
-    }
-
     pub fn set_sample(&mut self, voice: usize, mut smp: usize) {
         try_voice!(voice, self.voices);
 

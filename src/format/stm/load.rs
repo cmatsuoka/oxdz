@@ -68,7 +68,7 @@ impl Loader for StmLoader {
         let mut ofs = 1168 + 1024*num_patterns as usize;
         for i in 0..31 {
             let size = instruments[i].size as usize;
-            let smp = load_sample(b.slice(ofs, size)?, i, &instruments[i]);
+            let smp = load_sample(b.slice(ofs, size)?, ofs, i, &instruments[i]);
             samples.push(smp);
             ofs += size;
         }
@@ -117,10 +117,11 @@ fn load_instrument(b: &[u8], i: usize) -> Result<StmInstrument, Error> {
     Ok(ins)
 }
 
-fn load_sample(b: &[u8], i: usize, ins: &StmInstrument) -> Sample {
+fn load_sample(b: &[u8], ofs: usize, i: usize, ins: &StmInstrument) -> Sample {
     let mut smp = Sample::new();
 
     smp.num = i + 1;
+    smp.address = ofs as u32;
     smp.name = ins.name.to_owned();
     smp.rate = ins.c2spd as f64;
     smp.size = ins.size as u32;

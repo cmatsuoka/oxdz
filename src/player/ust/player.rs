@@ -1,6 +1,6 @@
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
-use format::mk::ModData;
+use format::st::StData;
 use mixer::Mixer;
 
 /// Ultimate Soundtracker V27 replayer
@@ -15,6 +15,7 @@ pub struct USTPlayer {
     options   : Options,
 
     datachn   : [DataChnx; 4],
+    pointers  : [u32; 15],
     //lev6save  : u32,
     trkpos    : u16,  // u32,
     patpos    : u8,   // u32,
@@ -28,11 +29,12 @@ impl USTPlayer {
         USTPlayer {
             options,
 
-            datachn: [DataChnx::new(); 4],
-            trkpos : 6,
-            patpos : 0,
-            numpat : 0,
-            timpos : 0,
+            datachn : [DataChnx::new(); 4],
+            pointers: [0; 15],
+            trkpos  : 6,
+            patpos  : 0,
+            numpat  : 0,
+            timpos  : 0,
         }
     }
 
@@ -40,7 +42,7 @@ impl USTPlayer {
     // replay-routine
     //------------------------------------------------
 
-    fn replay_muzak(&mut self, module: &ModData, mut mixer: &mut Mixer) {
+    fn replay_muzak(&mut self, module: &StData, mut mixer: &mut Mixer) {
         self.timpos += 1;
         if self.timpos == 6 {
             self.replaystep(&module, &mut mixer)
@@ -111,7 +113,7 @@ impl USTPlayer {
     // handle a further step of 16tel data
     //------------------------------------------------
 
-    fn replaystep(&mut self, module: &ModData, mut mixer: &mut Mixer) {  // ** work next pattern-step
+    fn replaystep(&mut self, module: &StData, mut mixer: &mut Mixer) {  // ** work next pattern-step
         self.timpos = 0;
         let pat = match module.pattern_in_position(self.trkpos as usize) {
             Some(val) => val,
@@ -137,18 +139,19 @@ impl USTPlayer {
     // proof chanel for actions
     //------------------------------------------------
 
-    fn chanelhandler(&mut self, pat: usize, chn: usize, module: &ModData, mixer: &mut Mixer) {
+    fn chanelhandler(&mut self, pat: usize, chn: usize, module: &StData, mixer: &mut Mixer) {
         let event = module.patterns.event(pat, self.patpos, chn);
         {
             let datachn = &mut self.datachn[chn];
     
-            datachn.n_0_note = event.note;          // get period & action-word
+            datachn.n_0_note = event.note;                  // get period & action-word
             datachn.n_2_sound_number = event.cmd;
             datachn.n_3_effect_number = event.cmdlo;
     
             let ins = (event.cmd >> 4) as usize;            // get nibble for soundnumber
             if ins != 0 {
                 let instrument = &module.instruments[ins as usize - 1];
+                datachn.n_4_soundstart = self.pointers[ins as usize - 1];    // store sample-address
                 datachn.n_8_soundlength = instrument.size;                   // store sample-len in words
                 datachn.n_18_volume = instrument.volume as i16;              // store sample-volume
                 mixer.set_volume(chn, (datachn.n_18_volume as usize) << 4);  // change chanel-volume
@@ -162,12 +165,12 @@ impl USTPlayer {
         }
         // chan2
         if self.datachn[chn].n_0_note != 0 {
-            self.datachn[chn].n_16_last_saved_note = self.datachn[chn].n_0_note;
             let ins = (event.cmd >> 4) as usize;
-            if ins != 0 { mixer.set_patch(chn, ins - 1, ins - 1) }
             let datachn = &mut self.datachn[chn];
-            mixer.set_loop_start(chn, datachn.n_10_repeatstart as u32);
-            mixer.set_loop_end(chn, datachn.n_10_repeatstart + datachn.n_14_repeatlength as u32);
+            datachn.n_16_last_saved_note = datachn.n_0_note;                 // save note for effect
+            mixer.set_sample_ptr(chn, datachn.n_4_soundstart);
+            mixer.set_loop_start(chn, datachn.n_10_repeatstart - datachn.n_4_soundstart);
+            mixer.set_loop_end(chn, datachn.n_10_repeatstart - datachn.n_4_soundstart + datachn.n_14_repeatlength as u32);
             mixer.set_period(chn, datachn.n_0_note as f64);
             datachn.n_20_volume_trigger = datachn.n_18_volume;
         }
@@ -176,7 +179,14 @@ impl USTPlayer {
 }
 
 impl FormatPlayer for USTPlayer {
-    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, mixer: &mut Mixer) {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<StData>().unwrap();
+
+        for i in 0..15 {
+            self.pointers[i] = module.samples[i].address;
+        }
+
         data.speed = 6;
         data.tempo = 125;
 
@@ -197,7 +207,7 @@ impl FormatPlayer for USTPlayer {
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
 
-        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
+        let module = mdata.as_any().downcast_ref::<StData>().unwrap();
 
         self.trkpos = data.pos as u16;
         self.patpos = data.row as u8;
@@ -240,7 +250,7 @@ struct DataChnx {
     n_0_note            : u16,
     n_2_sound_number    : u8,
     n_3_effect_number   : u8,
-    //n_4_soundstart      : u32,
+    n_4_soundstart      : u32,
     n_8_soundlength     : u16,
     n_10_repeatstart    : u32,
     n_14_repeatlength   : u16,
