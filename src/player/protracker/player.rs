@@ -125,7 +125,7 @@ impl ModPlayer {
             let ch = &mut self.mt_chantemp[chn];
             mixer.set_loop_start(chn, ch.n_loopstart - ch.n_start);
             mixer.set_loop_end(chn, ch.n_loopstart - ch.n_start + ch.n_replen as u32);
-            mixer.enable_loop(chn, ch.n_replen > 1);
+            mixer.enable_loop(chn, ch.n_replen > 2);
         }
     }
 
