@@ -22,7 +22,7 @@ impl Loader for StmLoader {
 
         let magic = b.read_string(20, 10)?;
         if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {
-            Ok(Format::STM)
+            Ok(Format::Stm)
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
@@ -30,7 +30,7 @@ impl Loader for StmLoader {
 
     fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
 
-        if fmt != Format::STM {
+        if fmt != Format::Stm {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 

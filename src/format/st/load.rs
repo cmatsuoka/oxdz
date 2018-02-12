@@ -105,12 +105,12 @@ impl Loader for StLoader {
             }
         }
 
-        Ok(Format::ST)
+        Ok(Format::St)
     }
 
     fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
 
-        if fmt != Format::ST {
+        if fmt != Format::St {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 

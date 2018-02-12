@@ -10,11 +10,11 @@ pub mod s3m;
 
 #[derive(PartialEq, Debug)]
 pub enum Format {
-    MK,
-    ST,
-    xxCH,
-    S3M,
-    STM,
+    Mk,
+    St,
+    Xxch,
+    S3m,
+    Stm,
 }
 
 // Trait for module loader

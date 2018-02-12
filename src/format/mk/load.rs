@@ -24,7 +24,7 @@ impl Loader for ModLoader {
 
         let magic = b.read_string(1080, 4)?;
         if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." {
-            Ok(Format::MK)
+            Ok(Format::Mk)
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
@@ -32,7 +32,7 @@ impl Loader for ModLoader {
 
     fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
 
-        if fmt != Format::MK {
+        if fmt != Format::Mk {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 
