@@ -53,6 +53,7 @@ impl Fingerprint {
 
     fn get_tracker_id(data: &ModData) -> TrackerID {
         let mut tracker_id = match data.magic.as_ref() {
+            "M.K." => TrackerID::Protracker,
             "M!K!" => return TrackerID::Protracker,
             "M&K!" => return TrackerID::Noisetracker,
             "N.T." => return TrackerID::Noisetracker,

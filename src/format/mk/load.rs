@@ -23,7 +23,7 @@ impl Loader for ModLoader {
         player::check_accepted(player_id, "m.k.")?;
 
         let magic = b.read_string(1080, 4)?;
-        if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." {
+        if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." || magic == "NSMS" {
             Ok(Format::Mk)
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
