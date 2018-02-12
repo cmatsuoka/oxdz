@@ -74,13 +74,13 @@ impl Fingerprint {
         if data.restart as usize == data.patterns.num {
             tracker_id = TrackerID::Soundtracker;
         } else if data.restart == 0x78 {
-            // Can't say for sure, MOD.Data City Remix has Protracker effects and Noisetracker restart byte
-            tracker_id = TrackerID::Noisetracker;
+            // Not really sure, "MOD.Data City Remix" has Protracker effects and Noisetracker restart byte
+            return TrackerID::Noisetracker;
         } else if data.restart < 0x7f {
-            tracker_id = if !empty_ins_has_volume {
-                TrackerID::Noisetracker
-            } else {
+            tracker_id = if empty_ins_has_volume {
                 TrackerID::Unknown
+            } else {
+                TrackerID::Noisetracker
             }
         } else if data.restart == 0x7f {
             if has_replen_0 {
