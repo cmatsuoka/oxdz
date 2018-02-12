@@ -480,15 +480,15 @@ impl MixerData {
             pos += frac >> SMIX_SHIFT;
             frac &= SMIX_MASK;
 
-            let smp = (paula.output_sample(filter) << 8) as i32;
+            let smp = paula.output_sample(filter) as i32;
             let cycles = (paula::MINIMUM_INTERVAL - paula.remainder as usize) as i16;
             paula.do_clock(cycles);
 
             paula.remainder += paula.fdiv;
 
             // Store stereo
-            buf32[bpos    ] += smp * self.vol_r as i32;
-            buf32[bpos + 1] += smp * self.vol_l as i32;
+            buf32[bpos    ] += smp * (self.vol_r << 8) as i32;
+            buf32[bpos + 1] += smp * (self.vol_l << 8) as i32;
             bpos += 2;
         }
     }
