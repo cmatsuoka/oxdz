@@ -38,7 +38,7 @@ pub struct ModPlayer {
 }
 
 impl ModPlayer {
-    pub fn new(module: &Module, options: Options) -> Self {
+    pub fn new(_module: &Module, options: Options) -> Self {
         ModPlayer {
             options,
 
@@ -63,7 +63,7 @@ impl ModPlayer {
         self.mt_counter += 1;
         if self.mt_speed > self.mt_counter {
             // mt_NoNewNote
-            self.mt_no_new_all_channels(&module, &mut mixer);
+            self.mt_no_new_all_channels(&mut mixer);
             self.mt_no_new_pos_yet(&module);
             return
         }
@@ -72,7 +72,7 @@ impl ModPlayer {
         if self.mt_patt_del_time_2 == 0 {
             self.mt_get_new_note(&module, &mut mixer);
         } else {
-            self.mt_no_new_all_channels(&module, &mut mixer);
+            self.mt_no_new_all_channels(&mut mixer);
         }
 
         // mt_dskip
@@ -104,7 +104,7 @@ impl ModPlayer {
         self.mt_no_new_pos_yet(&module);
     }
 
-    fn mt_no_new_all_channels(&mut self, module: &ModData, mut mixer: &mut Mixer) {
+    fn mt_no_new_all_channels(&mut self, mut mixer: &mut Mixer) {
         for chn in 0..4 {
             self.mt_check_efx(chn, &mut mixer);
         }

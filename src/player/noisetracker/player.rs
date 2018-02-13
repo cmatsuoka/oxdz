@@ -21,7 +21,7 @@ pub struct ModPlayer {
 }
 
 impl ModPlayer {
-    pub fn new(module: &Module, options: Options) -> Self {
+    pub fn new(_module: &Module, options: Options) -> Self {
         ModPlayer {
             options,
 
@@ -261,7 +261,7 @@ impl ModPlayer {
         let ch = &mut self.mt_voice[chn];
         ch.n_10_period -= ch.n_3_cmdlo as i16;
         if (ch.n_10_period & 0xfff) < 0x71 {
-            ch.n_10_period &= 0xf000;
+            ch.n_10_period = (ch.n_10_period as u16 & 0xf000) as i16;
             ch.n_10_period |= 0x71;
         }
         // mt_por2
@@ -272,7 +272,7 @@ impl ModPlayer {
         let ch = &mut self.mt_voice[chn];
         ch.n_10_period += ch.n_3_cmdlo as i16;
         if (ch.n_10_period & 0xfff) >= 0x358 {
-            ch.n_10_period &= 0xf000;
+            ch.n_10_period = (ch.n_10_period as u16 & 0xf000) as i16;
             ch.n_10_period |= 0x358;
         }
         mixer.set_period(chn, (ch.n_10_period & 0xfff) as f64);  // move.w $10(a6),d0; and.w #$fff,d0; move.w d0,$6(a5)

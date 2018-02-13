@@ -25,7 +25,7 @@ pub struct USTPlayer {
 }
 
 impl USTPlayer {
-    pub fn new(module: &Module, options: Options) -> Self {
+    pub fn new(_module: &Module, options: Options) -> Self {
         USTPlayer {
             options,
 

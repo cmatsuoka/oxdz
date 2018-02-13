@@ -198,7 +198,8 @@ impl StPlayer {
     fn mt_posjmp(&mut self, chn: usize) {
         let ch = &mut self.mt_audtemp[chn];
         self.mt_status = !self.mt_status;
-        self.mt_partnrplay = ch.n_3_cmdlo - 1;
+        self.mt_partnrplay = ch.n_3_cmdlo;
+        self.mt_partnrplay.wrapping_sub(1);
     }
 
     fn mt_setvol(&mut self, chn: usize, mixer: &mut Mixer) {

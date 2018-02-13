@@ -90,9 +90,9 @@ impl<'a> Mixer<'a> {
         try_voice!(voice, self.voices, 0_f64);
 
         let v = &self.voices[voice];
-        let sample = &self.sample[v.smp];
 
 /*
+        let sample = &self.sample[v.smp];
         if v.has_loop && sample.loop_bidir {
             // TODO: handle bidirectional loop
         }
@@ -154,7 +154,7 @@ impl<'a> Mixer<'a> {
         self.voices[voice].period = period;
     }
 
-    pub fn set_sample(&mut self, voice: usize, mut smp: usize) {
+    pub fn set_sample(&mut self, voice: usize, smp: usize) {
         try_voice!(voice, self.voices);
 
         if smp == 0 {
@@ -470,7 +470,7 @@ impl MixerData {
             let ministep = self.step / num_in;
 
             // input is sampled at a higher rate than output
-            for i in 0..num_in-1 {
+            for _ in 0..num_in-1 {
                 paula.input_sample(*&data[pos] as i16);
                 paula.do_clock(paula::MINIMUM_INTERVAL as i16);
 
