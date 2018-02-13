@@ -151,7 +151,7 @@ impl ModPlayer {
         self.mt_break = false;
         self.mt_songpos = self.mt_songpos.wrapping_add(1);
         self.mt_songpos &= 0x7f;
-        if self.mt_songpos as usize >= module.len() {  // cmp.b   mt_data+$3b6,d1
+        if self.mt_songpos >= module.song_length {     // cmp.b   mt_data+$3b6,d1
             // self.mt_songpos = 0 in Noisetracker 1.0
             self.mt_songpos = module.restart;          // move.b  mt_data+$3b7,mt_songpos
         }

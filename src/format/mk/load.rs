@@ -47,13 +47,13 @@ impl Loader for ModLoader {
         }
 
         // Load orders
-        let song_length = b.read8(950)? as usize;
+        let song_length = b.read8(950)?;
         let restart = b.read8(951)?;
         let orders = b.slice(952, 128)?;
         let magic = b.read_string(1080, 4)?;
 
         let mut pat = 0_usize;
-        orders[..song_length].iter().for_each(|x| { pat = cmp::max(pat, *x as usize); } );
+        orders[..song_length as usize].iter().for_each(|x| { pat = cmp::max(pat, *x as usize); } );
         pat += 1;
 
         // Load patterns

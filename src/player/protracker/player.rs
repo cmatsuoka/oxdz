@@ -242,7 +242,7 @@ impl ModPlayer {
         self.mt_pos_jump_flag = false;
         self.mt_song_pos = self.mt_song_pos.wrapping_add(1);
         self.mt_song_pos &= 0x7f;
-        if self.mt_song_pos as usize >= module.len() {
+        if self.mt_song_pos >= module.song_length {
             self.mt_song_pos = 0;
         }
     }
@@ -297,15 +297,9 @@ impl ModPlayer {
     fn mt_arpeggio(&mut self, chn: usize, mixer: &mut Mixer) {
         let ch = &mut self.mt_chantemp[chn];
         let val = match self.mt_counter % 3 {
-            2 => {  // Arpeggio1
-                     ch.n_cmdlo & 15
-                 },
-            0 => {  // Arpeggio2
-                     0
-                 },
-            _ => {
-                     ch.n_cmdlo >> 4
-                 },
+            2 => ch.n_cmdlo & 15,  // Arpeggio1
+            0 => 0,                // Arpeggio2
+            _ => ch.n_cmdlo >> 4,
         } as usize;
 
         // Arpeggio3

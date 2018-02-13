@@ -11,14 +11,14 @@ mod fingerprint;
 
 
 pub struct ModData {
-    pub song_name: String,
+    pub song_name  : String,
     pub instruments: Vec<ModInstrument>,
-    pub song_length: usize,
-    pub restart: u8,  // Noisetracker restart
-    pub orders: [u8; 128],
-    pub magic: String,
-    pub patterns: ModPatterns,
-    pub samples: Vec<Sample>,
+    pub song_length: u8,
+    pub restart    : u8,  // Noisetracker restart
+    pub orders     : [u8; 128],
+    pub magic      : String,
+    pub patterns   : ModPatterns,
+    pub samples    : Vec<Sample>,
 }
 
 impl ModuleData for ModData {
@@ -39,7 +39,7 @@ impl ModuleData for ModData {
     }
 
     fn len(&self) -> usize {
-        self.song_length
+        self.song_length as usize
     }
 
     fn pattern_in_position(&self, pos: usize) -> Option<usize> {
