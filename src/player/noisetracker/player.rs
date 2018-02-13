@@ -56,15 +56,9 @@ impl ModPlayer {
     fn mt_arpeggio(&mut self, chn: usize, mixer: &mut Mixer) {
         let ch = &mut self.mt_voice[chn];
         let val = match self.mt_counter % 3 {
-            2 => {  // mt_arp1
-                     ch.n_3_cmdlo & 15
-                 },
-            0 => {  // mt_arp2
-                     0
-                 },
-            _ => {
-                     ch.n_3_cmdlo >> 4
-                 },
+            2 => ch.n_3_cmdlo & 15,  // mt_arp1
+            0 => 0,                  // mt_arp2
+            _ => ch.n_3_cmdlo >> 4,
         } as usize;
 
         // mt_arp3
