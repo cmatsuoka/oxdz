@@ -9,13 +9,13 @@ use ::*;
 
 
 pub struct StData {
-    pub song_name: String,
+    pub song_name  : String,
     pub instruments: Vec<ModInstrument>,
-    pub song_length: usize,
-    pub num_pat: u8,
-    pub orders: [u8; 128],
-    pub patterns: ModPatterns,
-    pub samples: Vec<Sample>,
+    pub song_length: u8,
+    pub tempo      : u8,
+    pub orders     : [u8; 128],
+    pub patterns   : ModPatterns,
+    pub samples    : Vec<Sample>,
 }
 
 impl ModuleData for StData {
@@ -36,7 +36,7 @@ impl ModuleData for StData {
     }
 
     fn len(&self) -> usize {
-        self.song_length
+        self.song_length as usize
     }
 
     fn pattern_in_position(&self, pos: usize) -> Option<usize> {

@@ -70,29 +70,33 @@ impl Loader for StLoader {
         }
 
         // check length
-        let len = b.read8(ofs)?;
+        let len = b.read8(470)?;
         if len == 0 || len > 0x7f {
             return Err(Error::Format(format!("invalid length {}", len)));
         }
-        ofs += 2;
 
         // check orders
         let mut pat = 0;
         for i in 0..128 {
-            let p = b.read8(ofs+i)?;
+            let p = b.read8(472+i)?;
             if p > 0x7f {
                 return Err(Error::Format(format!("invalid pattern number {} in orders", p)));
             }
             pat = cmp::max(pat, p)
         }
         pat += 1;
-        ofs += 128;
+
+        // check tempo setting
+        let tempo = b.read8(471)?;
+        if tempo < 0x20 {
+            return Err(Error::Format(format!("invalid initial tempo {}", tempo)));
+        }
 
         // check patterns
         for i in 0..pat as usize {
             for r in 0..64 {
                 for c in 0..4 {
-                    let note = b.read16b(ofs + 1024*i + 16*r + c*4)?;
+                    let note = b.read16b(600 + 1024*i + 16*r + c*4)?;
                     if note & 0xf000 != 0 {
                         return Err(Error::Format("invalid event sample".to_owned()));
                     }
@@ -125,20 +129,20 @@ impl Loader for StLoader {
         }
 
         // Load orders
-        let song_length = b.read8(470)? as usize;
-        let num_pat = b.read8(471)?;
+        let song_length = b.read8(470)?;
+        let tempo = b.read8(471)?;
         let orders = b.slice(472, 128)?;
 
         let mut pat = 0_usize;
-        orders[..song_length].iter().for_each(|x| { pat = cmp::max(pat, *x as usize); } );
+        orders[..song_length as usize].iter().for_each(|x| { pat = cmp::max(pat, *x as usize); } );
         pat += 1;
 
         // Load patterns
-        let patterns = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
+        let patterns = ModPatterns::from_slice(pat, b.slice(600, 1024*pat)?)?;
 
         // Load samples
-        let mut ofs = 1084 + 1024*pat;
-        for i in 0..31 {
+        let mut ofs = 600 + 1024*pat;
+        for i in 0..15 {
             let size = instruments[i].size as usize * 2;
             let smp = load_sample(b.slice(ofs, size)?, ofs, i, &instruments[i]);
             samples.push(smp);
@@ -149,7 +153,7 @@ impl Loader for StLoader {
             song_name,
             instruments,
             song_length,
-            num_pat,
+            tempo,
             orders: [0; 128],
             patterns,
             samples,
@@ -161,7 +165,7 @@ impl Loader for StLoader {
             format_id  : "st",
             description: "15 instrument module".to_owned(),
             creator    : "Soundtracker".to_owned(),
-            player     : "ust",
+            player     : "doc-st2",
             data       : Box::new(data),
         };
 

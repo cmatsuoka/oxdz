@@ -15,7 +15,7 @@ pub struct StPlayer {
     mt_partnote  : u8,
     mt_partnrplay: u8,
     mt_counter   : u8,
-    mt_maxpart   : u8,  //u16,
+    mt_maxpart   : u16,
     mt_status    : bool,
     mt_sample1   : [u32; 31],
     mt_audtemp   : Vec<AudTemp>,
@@ -33,7 +33,7 @@ impl StPlayer {
             mt_partnote  : 0,
             mt_partnrplay: 0,
             mt_counter   : 0,
-            mt_maxpart   : module.num_pat,
+            mt_maxpart   : module.song_length as u16,
             mt_status    : false,
             mt_sample1   : [0; 31],
             mt_audtemp   : vec![AudTemp::new(); 4],
@@ -77,7 +77,7 @@ impl StPlayer {
         if ch.n_22_last_note >= 0x358 {                   // cmp.w   #$358,22(a6) / bmi.s   mt_ok2
             ch.n_22_last_note = 0x358;                    // move.w  #$358,22(a6)
         }
-        // mg
+        // mt_ok2
         mixer.set_period(chn, ch.n_22_last_note as f64);  // move.w  22(a6),6(a5)
     }
 
@@ -93,10 +93,12 @@ impl StPlayer {
 
         // mt_cont
         for i in 0..36 {
-            if ch.n_16_period == MT_ARPEGGIO[i + val] {
-                // mt_endpart
-                mixer.set_period(chn, ch.n_16_period as f64);  // move.w  d2,6(a5)
-                return
+            if i + val < MT_ARPEGGIO.len() {  // oxdz: add sanity check
+                if ch.n_16_period == MT_ARPEGGIO[i + val] {
+                    // mt_endpart
+                    mixer.set_period(chn, ch.n_16_period as f64);  // move.w  d2,6(a5)
+                    return
+                }
             }
         }
     }
@@ -109,7 +111,10 @@ impl StPlayer {
 
         for chn in 0..4 {
             self.mt_playit(pat, chn, &module, &mut mixer);
-            mixer.set_sample_ptr(chn, self.mt_audtemp[chn].n_10_loopstart);
+            let ch = &mut self.mt_audtemp[chn];
+            if ch.n_14_replen == 1 {
+                mixer.set_sample_ptr(chn, ch.n_10_loopstart - ch.n_4_samplestart);
+            }
         }
 
         // mt_voice0
@@ -119,7 +124,7 @@ impl StPlayer {
                 // mt_higher
                 self.mt_partnote = 0;
                 self.mt_partnrplay += 1;
-                if self.mt_partnrplay >= self.mt_maxpart {
+                if self.mt_partnrplay as u16 >= self.mt_maxpart {
                     self.mt_partnrplay = 0;    // clr.l   mt_partnrplay
                 }
             }
@@ -149,20 +154,22 @@ impl StPlayer {
                 ch.n_4_samplestart = self.mt_sample1[ins as usize - 1];     // move.l  (a1,d2),4(a6)
                 ch.n_8_length = instrument.size;                            // move.w  (a3,d4),8(a6)
                 ch.n_18_volume = instrument.volume as u8;                   // move.w  2(a3,d4),18(a6)
-                if instrument.repeat != 0 {
-                    ch.n_10_loopstart = ch.n_4_samplestart + instrument.repeat as u32 * 2;
-                    ch.n_8_length = (instrument.repeat + instrument.replen) * 2;
-                    ch.n_14_replen = instrument.replen * 2;                 // move.w  6(a3,d4),14(a6)
+                let repeat = instrument.repeat as u32;                      // move.w  4(a3,d4),d3
+                if repeat != 0 {                                            // tst.w   d3 / beq.s   mt_displace
+                    ch.n_4_samplestart += repeat;                           // move.l  4(a6),d2 / add.l   d3,d2 / move.l  d2,4(a6)
+                    ch.n_10_loopstart = ch.n_4_samplestart;                 // move.l  d2,10(a6)
+                    ch.n_8_length = instrument.replen;                      // move.w  6(a3,d4),8(a6)
+                    ch.n_14_replen = instrument.replen;                     // move.w  6(a3,d4),14(a6)
                     mixer.set_volume(chn, (ch.n_18_volume as usize) << 4);  // move.w  18(a6),8(a5)
                 } else {
                     // mt_displace
-                    ch.n_10_loopstart = ch.n_4_samplestart + instrument.repeat as u32 * 2;
-                    ch.n_14_replen = instrument.replen * 2;                 // move.w  6(a3,d4),14(a6)
+                    ch.n_10_loopstart = ch.n_4_samplestart + repeat;        // move.l  4(a6),d2 / add.l   d3,d2 / move.l  d2,10(a6)
+                    ch.n_14_replen = instrument.replen;                     // move.w  6(a3,d4),14(a6)
                     mixer.set_volume(chn, (ch.n_18_volume as usize) << 4);  // move.w  18(a6),8(a5)
                 }
-                mixer.enable_loop(chn, instrument.replen != 0);
+                mixer.enable_loop(chn, instrument.repeat != 0);
                 mixer.set_loop_start(chn, ch.n_10_loopstart - ch.n_4_samplestart);
-                mixer.set_loop_end(chn, ch.n_10_loopstart  - ch.n_4_samplestart + ch.n_14_replen as u32);
+                mixer.set_loop_end(chn, ch.n_10_loopstart - ch.n_4_samplestart + ch.n_14_replen as u32);
             }
 
             // mt_nosamplechange
@@ -221,12 +228,12 @@ impl FormatPlayer for StPlayer {
 
         let module = mdata.as_any().downcast_ref::<StData>().unwrap();
 
-        for i in 0..31 {
+        for i in 0..15 {
             self.mt_sample1[i] = module.samples[i].address;
         }
 
         data.speed = 6;
-        data.tempo = 125;
+        data.tempo = module.tempo as usize;
 
         let pan = match self.options.option_int("pan") {
             Some(val) => val,
