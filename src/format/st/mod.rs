@@ -12,7 +12,7 @@ pub struct StData {
     pub song_name: String,
     pub instruments: Vec<ModInstrument>,
     pub song_length: usize,
-    pub restart: u8,  // Noisetracker restart
+    pub num_pat: u8,
     pub orders: [u8; 128],
     pub patterns: ModPatterns,
     pub samples: Vec<Sample>,

@@ -126,7 +126,7 @@ impl Loader for StLoader {
 
         // Load orders
         let song_length = b.read8(470)? as usize;
-        let restart = b.read8(471)?;
+        let num_pat = b.read8(471)?;
         let orders = b.slice(472, 128)?;
 
         let mut pat = 0_usize;
@@ -149,7 +149,7 @@ impl Loader for StLoader {
             song_name,
             instruments,
             song_length,
-            restart,
+            num_pat,
             orders: [0; 128],
             patterns,
             samples,
