@@ -219,7 +219,7 @@ impl Loader for StLoader {
                 format_id  : "st",
                 description: "15 instrument module".to_owned(),
                 creator    : "Soundtracker".to_owned(),
-                player     : "doc-st2",
+                player     : "dst2",
                 data       : Box::new(data),
             }
         };

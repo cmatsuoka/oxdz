@@ -8,7 +8,7 @@ pub struct DocSt2;
 impl PlayerListEntry for DocSt2 {
    fn info(&self) -> PlayerInfo {
        PlayerInfo {
-          id         : "doc-st2",
+          id         : "dst2",
           name       : "D.O.C SoundTracker V2.0",
           description: "A port of the D.O.C. SoundTracker V2.0 playroutine by Unknown of D.O.C",
           author     : "Claudio Matsuoka",
