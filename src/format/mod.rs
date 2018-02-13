@@ -5,6 +5,7 @@ pub mod mk;
 pub mod st;
 pub mod stm;
 pub mod s3m;
+pub mod xm;
 
 // Supported formats
 
@@ -16,6 +17,7 @@ pub enum Format {
     Xxch,
     S3m,
     Stm,
+    Xm,
 }
 
 // Trait for module loader

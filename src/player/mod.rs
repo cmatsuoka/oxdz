@@ -5,6 +5,7 @@ mod soundtracker;
 mod ust;
 mod st2;
 mod st3;
+mod ft2;
 
 pub use mixer::Mixer;
 
@@ -19,10 +20,11 @@ fn all() -> Vec<Box<PlayerListEntry>> {
     vec![
         Box::new(protracker::Pt21a),
         Box::new(noisetracker::Nt11),
-        Box::new(st2::St2),
-        Box::new(st3::St3),
         Box::new(soundtracker::DocSt2),
         Box::new(ust::Ust27),
+        Box::new(st2::St2),
+        Box::new(st3::St3),
+        Box::new(ft2::Ft2),
     ]
 }
 
