@@ -12,7 +12,7 @@ impl PlayerListEntry for Ust27 {
           name       : "Ultimate Soundtracker V27 replayer",
           description: r#"Port of the Ultimate Soundtracker replayer version 27 "All bugs removed" (29.03.1988)"#,
           author     : "Claudio Matsuoka",
-          accepts    : &[ "m15" ],
+          accepts    : &[ "st" ],
        }
    }
 
