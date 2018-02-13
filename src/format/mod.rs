@@ -12,6 +12,7 @@ pub mod s3m;
 pub enum Format {
     Mk,
     St,
+    Ust,
     Xxch,
     S3m,
     Stm,

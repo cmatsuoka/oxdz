@@ -7,6 +7,7 @@ use module::sample::SampleType;
 use util::{self, BinaryRead};
 use ::*;
 
+
 /// Soundtracker 15-instrument module loader
 pub struct StLoader;
 
@@ -18,6 +19,10 @@ impl Loader for StLoader {
     fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
 
         player::check_accepted(player_id, "st")?;
+
+        // Ultimate Soundtracker support based on the module format description
+        // written by Michael Schwendt
+        let mut ust = true;
 
         if b.len() < 600 {
             return Err(Error::Format(format!("file too short ({})", b.len())));
@@ -51,7 +56,8 @@ impl Loader for StLoader {
             if repeat>>1 > size {
                 return Err(Error::Format(format!("sample {} repeat > size", i)));
             }
-            if b.read16b(ofs+28)? > 0x8000 {
+            let replen = b.read16b(ofs+28)?;
+            if replen > 0x8000 {
                 return Err(Error::Format(format!("sample {} invalid replen", i)));
             }
             if size > 0 && repeat>>1 == size {
@@ -62,7 +68,14 @@ impl Loader for StLoader {
             }
 
             ofs += 30;
-            total_size += size;
+            total_size += size * 2;
+
+            // UST: Maximum sample length is 9999 bytes decimal, but 1387
+            // words hexadecimal. Longest samples on original sample disk
+            // ST-01 were 9900 bytes.
+            if size > 0x1387 || repeat > 9999 || replen > 0x1387 {
+                ust = false
+            }
         }
 
         if total_size < 8 {
@@ -75,6 +88,18 @@ impl Loader for StLoader {
             return Err(Error::Format(format!("invalid length {}", len)));
         }
 
+        // check tempo setting
+        let tempo = b.read8(471)?;
+        if tempo < 0x20 {
+            return Err(Error::Format(format!("invalid initial tempo {}", tempo)));
+        }
+
+        // UST: The byte at module offset 471 is BPM, not the song restart
+        //      The default for UST modules is 0x78 = 120 BPM = 48 Hz.
+        // if tempo < 0x40 {    // should be 0x20
+        //    ust = false
+        // }
+
         // check orders
         let mut pat = 0;
         for i in 0..128 {
@@ -86,17 +111,13 @@ impl Loader for StLoader {
         }
         pat += 1;
 
-        // check tempo setting
-        let tempo = b.read8(471)?;
-        if tempo < 0x20 {
-            return Err(Error::Format(format!("invalid initial tempo {}", tempo)));
-        }
-
         // check patterns
+        let mut cmd_used = 0_u32;
         for i in 0..pat as usize {
             for r in 0..64 {
                 for c in 0..4 {
-                    let note = b.read16b(600 + 1024*i + 16*r + c*4)?;
+                    let ofs = 600 + 1024*i + 16*r + c*4;
+                    let note = b.read16b(ofs)?;
                     if note & 0xf000 != 0 {
                         return Err(Error::Format("invalid event sample".to_owned()));
                     }
@@ -105,16 +126,39 @@ impl Loader for StLoader {
                         return Err(Error::Format(format!("invalid note {}", note)));
                     }
                     // check invalid commands
+                    let cmd = b.read8(ofs+2)? & 0x0f;
+                    let cmdlo = b.read8(ofs+3)?;
+                    if cmd != 0 {
+                        cmd_used |= 1 << cmd
+                    } else if cmdlo != 0 {
+                        cmd_used |= 1
+                    }
+
+                    // UST: Only effects 1 (arpeggio) and 2 (pitchbend) are available
+                    if cmd == 1 && cmdlo == 0 {  // unlikely arpeggio
+                        ust = false
+                    }
+                    if cmd == 2 && (cmdlo & 0xf0) != 0 && (cmdlo & 0x0f) != 0 {  // bend up and down at same time
+                        ust = false
+                    }
                 }
             }
         }
 
-        Ok(Format::St)
+        if cmd_used & 0xfff9 != 0 {
+            ust = false
+        }
+
+        if ust {
+            Ok(Format::Ust)
+        } else {
+            Ok(Format::St)
+        }
     }
 
     fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
 
-        if fmt != Format::St {
+        if fmt != Format::St && fmt != Format::Ust {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 
@@ -128,9 +172,10 @@ impl Loader for StLoader {
             instruments.push(ins);
         }
 
-        // Load orders
         let song_length = b.read8(470)?;
         let tempo = b.read8(471)?;
+
+        // Load orders
         let orders = b.slice(472, 128)?;
 
         let mut pat = 0_usize;
@@ -161,12 +206,22 @@ impl Loader for StLoader {
 
         data.orders.copy_from_slice(orders);
 
-        let m = Module {
-            format_id  : "st",
-            description: "15 instrument module".to_owned(),
-            creator    : "Soundtracker".to_owned(),
-            player     : "doc-st2",
-            data       : Box::new(data),
+        let m = if fmt == Format::Ust {
+            Module {
+                format_id  : "st",
+                description: "15 instrument module".to_owned(),
+                creator    : "Ultimate Soundtracker".to_owned(),
+                player     : "ust",
+                data       : Box::new(data),
+            }
+        } else {
+            Module {
+                format_id  : "st",
+                description: "15 instrument module".to_owned(),
+                creator    : "Soundtracker".to_owned(),
+                player     : "doc-st2",
+                data       : Box::new(data),
+            }
         };
 
         Ok(m)

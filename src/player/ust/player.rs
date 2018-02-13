@@ -25,7 +25,10 @@ pub struct USTPlayer {
 }
 
 impl USTPlayer {
-    pub fn new(_module: &Module, options: Options) -> Self {
+    pub fn new(module: &Module, options: Options) -> Self {
+
+        let module = module.data.as_any().downcast_ref::<StData>().unwrap();
+
         USTPlayer {
             options,
 
@@ -33,7 +36,7 @@ impl USTPlayer {
             pointers: [0; 15],
             trkpos  : 6,
             patpos  : 0,
-            numpat  : 0,
+            numpat  : module.song_length as u16,
             timpos  : 0,
         }
     }
@@ -84,8 +87,15 @@ impl USTPlayer {
         } as usize;
 
         // arp4
-        let index = datachn.n_16_last_saved_note as usize + val;
-        mixer.set_period(chn, NOTETABLE[index] as f64);  // move.w  d2,6(a5)
+        for i in 0..36 {
+            if datachn.n_16_last_saved_note == NOTETABLE[i] {
+                if i + val < NOTETABLE.len() {  // oxdz: add sanity check
+                    // mt_endpart
+                    mixer.set_period(chn, NOTETABLE[i+val] as f64);  // move.w  d2,6(a5)
+                    return
+                }
+            }
+        }
     }
 
     //------------------------------------------------
@@ -94,14 +104,14 @@ impl USTPlayer {
 
     fn pitchbend(&mut self, chn: usize, mixer: &mut Mixer) {
         let datachn = &mut self.datachn[chn];
-        let val = (datachn.n_3_effect_number >> 4) as u16;
+        let val = (datachn.n_3_effect_number >> 4) as i16;
         if val != 0 {
             datachn.n_0_note += val;                         // add.w   d0,(a6)
             mixer.set_period(chn, datachn.n_0_note as f64);  // move.w  (a6),6(a5)
             return
         }
         // pit2
-        let val = (datachn.n_3_effect_number & 0x0f) as u16;
+        let val = (datachn.n_3_effect_number & 0x0f) as i16;
         if val != 0 {
             datachn.n_0_note -= val;                         // sub.w   d0,(a6)
             mixer.set_period(chn, datachn.n_0_note as f64);  // move.w  (a6),6(a5)
@@ -144,7 +154,7 @@ impl USTPlayer {
         {
             let datachn = &mut self.datachn[chn];
     
-            datachn.n_0_note = event.note;                  // get period & action-word
+            datachn.n_0_note = event.note as i16;           // get period & action-word
             datachn.n_2_sound_number = event.cmd;
             datachn.n_3_effect_number = event.cmdlo;
     
@@ -155,12 +165,13 @@ impl USTPlayer {
                 datachn.n_8_soundlength = instrument.size;                   // store sample-len in words
                 datachn.n_18_volume = instrument.volume as i16;              // store sample-volume
                 mixer.set_volume(chn, (datachn.n_18_volume as usize) << 4);  // change chanel-volume
-                datachn.n_10_repeatstart = instrument.repeat as u32;         // store repeatstart
+                datachn.n_10_repeatstart = datachn.n_4_soundstart + instrument.repeat as u32;  // store repeatstart
                 datachn.n_14_repeatlength = instrument.replen;               // store repeatlength
                 if instrument.replen != 1 {
-                    datachn.n_10_repeatstart = 0;                            // repstart  = sndstart
+                    datachn.n_10_repeatstart = datachn.n_4_soundstart;       // repstart  = sndstart
                     datachn.n_8_soundlength = instrument.replen;             // replength = sndlength
                 }
+                mixer.enable_loop(chn, instrument.replen != 1);
             }
         }
         // chan2
@@ -188,7 +199,7 @@ impl FormatPlayer for USTPlayer {
         }
 
         data.speed = 6;
-        data.tempo = 125;
+        data.tempo = module.tempo as usize;
 
         let pan = match self.options.option_int("pan") {
             Some(val) => val,
@@ -247,14 +258,14 @@ impl FormatPlayer for USTPlayer {
 
 #[derive(Clone,Copy,Default)]
 struct DataChnx {
-    n_0_note            : u16,
+    n_0_note            : i16,
     n_2_sound_number    : u8,
     n_3_effect_number   : u8,
     n_4_soundstart      : u32,
     n_8_soundlength     : u16,
     n_10_repeatstart    : u32,
     n_14_repeatlength   : u16,
-    n_16_last_saved_note: u16,
+    n_16_last_saved_note: i16,
     n_18_volume         : i16,
     n_20_volume_trigger : i16,
     //n_22_dma_bit        : u16,

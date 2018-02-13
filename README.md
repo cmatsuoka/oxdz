@@ -21,15 +21,16 @@ correctly implemented. Sound quality will be improved later.
 ### Must have
 
 * Formats and players
-  * Standard M.K. loader :heavy_check_mark:
-  * M.K. fingerprinting :heavy_check_mark:
-  * Multichannel
+  * Standard M.K. loader               :heavy_check_mark:
+  * M.K. fingerprinting                :heavy_check_mark:
+  * Multichannel module loader
   * xCHN/xxCH fingerprinting
-  * Protracker M.K. mod player :heavy_check_mark:
-  * Player variation for M.K. (e.g. Noisetracker) :heavy_check_mark:
-  * 15-instrument variant (Soundtracker)
-  * Scream Tracker 2 :heavy_check_mark:
-  * Scream Tracker 3 :heavy_check_mark:
+  * Protracker M.K. mod player         :heavy_check_mark:
+  * Noisetracker player                :heavy_check_mark:
+  * 15-instrument (Soundtracker)       :heavy_check_mark:
+  * Ultimate Soundtracker              :heavy_check_mark:
+  * Scream Tracker 2                   :heavy_check_mark:
+  * Scream Tracker 3                   :heavy_check_mark:
     * Play ST3 M.K. file (e.g. Sundance.mod)
     * Play ST3 xCHN/xxCH files
   * Fast Tracker II support
@@ -37,17 +38,18 @@ correctly implemented. Sound quality will be improved later.
   * Impulse Tracker support
 * Quirk table
 * Mixer
-  * Better interpolation :heavy_check_mark:
-  * Amiga sound emulation :heavy_check_mark:
+  * Better interpolation               :heavy_check_mark:
+  * Amiga sound emulation              :heavy_check_mark:
   * Bidirectional loop
 * Module pre-scan
 * Skip patterns forward/backwards
 * Other language bindings
   * C
 * Stable API
+  * Documentation and examples
   * Public crate
 * Player application
-  * Proof of concept :heavy_check_mark:
+  * Proof of concept                   :heavy_check_mark:
   * CLI-based
 
 

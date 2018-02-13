@@ -63,10 +63,12 @@ impl ModPlayer {
 
         // mt_arp3
         for i in 0..36 {
-            if ch.n_10_period >= MT_PERIODS[i + val] {
-                // mt_arp4
-                mixer.set_period(chn, ch.n_10_period as f64);  // move.w  d2,$6(a5)
-                return
+            if ch.n_10_period >= MT_PERIODS[i] {
+                if i+val < MT_PERIODS.len() {  // oxdz: add sanity check
+                    // mt_arp4
+                    mixer.set_period(chn, MT_PERIODS[i+val] as f64);  // move.w  d2,$6(a5)
+                    return
+                }
             }
         }
     }

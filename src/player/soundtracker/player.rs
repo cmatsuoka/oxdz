@@ -93,10 +93,10 @@ impl StPlayer {
 
         // mt_cont
         for i in 0..36 {
-            if i + val < MT_ARPEGGIO.len() {  // oxdz: add sanity check
-                if ch.n_16_period == MT_ARPEGGIO[i + val] {
+            if ch.n_16_period == MT_ARPEGGIO[i] {
+                if i + val < MT_ARPEGGIO.len() {  // oxdz: add sanity check
                     // mt_endpart
-                    mixer.set_period(chn, ch.n_16_period as f64);  // move.w  d2,6(a5)
+                    mixer.set_period(chn, MT_ARPEGGIO[i+val] as f64);  // move.w  d2,6(a5)
                     return
                 }
             }
@@ -159,7 +159,7 @@ impl StPlayer {
                     ch.n_4_samplestart += repeat;                           // move.l  4(a6),d2 / add.l   d3,d2 / move.l  d2,4(a6)
                     ch.n_10_loopstart = ch.n_4_samplestart;                 // move.l  d2,10(a6)
                     ch.n_8_length = instrument.replen;                      // move.w  6(a3,d4),8(a6)
-                    ch.n_14_replen = instrument.replen;                     // move.w  6(a3,d4),14(a6)
+                    ch.n_14_replen = instrument.replen; // *2?              // move.w  6(a3,d4),14(a6)
                     mixer.set_volume(chn, (ch.n_18_volume as usize) << 4);  // move.w  18(a6),8(a5)
                 } else {
                     // mt_displace
