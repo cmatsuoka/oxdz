@@ -10,7 +10,7 @@ impl PlayerListEntry for St3 {
        PlayerInfo {
           id         : "st3",
           name       : "st3play 0.78 replayer",
-          description: "An accurate port of the Scream Tracker 3.21 replayer",
+          description: "A port of the Scream Tracker 3.21 replayer",
           author     : r#"Olav "8bitbubsy" Sørensen, Claudio Matsuoka"#,
           accepts    : &[ "s3m", "m.k.", "xxch" ],
        }
