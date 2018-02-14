@@ -434,7 +434,8 @@ impl St3Play {
         loop {
             self.np_ord += 1;
 
-            if module.orders[self.np_ord as usize - 1] == 255 || self.np_ord > module.ord_num as i16 {  // end
+            // oxdz: invert comparison order to prevent invalid memory access
+            if self.np_ord > module.ord_num as i16 || module.orders[self.np_ord as usize - 1] == 255 {  // end
                 self.np_ord = 1;
             }
 
