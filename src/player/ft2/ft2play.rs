@@ -35,6 +35,54 @@ struct SongTyp {
 }
 
 #[derive(Default)]
+struct SampleTyp {
+    len      : i32,
+    rep_s    : i32,
+    rep_l    : i32,
+    vol      : u8,
+    fine     : i8,
+    typ      : u8,
+    pan      : u8,
+    rel_ton  : i8,
+    skrap    : u8,
+    name     : String,
+    //pek      : i8,
+    //gus_base : i32,
+    //gus_len  : i32,
+    fixed    : u8,
+    fix_spar : u16,
+    //res1     : u8,
+    fixed_pos: i32,
+}
+
+struct InstrTyp {
+    ta         : [u8; 96],
+    env_vp     : [[i16; 2]; 12],
+    env_pp     : [[i16; 2]; 12],
+    env_vp_ant : u8,
+    env_pp_ant : u8,
+    env_v_sust : u8,
+    env_v_rep_s: u8,
+    env_v_rep_e: u8,
+    env_p_sust : u8,
+    env_p_rep_s: u8,
+    env_p_rep_e: u8,
+    env_v_typ  : u8,
+    env_p_typ  : u8,
+    vib_typ    : u8,
+    vib_sweep  : u8,
+    vib_depth  : u8,
+    vib_rate   : u8,
+    fade_out   : u16,
+    //midi_on     : bool,
+    //midi_channel: u8,
+    //midi_program: i16,
+    //midi_bend   : i16,
+    mute       : bool,
+    samp       : [SampleTyp; 32],
+}
+
+#[derive(Default)]
 struct StmTyp {
     out_vol               : i8,
     real_vol              : i8,
@@ -53,7 +101,7 @@ struct StmTyp {
     porta_dir             : bool,
     gliss_funk            : u8,
     vib_pos               : u8,
-    trem_po               : u8,
+    trem_pos              : u8,
     vib_speed             : u8,
     vib_depth             : u8,
     trem_speed            : u8,
@@ -76,7 +124,7 @@ struct StmTyp {
     ton_nr                : u8,
     env_v_pos             : u8,
     e_vib_pos             : u8,
-    env_p_pos             : u8, 
+    env_p_pos             : u8,
     tremor_save           : u8,
     tremor_pos            : u8,
     glob_vol_slide_speed  : u8,
@@ -103,7 +151,7 @@ struct StmTyp {
     fade_out_amp          : u32,
 
     //sampleTyp *smpPtr;
-    //instrTyp *instrPtr;
+    instr_ptr             : usize,
 }
 
 
@@ -155,6 +203,7 @@ static VIB_TAB: [u8; 32] = [
 
 #[derive(Default)]
 pub struct Ft2Play {
+    linear_frq_tab      : bool,
     speed_val           : u32,
     real_replay_rate    : u32,
     f_audio_freq        : f32,
@@ -162,7 +211,10 @@ pub struct Ft2Play {
     tick_vol_ramp_mul_f : f32,
 
     stm                 : [StmTyp; MAX_VOICES],
-} 
+    instr_list          : Vec<InstrTyp>,
+
+    log_tab             : Vec<u32>,
+}
 
 impl Ft2Play {
     pub fn new(_module: &Module, _options: Options) -> Self {
@@ -178,12 +230,102 @@ impl Ft2Play {
     }
 
     fn retrig_volume(&mut self, chn: usize) {
-        let mut ch = &mut self.stm[chn];
+        let ch = &mut self.stm[chn];
         ch.real_vol = ch.old_vol;
         ch.out_vol  = ch.old_vol;
         ch.out_pan  = ch.old_pan;
-        ch.status  |= (IS_VOL + IS_PAN + IS_QUICKVOL);
+        ch.status  |= IS_VOL + IS_PAN + IS_QUICKVOL;
     }
+
+    fn retrig_envelope_vibrato(&mut self, chn: usize) {
+        let ch = &mut self.stm[chn];
+
+        if ch.wave_ctrl & 0x04 == 0 {
+		ch.vib_pos  = 0;
+	}
+        if ch.wave_ctrl & 0x40 == 0 {
+		ch.trem_pos = 0;
+	}
+
+        ch.retrig_cnt = 0;
+        ch.tremor_pos = 0;
+
+        ch.env_sustain_active = true;
+
+        let ins = &self.instr_list[ch.instr_ptr];
+
+        if ins.env_v_typ & 1 != 0 {
+            ch.env_v_cnt = 65535;
+            ch.env_v_pos = 0;
+        }
+
+        if ins.env_p_typ & 1 != 0 {
+            ch.env_p_cnt = 65535;
+            ch.env_p_pos = 0;
+        }
+
+        ch.fade_out_speed = ins.fade_out;  // FT2 doesn't check if fadeout is more than 4095
+        ch.fade_out_amp   = 32768;
+
+        if ins.vib_depth != 0 {
+            ch.e_vib_pos = 0;
+
+            if ins.vib_sweep != 0 {
+                ch.e_vib_amp   = 0;
+                ch.e_vib_sweep = ((ins.vib_depth as u16) << 8) / ins.vib_sweep as u16;
+            } else {
+                ch.e_vib_amp   = (ins.vib_depth as u16) << 8;
+                ch.e_vib_sweep = 0;
+            }
+        }
+    }
+
+    fn key_off(&mut self, chn: usize) {
+        let ch = &mut self.stm[chn];
+
+        ch.env_sustain_active = false;
+
+        let ins = &self.instr_list[ch.instr_ptr];
+
+        if ins.env_p_typ & 1 == 0 {  // yes, FT2 does this (!)
+            if ch.env_p_cnt >= ins.env_pp[ch.env_p_pos as usize][0] as u16 {
+                ch.env_p_cnt = ins.env_pp[ch.env_p_pos as usize][0] as u16 - 1;
+            }
+        }
+
+        if ins.env_v_typ & 1 != 0 {
+            if ch.env_v_cnt >= ins.env_vp[ch.env_v_pos as usize][0] as u16 {
+                ch.env_v_cnt = ins.env_vp[ch.env_v_pos as usize][0] as u16 - 1;
+            }
+        } else {
+            ch.real_vol = 0;
+            ch.out_vol  = 0;
+            ch.status |= IS_VOL + IS_QUICKVOL;
+        }
+    }
+
+    fn get_frequence_value(&self, period: u16) -> u32 {
+        if period == 0 {
+            return 0
+        }
+
+        let mut rate: u32;
+
+        if self.linear_frq_tab {
+            let index = (12 * 192 * 4) - period;
+            rate = self.log_tab[index as usize % (12 * 16 * 4)];
+
+            let shift = (14 - (index / (12 * 16 * 4))) & 0x1F;
+            if shift > 0 {
+                rate >>= shift;
+            }
+        } else {
+            rate = (1712 * 8363) / period as u32;
+        }
+
+        return rate;
+    }
+
 }
 
 
