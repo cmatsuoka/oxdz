@@ -15,6 +15,8 @@ maintainability.
 Current mixing is using code chunks borrowed from libxmp to verify if the players are
 correctly implemented. Sound quality will be improved later.
 
+[Supported module formats](https://github.com/cmatsuoka/oxdz/wiki/Supported-formats)
+
 
 ## Task list
 
