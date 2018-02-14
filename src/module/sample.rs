@@ -57,6 +57,12 @@ impl Sample {
         }
     }
 
+    fn data_u16_mut(&self) -> &mut [u16] {
+        unsafe {
+            slice::from_raw_parts_mut(self.data.as_ptr() as *mut u16, self.size as usize)
+        }
+    }
+
     pub fn to_signed(&mut self) {
         match self.sample_type {
             SampleType::Sample8  => {
@@ -64,6 +70,12 @@ impl Sample {
                     self.data[i] = self.data[i].wrapping_add(0x80);
                 }
             },
+            SampleType::Sample16 => {
+                let data = self.data_u16_mut();
+                for i in 0..self.size as usize {
+                    data[i] = data[i].wrapping_add(0x8000);
+                }
+            }
             _ => ()
         }
     }
