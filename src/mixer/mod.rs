@@ -164,7 +164,7 @@ impl<'a> Mixer<'a> {
         let v = &mut self.voices[voice];
         v.smp = smp - 1;
         v.pos = 0_f64;
-        v.end = self.sample[smp].size;
+        v.end = self.sample[smp - 1].size;
         v.has_loop = false;
         v.sample_end = true;
     }
