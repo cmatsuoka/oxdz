@@ -30,24 +30,41 @@ pub struct Fingerprint;
 impl Fingerprint {
     pub fn id(data: &ModData) -> TrackerID {
         let mut tracker_id = Self::get_tracker_id(&data);
+        let mut out_of_range = false;
 
-        if tracker_id == TrackerID::Noisetracker {
-            if !Fingerprint::only_nt_cmds(&data) || !Fingerprint::standard_notes(&data) {
-                tracker_id = TrackerID::Unknown;
+        for p in 0..*&data.patterns.num {
+            for r in 0..64 {
+                for c in 0..4 {
+                    let e = data.patterns.event(p, r, c);
+                    let note = e.note & 0xfff;
+                    let cmd = e.cmd & 0x0f;
+
+                    if note != 0 && (note < 109 || note > 907) {
+                        out_of_range = true
+                    }
+
+                    // Filter Noisetracker events
+                    if tracker_id == TrackerID::Noisetracker {
+                        if (cmd > 0x06 && cmd < 0x0a) || (cmd == 0x0e && e.cmdlo > 1) {
+                            tracker_id = TrackerID::Unknown
+                        }
+                    }
+                }
             }
-        } else if tracker_id == TrackerID::Soundtracker {
-            if !Fingerprint::only_st_cmds(&data) || !Fingerprint::standard_notes(&data) {
-                tracker_id = TrackerID::Unknown;
+
+            if out_of_range {
+                // Check out-of-range notes in Amiga trackers
+                if tracker_id == TrackerID::Protracker || tracker_id == TrackerID::Noisetracker || tracker_id == TrackerID::Soundtracker {
+                    tracker_id = TrackerID::Unknown
+                }
+
+                if tracker_id == TrackerID::Unknown && data.restart == 0x7f {
+                    tracker_id = TrackerID::Screamtracker3
+                }
+
             }
         }
-        if !Fingerprint::standard_octaves(&data) {
-            if tracker_id == TrackerID::Unknown && data.restart == 0x7f {
-                tracker_id = TrackerID::Screamtracker3;
-            }
-            if tracker_id == TrackerID::Protracker || tracker_id == TrackerID::Noisetracker || tracker_id == TrackerID::Soundtracker {
-                tracker_id = TrackerID::Unknown;
-            }
-        }
+
         tracker_id
     }
 
@@ -83,6 +100,7 @@ impl Fingerprint {
             } else {
                 TrackerID::Noisetracker
             }
+            // FIXME: assume restart as noisetracker restart
         } else if data.restart == 0x7f {
             if has_replen_0 {
                 tracker_id = TrackerID::ProtrackerClone;
@@ -156,21 +174,6 @@ impl Fingerprint {
     }
 
     fn only_nt_cmds(data: &ModData) -> bool {
-        for p in 0..*&data.patterns.num {
-            for r in 0..64 {
-                for c in 0..4 {
-                    let e = data.patterns.event(p, r, c);
-                    let cmd = e.cmd & 0x0f;
-                    if (cmd > 0x06 && cmd < 0x0a) || (cmd == 0x0e && e.cmdlo > 1) {
-                        return false 
-                    }
-                }
-            }
-        }
-        true
-    }
-
-    fn only_st_cmds(data: &ModData) -> bool {
         for p in 0..*&data.patterns.num {
             for r in 0..64 {
                 for c in 0..4 {
