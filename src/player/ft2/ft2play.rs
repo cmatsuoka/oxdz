@@ -1,3 +1,4 @@
+use std::cmp;
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
 use format::xm::XmData;
@@ -150,7 +151,7 @@ struct StmTyp {
     out_period            : u16,
     fade_out_amp          : u32,
 
-    //sampleTyp *smpPtr;
+    smp_ptr               : usize,  // oxdz: store these as indexes instead of ponters
     instr_ptr             : usize,
 }
 
@@ -202,7 +203,7 @@ static VIB_TAB: [u8; 32] = [
 
 
 #[derive(Default)]
-pub struct Ft2Play {
+pub struct Ft2Play<'a> {
     linear_frq_tab      : bool,
     speed_val           : u32,
     real_replay_rate    : u32,
@@ -211,12 +212,13 @@ pub struct Ft2Play {
     tick_vol_ramp_mul_f : f32,
 
     stm                 : [StmTyp; MAX_VOICES],
-    instr_list          : Vec<InstrTyp>,
+    instr               : Vec<&'a InstrTyp>,
 
+    note2period         : Vec<i16>,
     log_tab             : Vec<u32>,
 }
 
-impl Ft2Play {
+impl<'a> Ft2Play<'a> {
     pub fn new(_module: &Module, _options: Options) -> Self {
         Default::default()
     }
@@ -252,7 +254,7 @@ impl Ft2Play {
 
         ch.env_sustain_active = true;
 
-        let ins = &self.instr_list[ch.instr_ptr];
+        let ins = &self.instr[ch.instr_ptr];
 
         if ins.env_v_typ & 1 != 0 {
             ch.env_v_cnt = 65535;
@@ -285,7 +287,7 @@ impl Ft2Play {
 
         ch.env_sustain_active = false;
 
-        let ins = &self.instr_list[ch.instr_ptr];
+        let ins = &self.instr[ch.instr_ptr];
 
         if ins.env_p_typ & 1 == 0 {  // yes, FT2 does this (!)
             if ch.env_p_cnt >= ins.env_pp[ch.env_p_pos as usize][0] as u16 {
@@ -326,10 +328,139 @@ impl Ft2Play {
         return rate;
     }
 
+    fn start_tone(&mut self, mut ton: u8, eff_typ: u8, eff: u8, chn: usize) {
+
+        // no idea if this EVER triggers...
+        if ton == 97 {
+            self.key_off(chn);
+            return
+        }
+        // ------------------------------------------------------------
+    
+        let ch = &mut self.stm[chn];
+
+        // if we came from Rxy (retrig), we didn't check note (Ton) yet
+        if ton == 0 {
+            ton = ch.ton_nr;
+            if ton == 0 {
+                return  // if still no note, return.
+            }
+        }
+        // ------------------------------------------------------------
+    
+        ch.ton_nr = ton;
+    
+        let ins = self.instr[ch.instr_nr as usize];
+         
+        //ch.instr_ptr = ins;
+        ch.instr_ptr = ch.instr_nr as usize;
+    
+        ch.mute = ins.mute;
+    
+        if ton > 95 {  // added security check
+            ton = 95;
+        }
+    
+        let smp = (ins.ta[ton as usize - 1] & 0x0F) as usize;
+    
+        let s = &ins.samp[smp];
+        ch.smp_ptr = smp;
+    
+        ch.rel_ton_nr = s.rel_ton;
+    
+        ton = (ton as i16 + ch.rel_ton_nr as i16) as u8;
+        if ton >= (12 * 10) {
+            return
+        }
+    
+        ch.old_vol = s.vol as i8;
+        ch.old_pan = s.pan;
+    
+        ch.fine_tune = if eff_typ == 0x0E && (eff & 0xF0) == 0x50 {
+            ((eff & 0x0F) * 16) as i8 - 128  // result is now -128 .. 127
+        } else {
+            s.fine
+        };
+    
+        if ton > 0 {
+            // MUST use >> 3 here (sar cl,3) - safe for x86/x86_64
+            let tmp_ton = ((ton - 1) * 16) + ((((ch.fine_tune >> 3) + 16) as u8 )& 0xFF);
+    
+            // oxdz: can't happen, tmp_ton is limited by type size
+            /*
+            if tmp_ton < MAX_NOTES {  // should never happen, but FT2 does this check
+                ch.real_period = self.note2period[tmp_ton as usize];
+                ch.out_period  = ch.real_period as u16;
+            }
+            */
+        }
+    
+        ch.status |= IS_PERIOD + IS_VOL + IS_PAN + IS_NYTON + IS_QUICKVOL;
+    
+        if eff_typ == 9 {
+            if eff != 0 {
+                ch.smp_offset = ch.eff;
+            }
+    
+            ch.smp_start_pos = 256 * ch.smp_offset as u16;
+        } else {
+            ch.smp_start_pos = 0;
+        }
+    }
+    
+    fn multi_retrig(&mut self, chn: usize) {
+        {
+            let ch = &mut self.stm[chn];
+    
+            let cnt = ch.retrig_cnt + 1;
+            if cnt < ch.retrig_speed {
+                ch.retrig_cnt = cnt;
+                return
+            }
+        
+            ch.retrig_cnt = 0;
+        
+            let mut vol = ch.real_vol;
+            let cmd = ch.retrig_vol;
+        
+            // 0x00 and 0x08 are not handled, ignore them
+        
+            vol = match cmd {
+                0x01 => cmp::max(vol - 1, 0),
+                0x02 => cmp::max(vol - 2, 0),
+                0x03 => cmp::max(vol - 4, 0),
+                0x04 => cmp::max(vol - 8, 0),
+                0x05 => cmp::max(vol - 16, 0),
+                0x06 => vol>>1 + vol>>3 + vol>>4,
+                0x07 => vol >> 1,
+                0x09 => cmp::min(vol + 1, 64),
+                0x0a => cmp::min(vol + 2, 64),
+                0x0b => cmp::min(vol + 4, 64),
+                0x0c => cmp::min(vol + 8, 64),
+                0x0d => cmp::min(vol + 16, 64),
+                0x0e => cmp::min(vol>>1 + vol, 64),
+                0x0f => cmp::min(vol + vol, 64),
+                _    => vol,
+            };
+    
+            ch.real_vol = vol;
+            ch.out_vol  = ch.real_vol;
+        
+            if ch.vol_kol_vol >= 0x10 && ch.vol_kol_vol <= 0x50 {
+                ch.out_vol  = ch.vol_kol_vol as i8 - 0x10;
+                ch.real_vol = ch.out_vol;
+            } else if ch.vol_kol_vol >= 0xC0 && ch.vol_kol_vol <= 0xCF {
+                ch.out_pan = (ch.vol_kol_vol & 0x0F) << 4;
+            }
+        }
+    
+        self.start_tone(0, 0, 0, chn);
+    }
+    
 }
 
 
-impl FormatPlayer for Ft2Play {
+impl<'a> FormatPlayer for Ft2Play<'a> {
     fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
