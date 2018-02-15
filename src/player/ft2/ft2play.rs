@@ -99,7 +99,7 @@ struct StmTyp {
     smp_offset            : u8,
     wave_ctrl             : u8,
     status                : u8,
-    porta_dir             : bool,
+    porta_dir             : u8,
     gliss_funk            : u8,
     vib_pos               : u8,
     trem_pos              : u8,
@@ -155,6 +155,13 @@ struct StmTyp {
     instr_ptr             : usize,
 }
 
+struct TonTyp {
+    ton    : u8,
+    instr  : u8,
+    vol    : u8,
+    eff_typ: u8,
+    eff    : u8,
+}
 
 const MAX_NOTES : usize = (12 * 10 * 16) + 16;
 const MAX_VOICES: usize = 32;
@@ -337,7 +344,7 @@ impl<'a> Ft2Play<'a> {
             return
         }
         // ------------------------------------------------------------
-    
+
         let ch = &mut self.stm[chn];
 
         // if we came from Rxy (retrig), we didn't check note (Ton) yet
@@ -348,45 +355,45 @@ impl<'a> Ft2Play<'a> {
             }
         }
         // ------------------------------------------------------------
-    
+
         ch.ton_nr = ton;
-    
+
         let ins = self.instr[ch.instr_nr as usize];
-         
+
         //ch.instr_ptr = ins;
         ch.instr_ptr = ch.instr_nr as usize;
-    
+
         ch.mute = ins.mute;
-    
+
         if ton > 95 {  // added security check
             ton = 95;
         }
-    
+
         let smp = (ins.ta[ton as usize - 1] & 0x0F) as usize;
-    
+
         let s = &ins.samp[smp];
         ch.smp_ptr = smp;
-    
+
         ch.rel_ton_nr = s.rel_ton;
-    
+
         ton = (ton as i16 + ch.rel_ton_nr as i16) as u8;
         if ton >= (12 * 10) {
             return
         }
-    
+
         ch.old_vol = s.vol as i8;
         ch.old_pan = s.pan;
-    
+
         ch.fine_tune = if eff_typ == 0x0E && (eff & 0xF0) == 0x50 {
             ((eff & 0x0F) * 16) as i8 - 128  // result is now -128 .. 127
         } else {
             s.fine
         };
-    
+
         if ton > 0 {
             // MUST use >> 3 here (sar cl,3) - safe for x86/x86_64
             let tmp_ton = ((ton - 1) * 16) + ((((ch.fine_tune >> 3) + 16) as u8 )& 0xFF);
-    
+
             // oxdz: can't happen, tmp_ton is limited by type size
             /*
             if tmp_ton < MAX_NOTES {  // should never happen, but FT2 does this check
@@ -395,37 +402,37 @@ impl<'a> Ft2Play<'a> {
             }
             */
         }
-    
+
         ch.status |= IS_PERIOD + IS_VOL + IS_PAN + IS_NYTON + IS_QUICKVOL;
-    
+
         if eff_typ == 9 {
             if eff != 0 {
                 ch.smp_offset = ch.eff;
             }
-    
+
             ch.smp_start_pos = 256 * ch.smp_offset as u16;
         } else {
             ch.smp_start_pos = 0;
         }
     }
-    
+
     fn multi_retrig(&mut self, chn: usize) {
         {
             let ch = &mut self.stm[chn];
-    
+
             let cnt = ch.retrig_cnt + 1;
             if cnt < ch.retrig_speed {
                 ch.retrig_cnt = cnt;
                 return
             }
-        
+
             ch.retrig_cnt = 0;
-        
+
             let mut vol = ch.real_vol;
             let cmd = ch.retrig_vol;
-        
+
             // 0x00 and 0x08 are not handled, ignore them
-        
+
             vol = match cmd {
                 0x01 => cmp::max(vol - 1, 0),
                 0x02 => cmp::max(vol - 2, 0),
@@ -443,10 +450,10 @@ impl<'a> Ft2Play<'a> {
                 0x0f => cmp::min(vol + vol, 64),
                 _    => vol,
             };
-    
+
             ch.real_vol = vol;
             ch.out_vol  = ch.real_vol;
-        
+
             if ch.vol_kol_vol >= 0x10 && ch.vol_kol_vol <= 0x50 {
                 ch.out_vol  = ch.vol_kol_vol as i8 - 0x10;
                 ch.real_vol = ch.out_vol;
@@ -454,87 +461,86 @@ impl<'a> Ft2Play<'a> {
                 ch.out_pan = (ch.vol_kol_vol & 0x0F) << 4;
             }
         }
-    
+
         self.start_tone(0, 0, 0, chn);
     }
-    
+
     fn check_more_effects(&mut self, chn: usize) {
         let mut set_speed = false;
         let mut set_global_volume = false;
         {
             let ch = &mut self.stm[chn];
             let ins = &self.instr[ch.instr_ptr];
-            let mut tmp_eff: u8;
-        
+
             // Bxx - position jump
             if ch.eff_typ == 11 {
                 self.song.song_pos      = ch.eff as i16 - 1;
                 self.song.p_break_pos   = 0;
                 self.song.pos_jump_flag = true;
             }
-        
+
             // Dxx - pattern break
             else if ch.eff_typ == 13 {
                 self.song.pos_jump_flag = true;
-        
-                tmp_eff = (ch.eff>>4)*10 + ch.eff&0x0F;
+
+                let tmp_eff = (ch.eff>>4)*10 + ch.eff&0x0F;
                 self.song.p_break_pos = if tmp_eff <= 63 {
                     tmp_eff
                 } else {
                     0
                 }
             }
-        
+
             // Exx - E effects
             else if ch.eff_typ == 14 {
                 // E1x - fine period slide up
                 if ch.eff & 0xF0 == 0x10 {
-                    tmp_eff = ch.eff & 0x0F;
+                    let mut tmp_eff = ch.eff & 0x0F;
                     if tmp_eff == 0 {
                         tmp_eff = ch.f_porta_up_speed;
                     }
-        
+
                     ch.f_porta_up_speed = tmp_eff;
-        
+
                     ch.real_period -= tmp_eff as i16 * 4;
                     if ch.real_period < 1 {
                         ch.real_period = 1
                     }
-        
+
                     ch.out_period = ch.real_period as u16;
                     ch.status    |= IS_PERIOD;
                 }
-        
+
                 // E2x - fine period slide down
                 else if ch.eff & 0xF0 == 0x20 {
-                    tmp_eff = ch.eff & 0x0F;
+                    let mut tmp_eff = ch.eff & 0x0F;
                     if tmp_eff == 0 {
                         tmp_eff = ch.f_porta_down_speed;
                     }
-        
+
                     ch.f_porta_down_speed = tmp_eff;
-        
+
                     ch.real_period += tmp_eff as i16 * 4;
                     if ch.real_period > 32000 - 1 {
                         ch.real_period = 32000 - 1;
                     }
-        
+
                     ch.out_period = ch.real_period as u16;
                     ch.status   |= IS_PERIOD;
                 }
-        
+
                 // E3x - set glissando type
                 else if ch.eff & 0xF0 == 0x30 {
                     ch.gliss_funk = ch.eff & 0x0F;
                 }
-        
+
                 // E4x - set vibrato waveform
                 else if ch.eff & 0xF0 == 0x40 {
                     ch.wave_ctrl = (ch.wave_ctrl & 0xF0) | (ch.eff & 0x0F);
                 }
-        
+
                 // E5x (set finetune) is handled in StartTone()
-        
+
                 // E6x - pattern loop
                 else if ch.eff & 0xF0 == 0x60 {
                     if ch.eff == 0x60 {  // E60, empty param
@@ -542,7 +548,7 @@ impl<'a> Ft2Play<'a> {
                     } else {
                         if ch.loop_cnt == 0 {
                             ch.loop_cnt = ch.eff & 0x0F;
-        
+
                             self.song.p_break_pos  = ch.patt_pos;
                             self.song.p_break_flag = true;
                         } else {
@@ -554,58 +560,58 @@ impl<'a> Ft2Play<'a> {
                         }
                     }
                 }
-        
+
                 // E7x - set tremolo waveform
                 else if ch.eff & 0xF0 == 0x70 {
                     ch.wave_ctrl = (ch.eff & 0x0F) << 4 | (ch.wave_ctrl & 0x0F);
                 }
-        
+
                 // E8x - set 4-bit panning (NON-FT2)
                 else if ch.eff & 0xF0 == 0x80 {
                     ch.out_pan = (ch.eff & 0x0F) * 16;
                     ch.status |= IS_PAN;
                 }
-        
+
                 // EAx - fine volume slide up
                 else if ch.eff & 0xF0 == 0xA0 {
-                    tmp_eff = ch.eff & 0x0F;
+                    let mut tmp_eff = ch.eff & 0x0F;
                     if tmp_eff == 0 {
                         tmp_eff = ch.f_vol_slide_up_speed;
                     }
-        
+
                     ch.f_vol_slide_up_speed = tmp_eff;
-        
+
                     // unsigned clamp
                     if ch.real_vol <= 64 - tmp_eff as i8 {
                         ch.real_vol += tmp_eff as i8;
                     } else {
                         ch.real_vol = 64;
                     }
-        
+
                     ch.out_vol = ch.real_vol;
                     ch.status |= IS_VOL;
                 }
-        
+
                 // EBx - fine volume slide down
                 else if (ch.eff & 0xF0) == 0xB0 {
-                    tmp_eff = ch.eff & 0x0F;
+                    let mut tmp_eff = ch.eff & 0x0F;
                     if tmp_eff == 0 {
                         tmp_eff = ch.f_vol_slide_down_speed;
                     }
-        
+
                     ch.f_vol_slide_down_speed = tmp_eff;
-        
+
                     // unsigned clamp
                     if ch.real_vol >= tmp_eff as i8 {
                         ch.real_vol -= tmp_eff as i8
                     } else {
                         ch.real_vol = 0
                     }
-        
+
                     ch.out_vol = ch.real_vol;
                     ch.status |= IS_VOL;
                 }
-        
+
                 // ECx - note cut
                 else if ch.eff & 0xF0 == 0xC0 {
                     if ch.eff == 0xC0 {  // empty param
@@ -614,7 +620,7 @@ impl<'a> Ft2Play<'a> {
                         ch.status |= IS_VOL + IS_QUICKVOL;
                     }
                 }
-        
+
                 // EEx - pattern delay
                 else if ch.eff & 0xF0 == 0xE0 {
                     if self.song.patt_del_time_2 == 0 {
@@ -622,7 +628,7 @@ impl<'a> Ft2Play<'a> {
                     }
                 }
             }
-        
+
             // Fxx - set speed/tempo
             else if ch.eff_typ == 15 {
                 if ch.eff >= 32 {
@@ -633,134 +639,134 @@ impl<'a> Ft2Play<'a> {
                     self.song.timer = ch.eff as u16;
                 }
             }
-        
+
             // Gxx - set global volume
             else if ch.eff_typ == 16 {
                 self.song.glob_vol = ch.eff as u16;
                 if self.song.glob_vol > 64 {
                     self.song.glob_vol = 64;
                 }
-        
+
                 set_global_volume = true;
             }
-        
+
             // Lxx - set vol and pan envelope position
             else if ch.eff_typ == 21 {
                 // *** VOLUME ENVELOPE ***
                 if ins.env_v_typ & 1 != 0 {
                     ch.env_v_cnt = ch.eff as u16 - 1;
-        
+
                     let mut env_pos = 0;
                     let mut env_update = true;
                     let mut new_env_pos = ch.eff as i16;
-        
+
                     if ins.env_vp_ant > 1 {
                         env_pos += 1;
                         for i in 0..ins.env_vp_ant {
                             if new_env_pos < ins.env_vp[env_pos][0] {
                                 env_pos -= 1;
-        
+
                                 new_env_pos -= ins.env_vp[env_pos][0];
                                 if new_env_pos == 0 {
                                     env_update = false;
                                     break
                                 }
-        
+
                                 if ins.env_vp[env_pos + 1][0] <= ins.env_vp[env_pos][0] {
                                     env_update = true;
                                     break
                                 }
-        
+
                                 ch.env_v_ip_value = ((ins.env_vp[env_pos + 1][1] - ins.env_vp[env_pos][1]) & 0x00FF) << 8;
                                 ch.env_v_ip_value /= ins.env_vp[env_pos + 1][0] - ins.env_vp[env_pos][0];
-        
+
                                 ch.env_v_amp = (ch.env_v_ip_value * (new_env_pos - 1) + (ins.env_vp[env_pos][1] & 0x00FF) << 8) as u16;
-        
+
                                 env_pos += 1;
-        
+
                                 env_update = false;
                                 break
                             }
-        
+
                             env_pos += 1;
                         }
-        
+
                         if env_update {
                             env_pos -= 1;
                         }
                     }
-        
+
                     if env_update {
                         ch.env_v_ip_value = 0;
                         ch.env_v_amp = ((ins.env_vp[env_pos][1] & 0x00FF) << 8) as u16;
                     }
-        
+
                     if env_pos >= ins.env_vp_ant as usize {
                         env_pos = ins.env_vp_ant as usize - 1;
                         if env_pos < 0 {
                             env_pos = 0;
                         }
                     }
-        
+
                     ch.env_v_pos = env_pos as u8;
                 }
-        
+
                 // *** PANNING ENVELOPE ***
                 if ins.env_v_typ & 2 != 0 {  // probably an FT2 bug
                     ch.env_p_cnt = ch.eff as u16 - 1;
-        
+
                     let mut env_pos = 0;
                     let mut env_update = true;
                     let mut new_env_pos = ch.eff as i16;
-        
+
                     if ins.env_pp_ant > 1 {
                         env_pos += 1;
                         for i in 0..ins.env_pp_ant - 1 {
                             if new_env_pos < ins.env_pp[env_pos][0] {
                                 env_pos -= 1;
-        
+
                                 new_env_pos -= ins.env_pp[env_pos][0];
                                 if new_env_pos == 0 {
                                     env_update = false;
                                     break
                                 }
-        
+
                                 if ins.env_pp[env_pos + 1][0] <= ins.env_pp[env_pos][0] {
                                     env_update = true;
                                     break
                                 }
-        
+
                                 ch.env_p_ip_value = ((ins.env_pp[env_pos + 1][1] - ins.env_pp[env_pos][1]) & 0x00FF) << 8;
                                 ch.env_p_ip_value /= ins.env_pp[env_pos + 1][0] - ins.env_pp[env_pos][0];
-        
+
                                 ch.env_p_amp = ((ch.env_p_ip_value * (new_env_pos - 1)) + (ins.env_pp[env_pos][1] & 0x00FF) << 8) as u16;
-        
+
                                 env_pos += 1;
-        
+
                                 env_update = false;
                                 break
                             }
-        
+
                             env_pos += 1;
                         }
-        
+
                         if env_update {
                             env_pos -= 1;
                         }
                     }
-        
+
                     if env_update {
                         ch.env_p_ip_value = 0;
                         ch.env_p_amp = ((ins.env_pp[env_pos][1] & 0x00FF) << 8) as u16;
                     }
-        
+
                     if env_pos >= ins.env_pp_ant as usize {
                         env_pos = ins.env_pp_ant as usize - 1;
                         if env_pos < 0 {
                             env_pos = 0;
                         }
                     }
-        
+
                     ch.env_p_pos = env_pos as u8;
                 }
             }
@@ -775,7 +781,208 @@ impl<'a> Ft2Play<'a> {
             }
         }
     }
-    
+
+    fn check_effects(&mut self, chn: usize) {
+
+        let mut multi_retrig = false;
+        {
+            let ch = &mut self.stm[chn];
+
+            // this one is manipulated by vol column effects, then used for multiretrig (FT2 quirk)
+            let mut vol_kol = ch.vol_kol_vol;
+
+            // *** VOLUME COLUMN EFFECTS (TICK 0) ***
+
+            // set volume
+            if ch.vol_kol_vol >= 0x10 && ch.vol_kol_vol <= 0x50 {
+                vol_kol -= 16;
+
+                ch.out_vol  = vol_kol as i8;
+                ch.real_vol = vol_kol as i8;
+
+                ch.status |= IS_VOL + IS_QUICKVOL;
+            }
+
+            // fine volume slide down
+            else if ch.vol_kol_vol & 0xF0 == 0x80 {
+                vol_kol = ch.vol_kol_vol & 0x0F;
+
+                // unsigned clamp
+                if ch.real_vol >= vol_kol as i8 {
+                    ch.real_vol -= vol_kol as i8;
+                } else {
+                    ch.real_vol = 0;
+                }
+
+                ch.out_vol = ch.real_vol;
+                ch.status |= IS_VOL;
+            }
+
+            // fine volume slide up
+            else if ch.vol_kol_vol & 0xF0 == 0x90 {
+                vol_kol = ch.vol_kol_vol & 0x0F;
+
+                // unsigned clamp
+                if ch.real_vol <= 64 - vol_kol as i8 {
+                    ch.real_vol += vol_kol as i8;
+                } else {
+                    ch.real_vol = 64;
+                }
+
+                ch.out_vol = ch.real_vol;
+                ch.status |= IS_VOL;
+            }
+
+            // set vibrato speed
+            else if ch.vol_kol_vol & 0xF0 == 0xA0 {
+                vol_kol = (ch.vol_kol_vol & 0x0F) << 2;
+                ch.vib_speed = vol_kol;
+            }
+
+            // set panning
+            else if ch.vol_kol_vol & 0xF0 == 0xC0 {
+                vol_kol <<= 4;
+
+                ch.out_pan = vol_kol;
+                ch.status |= IS_PAN;
+            }
+
+
+            // *** MAIN EFFECTS (TICK 0) ***
+
+
+            if ch.eff_typ == 0 && ch.eff == 0 {
+                return
+            }
+
+            // Cxx - set volume
+            if ch.eff_typ == 12 {
+                ch.real_vol = ch.eff as i8;
+                if ch.real_vol > 64 {
+                    ch.real_vol = 64
+                }
+
+                ch.out_vol = ch.real_vol;
+                ch.status |= IS_VOL + IS_QUICKVOL;
+
+                return;
+            }
+
+            // 8xx - set panning
+            else if ch.eff_typ == 8 {
+                ch.out_pan = ch.eff;
+                ch.status |= IS_PAN;
+
+                return
+            }
+
+            // Rxy - note multi retrigger
+            else if ch.eff_typ == 27 {
+                let mut tmp_eff = ch.eff & 0x0F;
+                if tmp_eff == 0 {
+                    tmp_eff = ch.retrig_speed;
+                }
+
+                ch.retrig_speed = tmp_eff;
+
+                let mut tmp_eff_hi = ch.eff >> 4;
+                if tmp_eff_hi == 0 {
+                    tmp_eff_hi = ch.retrig_vol;
+                }
+
+                ch.retrig_vol = tmp_eff_hi;
+
+                if vol_kol == 0 {
+                    multi_retrig = true;
+                } else {
+                    return
+                }
+            }
+
+            // X1x - extra fine period slide up
+            else if ch.eff_typ == 33 && ch.eff & 0xF0 == 0x10 {
+                let mut tmp_eff = ch.eff & 0x0F;
+                if tmp_eff == 0 {
+                    tmp_eff = ch.e_porta_up_speed
+                }
+
+                ch.e_porta_up_speed = tmp_eff;
+
+                ch.real_period -= tmp_eff as i16;
+                if ch.real_period < 1 {
+                     ch.real_period = 1
+                }
+
+                ch.out_period = ch.real_period as u16;
+                ch.status |= IS_PERIOD;
+
+                return
+            }
+
+            // X2x - extra fine period slide down
+            else if ch.eff_typ == 33 && ch.eff & 0xF0 == 0x20 {
+                let mut tmp_eff = ch.eff & 0x0F;
+                if tmp_eff == 0 {
+                    tmp_eff = ch.e_porta_down_speed
+                }
+
+                ch.e_porta_down_speed = tmp_eff;
+
+                ch.real_period += tmp_eff as i16;
+                if ch.real_period > 32000 - 1 {
+                    ch.real_period = 32000 - 1
+                }
+
+                ch.out_period = ch.real_period as u16;
+                ch.status |= IS_PERIOD;
+
+                return
+            }
+        }
+
+        if multi_retrig {
+            self.multi_retrig(chn);
+            return
+        }
+
+        self.check_more_effects(chn);
+    }
+
+    fn fix_tone_porta(&mut self, chn: usize, p: &TonTyp, inst: u8) {
+
+
+        if p.ton != 0 {
+            if p.ton == 97 {
+                self.key_off(chn);
+            } else {
+                let ch = &mut self.stm[chn];
+
+                /* MUST use >> 3 here (sar cl,3) - safe for x86/x86_64 */
+                let porta_tmp = ((((p.ton as i8 - 1) + ch.rel_ton_nr) & 0x00FF) * 16) + ((ch.fine_tune >> 3) + 16) & 0x00FF;
+
+                if porta_tmp < MAX_NOTES as i8 {
+                    ch.want_period = self.note2period[porta_tmp as usize] as u16;
+
+                    if ch.want_period == ch.real_period as u16 {
+                        ch.porta_dir = 0
+                    } else if ch.want_period > ch.real_period as u16 {
+                        ch.porta_dir = 1;
+                    } else {
+                        ch.porta_dir = 2;
+                    }
+                }
+            }
+        }
+
+        if inst != 0 {
+            self.retrig_volume(chn);
+
+            if p.ton != 97 {
+                self.retrig_envelope_vibrato(chn);
+            }
+        }
+    }
+
 }
 
 
