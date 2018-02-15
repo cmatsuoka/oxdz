@@ -27,9 +27,9 @@ struct SongTyp {
     timer          : u16,
     patt_del_time  : u8,
     patt_del_time_2: u8,
-    p_break_flag   : u8,
+    p_break_flag   : bool,
     p_break_pos    : u8,
-    pos_jump_flag  : u8,
+    pos_jump_flag  : bool,
     //song_tab       : [u8; 256],
     ver            : u16,
     name           : String,
@@ -210,6 +210,7 @@ pub struct Ft2Play<'a> {
     f_audio_freq        : f32,
     quick_vol_ramp_mul_f: f32,
     tick_vol_ramp_mul_f : f32,
+    song                : SongTyp,
 
     stm                 : [StmTyp; MAX_VOICES],
     instr               : Vec<&'a InstrTyp>,
@@ -455,6 +456,324 @@ impl<'a> Ft2Play<'a> {
         }
     
         self.start_tone(0, 0, 0, chn);
+    }
+    
+    fn check_more_effects(&mut self, chn: usize) {
+        let mut set_speed = false;
+        let mut set_global_volume = false;
+        {
+            let ch = &mut self.stm[chn];
+            let ins = &self.instr[ch.instr_ptr];
+            let mut tmp_eff: u8;
+        
+            // Bxx - position jump
+            if ch.eff_typ == 11 {
+                self.song.song_pos      = ch.eff as i16 - 1;
+                self.song.p_break_pos   = 0;
+                self.song.pos_jump_flag = true;
+            }
+        
+            // Dxx - pattern break
+            else if ch.eff_typ == 13 {
+                self.song.pos_jump_flag = true;
+        
+                tmp_eff = (ch.eff>>4)*10 + ch.eff&0x0F;
+                self.song.p_break_pos = if tmp_eff <= 63 {
+                    tmp_eff
+                } else {
+                    0
+                }
+            }
+        
+            // Exx - E effects
+            else if ch.eff_typ == 14 {
+                // E1x - fine period slide up
+                if ch.eff & 0xF0 == 0x10 {
+                    tmp_eff = ch.eff & 0x0F;
+                    if tmp_eff == 0 {
+                        tmp_eff = ch.f_porta_up_speed;
+                    }
+        
+                    ch.f_porta_up_speed = tmp_eff;
+        
+                    ch.real_period -= tmp_eff as i16 * 4;
+                    if ch.real_period < 1 {
+                        ch.real_period = 1
+                    }
+        
+                    ch.out_period = ch.real_period as u16;
+                    ch.status    |= IS_PERIOD;
+                }
+        
+                // E2x - fine period slide down
+                else if ch.eff & 0xF0 == 0x20 {
+                    tmp_eff = ch.eff & 0x0F;
+                    if tmp_eff == 0 {
+                        tmp_eff = ch.f_porta_down_speed;
+                    }
+        
+                    ch.f_porta_down_speed = tmp_eff;
+        
+                    ch.real_period += tmp_eff as i16 * 4;
+                    if ch.real_period > 32000 - 1 {
+                        ch.real_period = 32000 - 1;
+                    }
+        
+                    ch.out_period = ch.real_period as u16;
+                    ch.status   |= IS_PERIOD;
+                }
+        
+                // E3x - set glissando type
+                else if ch.eff & 0xF0 == 0x30 {
+                    ch.gliss_funk = ch.eff & 0x0F;
+                }
+        
+                // E4x - set vibrato waveform
+                else if ch.eff & 0xF0 == 0x40 {
+                    ch.wave_ctrl = (ch.wave_ctrl & 0xF0) | (ch.eff & 0x0F);
+                }
+        
+                // E5x (set finetune) is handled in StartTone()
+        
+                // E6x - pattern loop
+                else if ch.eff & 0xF0 == 0x60 {
+                    if ch.eff == 0x60 {  // E60, empty param
+                        ch.patt_pos = (self.song.patt_pos & 0x00FF) as u8;
+                    } else {
+                        if ch.loop_cnt == 0 {
+                            ch.loop_cnt = ch.eff & 0x0F;
+        
+                            self.song.p_break_pos  = ch.patt_pos;
+                            self.song.p_break_flag = true;
+                        } else {
+                            ch.loop_cnt -= 1;
+                            if ch.loop_cnt != 0 {
+                                self.song.p_break_pos  = ch.patt_pos;
+                                self.song.p_break_flag = true;
+                            }
+                        }
+                    }
+                }
+        
+                // E7x - set tremolo waveform
+                else if ch.eff & 0xF0 == 0x70 {
+                    ch.wave_ctrl = (ch.eff & 0x0F) << 4 | (ch.wave_ctrl & 0x0F);
+                }
+        
+                // E8x - set 4-bit panning (NON-FT2)
+                else if ch.eff & 0xF0 == 0x80 {
+                    ch.out_pan = (ch.eff & 0x0F) * 16;
+                    ch.status |= IS_PAN;
+                }
+        
+                // EAx - fine volume slide up
+                else if ch.eff & 0xF0 == 0xA0 {
+                    tmp_eff = ch.eff & 0x0F;
+                    if tmp_eff == 0 {
+                        tmp_eff = ch.f_vol_slide_up_speed;
+                    }
+        
+                    ch.f_vol_slide_up_speed = tmp_eff;
+        
+                    // unsigned clamp
+                    if ch.real_vol <= 64 - tmp_eff as i8 {
+                        ch.real_vol += tmp_eff as i8;
+                    } else {
+                        ch.real_vol = 64;
+                    }
+        
+                    ch.out_vol = ch.real_vol;
+                    ch.status |= IS_VOL;
+                }
+        
+                // EBx - fine volume slide down
+                else if (ch.eff & 0xF0) == 0xB0 {
+                    tmp_eff = ch.eff & 0x0F;
+                    if tmp_eff == 0 {
+                        tmp_eff = ch.f_vol_slide_down_speed;
+                    }
+        
+                    ch.f_vol_slide_down_speed = tmp_eff;
+        
+                    // unsigned clamp
+                    if ch.real_vol >= tmp_eff as i8 {
+                        ch.real_vol -= tmp_eff as i8
+                    } else {
+                        ch.real_vol = 0
+                    }
+        
+                    ch.out_vol = ch.real_vol;
+                    ch.status |= IS_VOL;
+                }
+        
+                // ECx - note cut
+                else if ch.eff & 0xF0 == 0xC0 {
+                    if ch.eff == 0xC0 {  // empty param
+                        ch.real_vol = 0;
+                        ch.out_vol = 0;
+                        ch.status |= IS_VOL + IS_QUICKVOL;
+                    }
+                }
+        
+                // EEx - pattern delay
+                else if ch.eff & 0xF0 == 0xE0 {
+                    if self.song.patt_del_time_2 == 0 {
+                        self.song.patt_del_time = ch.eff & 0x0F + 1;
+                    }
+                }
+            }
+        
+            // Fxx - set speed/tempo
+            else if ch.eff_typ == 15 {
+                if ch.eff >= 32 {
+                    self.song.speed = ch.eff as u16;
+                    set_speed = true;
+                } else {
+                    self.song.tempo = ch.eff as u16;
+                    self.song.timer = ch.eff as u16;
+                }
+            }
+        
+            // Gxx - set global volume
+            else if ch.eff_typ == 16 {
+                self.song.glob_vol = ch.eff as u16;
+                if self.song.glob_vol > 64 {
+                    self.song.glob_vol = 64;
+                }
+        
+                set_global_volume = true;
+            }
+        
+            // Lxx - set vol and pan envelope position
+            else if ch.eff_typ == 21 {
+                // *** VOLUME ENVELOPE ***
+                if ins.env_v_typ & 1 != 0 {
+                    ch.env_v_cnt = ch.eff as u16 - 1;
+        
+                    let mut env_pos = 0;
+                    let mut env_update = true;
+                    let mut new_env_pos = ch.eff as i16;
+        
+                    if ins.env_vp_ant > 1 {
+                        env_pos += 1;
+                        for i in 0..ins.env_vp_ant {
+                            if new_env_pos < ins.env_vp[env_pos][0] {
+                                env_pos -= 1;
+        
+                                new_env_pos -= ins.env_vp[env_pos][0];
+                                if new_env_pos == 0 {
+                                    env_update = false;
+                                    break
+                                }
+        
+                                if ins.env_vp[env_pos + 1][0] <= ins.env_vp[env_pos][0] {
+                                    env_update = true;
+                                    break
+                                }
+        
+                                ch.env_v_ip_value = ((ins.env_vp[env_pos + 1][1] - ins.env_vp[env_pos][1]) & 0x00FF) << 8;
+                                ch.env_v_ip_value /= ins.env_vp[env_pos + 1][0] - ins.env_vp[env_pos][0];
+        
+                                ch.env_v_amp = (ch.env_v_ip_value * (new_env_pos - 1) + (ins.env_vp[env_pos][1] & 0x00FF) << 8) as u16;
+        
+                                env_pos += 1;
+        
+                                env_update = false;
+                                break
+                            }
+        
+                            env_pos += 1;
+                        }
+        
+                        if env_update {
+                            env_pos -= 1;
+                        }
+                    }
+        
+                    if env_update {
+                        ch.env_v_ip_value = 0;
+                        ch.env_v_amp = ((ins.env_vp[env_pos][1] & 0x00FF) << 8) as u16;
+                    }
+        
+                    if env_pos >= ins.env_vp_ant as usize {
+                        env_pos = ins.env_vp_ant as usize - 1;
+                        if env_pos < 0 {
+                            env_pos = 0;
+                        }
+                    }
+        
+                    ch.env_v_pos = env_pos as u8;
+                }
+        
+                // *** PANNING ENVELOPE ***
+                if ins.env_v_typ & 2 != 0 {  // probably an FT2 bug
+                    ch.env_p_cnt = ch.eff as u16 - 1;
+        
+                    let mut env_pos = 0;
+                    let mut env_update = true;
+                    let mut new_env_pos = ch.eff as i16;
+        
+                    if ins.env_pp_ant > 1 {
+                        env_pos += 1;
+                        for i in 0..ins.env_pp_ant - 1 {
+                            if new_env_pos < ins.env_pp[env_pos][0] {
+                                env_pos -= 1;
+        
+                                new_env_pos -= ins.env_pp[env_pos][0];
+                                if new_env_pos == 0 {
+                                    env_update = false;
+                                    break
+                                }
+        
+                                if ins.env_pp[env_pos + 1][0] <= ins.env_pp[env_pos][0] {
+                                    env_update = true;
+                                    break
+                                }
+        
+                                ch.env_p_ip_value = ((ins.env_pp[env_pos + 1][1] - ins.env_pp[env_pos][1]) & 0x00FF) << 8;
+                                ch.env_p_ip_value /= ins.env_pp[env_pos + 1][0] - ins.env_pp[env_pos][0];
+        
+                                ch.env_p_amp = ((ch.env_p_ip_value * (new_env_pos - 1)) + (ins.env_pp[env_pos][1] & 0x00FF) << 8) as u16;
+        
+                                env_pos += 1;
+        
+                                env_update = false;
+                                break
+                            }
+        
+                            env_pos += 1;
+                        }
+        
+                        if env_update {
+                            env_pos -= 1;
+                        }
+                    }
+        
+                    if env_update {
+                        ch.env_p_ip_value = 0;
+                        ch.env_p_amp = ((ins.env_pp[env_pos][1] & 0x00FF) << 8) as u16;
+                    }
+        
+                    if env_pos >= ins.env_pp_ant as usize {
+                        env_pos = ins.env_pp_ant as usize - 1;
+                        if env_pos < 0 {
+                            env_pos = 0;
+                        }
+                    }
+        
+                    ch.env_p_pos = env_pos as u8;
+                }
+            }
+        }
+        if set_speed {
+            let speed = self.song.speed;
+            self.set_speed(speed);
+        }
+        if set_global_volume {
+            for i in 0..self.song.ant_chn as usize {
+                self.stm[i].status |= IS_VOL;
+            }
+        }
     }
     
 }
