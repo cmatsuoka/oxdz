@@ -176,7 +176,6 @@ impl USTPlayer {
         }
         // chan2
         if self.datachn[chn].n_0_note != 0 {
-            let ins = (event.cmd >> 4) as usize;
             let datachn = &mut self.datachn[chn];
             datachn.n_16_last_saved_note = datachn.n_0_note;                 // save note for effect
             mixer.set_sample_ptr(chn, datachn.n_4_soundstart);

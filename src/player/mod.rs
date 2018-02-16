@@ -10,6 +10,7 @@ pub use mixer::Mixer;
 
 use std::cmp;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use module::{Module, ModuleData};
 use util::MemOpExt;
 use ::*;
@@ -310,13 +311,30 @@ pub struct Options {
 
 impl Options {
     pub fn from_str(optstr: &str) -> Self {
-        Options{
+        let mut options = Options{
             opt: HashMap::new(),
+        };
+
+        let olist = optstr.split(";");
+        for o in olist {
+            if o.contains("=") {
+                let kv = o.split("=").collect::<Vec<&str>>();
+                let key = kv[0].trim().to_owned();
+                let val = kv[1].trim().to_owned();
+                options.opt.insert(key, val);
+            } else {
+                let key = o.trim().to_owned();
+                options.opt.insert(key, "".to_owned());
+            }
         }
+        options
     }
 
-    pub fn has_option(&self, opt: &str) -> bool {
-        false
+    pub fn has_option(&mut self, opt: &str) -> bool {
+        match self.opt.entry(opt.to_string()) {
+            Entry::Occupied(_) => true,
+            Entry::Vacant(_)   => false,
+        }
     }
 
     pub fn option_int(&self, opt: &str) -> Option<isize> {
