@@ -109,8 +109,6 @@ impl<'a> Mixer<'a> {
 
         let sample = &self.sample[v.smp];
 
-        v.adjust_end(&sample);
-
         if v.pos >= v.end as f64 {
             if v.has_loop {
                 v.pos = v.loop_start as f64;
@@ -164,7 +162,7 @@ impl<'a> Mixer<'a> {
         let v = &mut self.voices[voice];
         v.smp = smp - 1;
         v.pos = 0_f64;
-        v.end = self.sample[smp].size;
+        v.end = self.sample[smp - 1].size;
         v.has_loop = false;
         v.sample_end = true;
     }
@@ -363,23 +361,6 @@ impl Voice {
     pub fn new() -> Self {
         let v: Voice = Default::default();
         v
-    }
-
-    pub fn adjust_end(&mut self, sample: &Sample) {
-        // sanity check
-        if self.loop_end > sample.size {
-            self.loop_end = sample.size;
-        }
-
-        if self.has_loop {
-            /*if self.loop_full && !self.has_loop {
-                self.end = sample.size;
-            } else*/ {
-                self.end = self.loop_end;
-            }
-        } else {
-            self.end = sample.size;
-        }
     }
 
     pub fn loop_reposition(&mut self, sample: &Sample) {

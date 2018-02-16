@@ -89,7 +89,7 @@ impl Loader for ModLoader {
             TrackerID::Noisetracker       => ("Noisetracker",     "nt11"),
             TrackerID::Soundtracker       => ("Soundtracker",     "pt2"),
             TrackerID::Screamtracker3     => ("Scream Tracker 3", "pt2"),
-            TrackerID::FastTracker        => ("FastTracker",      "pt2"),
+            TrackerID::FastTracker        => ("Fast Tracker",     "pt2"),
             TrackerID::FlexTrax           => ("FlexTrax",         "pt2"),
             TrackerID::OpenMPT            => ("OpenMPT",          "pt2"),
             TrackerID::Converted          => ("Converted",        "pt2"),
