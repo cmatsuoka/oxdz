@@ -17,6 +17,8 @@ correctly implemented. Sound quality will be improved later.
 
 [Supported module formats](https://github.com/cmatsuoka/oxdz/wiki/Supported-formats)
 
+[Experimental CLI player](https://github.com/cmatsuoka/0xd2)
+
 
 ## Task list
 
