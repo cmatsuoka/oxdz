@@ -950,7 +950,6 @@ impl<'a> Ft2Play<'a> {
 
     fn fix_tone_porta(&mut self, chn: usize, p: &TonTyp, inst: u8) {
 
-
         if p.ton != 0 {
             if p.ton == 97 {
                 self.key_off(chn);
@@ -981,6 +980,115 @@ impl<'a> Ft2Play<'a> {
                 self.retrig_envelope_vibrato(chn);
             }
         }
+    }
+
+    fn get_new_note(&mut self, chn: usize, p: &TonTyp) {
+        // this is a mess, but it appears to be 100% FT2-correct
+    
+        {
+            let ch = &mut self.stm[chn];
+
+            ch.vol_kol_vol = p.vol;
+        
+            if ch.eff_typ == 0 {
+                if ch.eff != 0 {
+                    // we have an arpeggio running, set period back
+                    ch.out_period = ch.real_period as u16;
+                    ch.status |= IS_PERIOD;
+                }
+            } else {
+                if ch.eff_typ == 4 || ch.eff_typ == 6 {
+                    // we have a vibrato running
+                    if p.eff_typ != 4 && p.eff_typ != 6 {
+                        // but it's ending at the next (this) row, so set period back
+                        ch.out_period = ch.real_period as u16;
+                        ch.status |= IS_PERIOD;
+                    }
+                }
+            }
+        
+            ch.eff_typ = p.eff_typ;
+            ch.eff     = p.eff;
+            ch.ton_typ = ((p.instr as u16) << 8) | p.ton as u16;
+        }
+    
+        // 'inst' var is used for later if checks...
+        let mut inst = p.instr;
+        if inst != 0 {
+            if inst <= 128 {
+                self.stm[chn].instr_nr = inst as u16
+            } else {
+                inst = 0
+            }
+        }
+    
+        let mut check_efx = true;
+        if p.eff_typ == 0x0E {
+            if p.eff >= 0xD1 && p.eff <= 0xDF {
+                return  // we have a note delay (ED1..EDF)
+            } else if p.eff == 0x90 {
+                check_efx = false
+            }
+        }
+    
+        if check_efx {
+            if self.stm[chn].vol_kol_vol & 0xF0 == 0xF0 {  // gxx
+                if self.stm[chn].vol_kol_vol & 0x0F != 0 {
+                    self.stm[chn].porta_speed = ((self.stm[chn].vol_kol_vol & 0x0F) as u16) << 6;
+                }
+    
+                self.fix_tone_porta(chn, p, inst);
+                self.check_effects(chn);
+                return
+            }
+    
+            if p.eff_typ == 3 || p.eff_typ == 5 {  // 3xx or 5xx
+                if p.eff_typ != 5 && p.eff != 0 {
+                    self.stm[chn].porta_speed = (p.eff as u16) << 2;
+                }
+    
+                self.fix_tone_porta(chn, p, inst);
+                self.check_effects(chn);
+                return
+            }
+    
+            if p.eff_typ == 0x14 && p.eff == 0 {  // K00 (KeyOff - only handle tick 0 here)
+                self.key_off(chn);
+    
+                if inst != 0 {
+                    self.retrig_volume(chn);
+                }
+    
+                self.check_effects(chn);
+                return
+            }
+    
+            if p.ton == 0 {
+                if inst != 0 {
+                    self.retrig_volume(chn);
+                    self.retrig_envelope_vibrato(chn);
+                }
+    
+                self.check_effects(chn);
+                return
+            }
+        }
+    
+        if p.ton == 97 {
+            self.key_off(chn)
+        } else {
+            self.start_tone(p.ton, p.eff_typ, p.eff, chn)
+        }
+    
+        if inst != 0 {
+            self.retrig_volume(chn);
+    
+            if p.ton != 97 {
+                self.retrig_envelope_vibrato(chn);
+            }
+        }
+    
+        self.check_effects(chn);
     }
 
 }
