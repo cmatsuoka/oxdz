@@ -125,44 +125,22 @@ pub struct St3Play {
     patmusicrand      : u16,
     aspdmax           : i32,
     aspdmin           : i32,
-    np_patseg         : usize,  // u32,
+    np_patseg         : u32,
     chn               : [Chn; 32],
     soundcardtype     : u8,
-    //soundBufferSize   : i32,
-    //audioFreq         : u32,
-    //VOICE voice[32];
-    //WAVEFORMATEX wfx;
-    //WAVEHDR waveBlocks[MIX_BUF_NUM];
-    //HWAVEOUT _hWaveOut;
-    //float f_audioFreq;
-    //float f_masterVolume;
-    //samplingInterpolation: i8,
-    //float *masterBufferL;
-    //float *masterBufferR;
-    //*mixerBuffer : i8,
-    //samplesLeft : i32,
-    //samplesPerFrame : u32,
-    //volatile mixingMutex : i8,
-    //volatile isMixing : i8,
 
-    /* GLOBAL VARIABLES */
-    //ModuleLoaded : i8,
-    //MusicPaused : i8,
-    //Playing : i8,
-
-    //instrumentadd   : u16,
-    lastachannelused: u8, // i8,
-    tracker         : u8,
-    oldstvib        : bool,
-    fastvolslide    : bool,
-    amigalimits     : bool,
-    musicmax        : u8,
-    //numChannels     : u8,
-    tempo           : i16,
-    globalvol       : i16,
-    //stereomode      : bool,
-    //mastervol       : u8,
-    //mseg_len        : u32,
+    lastachannelused  : u8, // i8,
+    tracker           : u8,
+    oldstvib          : bool,
+    fastvolslide      : bool,
+    amigalimits       : bool,
+    musicmax          : u8,
+    //numChannels       : u8,
+    tempo             : i16,
+    globalvol         : i16,
+    //stereomode        : bool,
+    //mastervol         : u8,
+    //mseg_len          : u32,
 } 
 
 
@@ -466,7 +444,7 @@ impl St3Play {
                 if self.np_row != 0 {
                     let mut i = self.np_row;
                     while i != 0 {
-                        let dat = module.patterns[self.np_patseg].data[j]; j += 1;
+                        let dat = module.patterns[self.np_pat as usize].data[j]; j += 1;
                         if dat == 0 {
                             i -= 1;
                         } else {

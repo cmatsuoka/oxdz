@@ -23,8 +23,7 @@ static STANDARD_NOTES: [u16; 36] = [
 ];
 
 /// Try to identify the tracker used to create an M.K. module. This is a direct port of the
-/// mod fingerprinting routine used in libxmp. Yes, it's messy and should be refactored
-/// some day.
+/// mod fingerprinting routine used in libxmp.
 pub struct Fingerprint;
 
 impl Fingerprint {
