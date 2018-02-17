@@ -218,10 +218,10 @@ pub struct Ft2Play<'a> {
     quick_vol_ramp_mul_f: f32,
     tick_vol_ramp_mul_f : f32,
     song                : SongTyp,
-
     stm                 : [StmTyp; MAX_VOICES],
     instr               : Vec<&'a InstrTyp>,
 
+    vib_sine_tab        : Vec<i8>,
     note2period         : Vec<i16>,
     log_tab             : Vec<u32>,
 }
@@ -984,12 +984,12 @@ impl<'a> Ft2Play<'a> {
 
     fn get_new_note(&mut self, chn: usize, p: &TonTyp) {
         // this is a mess, but it appears to be 100% FT2-correct
-    
+
         {
             let ch = &mut self.stm[chn];
 
             ch.vol_kol_vol = p.vol;
-        
+
             if ch.eff_typ == 0 {
                 if ch.eff != 0 {
                     // we have an arpeggio running, set period back
@@ -1006,12 +1006,12 @@ impl<'a> Ft2Play<'a> {
                     }
                 }
             }
-        
+
             ch.eff_typ = p.eff_typ;
             ch.eff     = p.eff;
             ch.ton_typ = ((p.instr as u16) << 8) | p.ton as u16;
         }
-    
+
         // 'inst' var is used for later if checks...
         let mut inst = p.instr;
         if inst != 0 {
@@ -1021,7 +1021,7 @@ impl<'a> Ft2Play<'a> {
                 inst = 0
             }
         }
-    
+
         let mut check_efx = true;
         if p.eff_typ == 0x0E {
             if p.eff >= 0xD1 && p.eff <= 0xDF {
@@ -1030,66 +1030,354 @@ impl<'a> Ft2Play<'a> {
                 check_efx = false
             }
         }
-    
+
         if check_efx {
             if self.stm[chn].vol_kol_vol & 0xF0 == 0xF0 {  // gxx
                 if self.stm[chn].vol_kol_vol & 0x0F != 0 {
                     self.stm[chn].porta_speed = ((self.stm[chn].vol_kol_vol & 0x0F) as u16) << 6;
                 }
-    
+
                 self.fix_tone_porta(chn, p, inst);
                 self.check_effects(chn);
                 return
             }
-    
+
             if p.eff_typ == 3 || p.eff_typ == 5 {  // 3xx or 5xx
                 if p.eff_typ != 5 && p.eff != 0 {
                     self.stm[chn].porta_speed = (p.eff as u16) << 2;
                 }
-    
+
                 self.fix_tone_porta(chn, p, inst);
                 self.check_effects(chn);
                 return
             }
-    
+
             if p.eff_typ == 0x14 && p.eff == 0 {  // K00 (KeyOff - only handle tick 0 here)
                 self.key_off(chn);
-    
+
                 if inst != 0 {
                     self.retrig_volume(chn);
                 }
-    
+
                 self.check_effects(chn);
                 return
             }
-    
+
             if p.ton == 0 {
                 if inst != 0 {
                     self.retrig_volume(chn);
                     self.retrig_envelope_vibrato(chn);
                 }
-    
+
                 self.check_effects(chn);
                 return
             }
         }
-    
+
         if p.ton == 97 {
             self.key_off(chn)
         } else {
             self.start_tone(p.ton, p.eff_typ, p.eff, chn)
         }
-    
+
         if inst != 0 {
             self.retrig_volume(chn);
-    
+
             if p.ton != 97 {
                 self.retrig_envelope_vibrato(chn);
             }
         }
-    
+
         self.check_effects(chn);
     }
+
+    fn fixa_envelope_vibrato(&mut self, chn: usize) {
+/*
+        int8_t env_interpolate_flag, env_did_interpolate;
+        uint8_t env_pos;
+        int16_t auto_vib_val, pan_tmp;
+        uint16_t auto_vib_amp, tmp_period, env_val;
+        instrTyp *ins;
+*/
+
+        let ch = &mut self.stm[chn];
+        let ins = self.instr[ch.instr_ptr];
+
+        // *** FADEOUT ***
+        if !ch.env_sustain_active {
+            ch.status |= IS_VOL;
+
+            // unsigned clamp + reset
+            if ch.fade_out_amp >= ch.fade_out_speed as u32 {
+                ch.fade_out_amp -= ch.fade_out_speed as u32;
+            } else {
+                ch.fade_out_amp = 0;
+                ch.fade_out_speed = 0;
+            }
+        }
+
+        if !ch.mute {
+            // *** VOLUME ENVELOPE ***
+            let mut env_val = 0;
+            if ins.env_v_typ & 1 != 0 {
+                let mut env_did_interpolate = false;
+                let mut env_pos = ch.env_v_pos as usize;
+
+                ch.env_v_cnt += 1;
+                if ch.env_v_cnt == ins.env_vp[env_pos][0] as u16 {
+                    ch.env_v_amp = ((ins.env_vp[env_pos][1] & 0x00FF) as u16) << 8;
+
+                    env_pos += 1;
+                    if ins.env_v_typ & 4 != 0 {
+                        env_pos -= 1;
+
+                        if env_pos == ins.env_v_rep_e as usize {
+                            if ins.env_v_typ & 2 == 0 || env_pos != ins.env_v_sust as usize || ch.env_sustain_active {
+                                env_pos = ins.env_v_rep_s as usize;
+
+                                ch.env_v_cnt = ins.env_vp[env_pos][0] as u16;
+                                ch.env_v_amp = ((ins.env_vp[env_pos][1] & 0x00FF) as u16) << 8;
+                            }
+                        }
+
+                        env_pos += 1;
+                    }
+
+                    if env_pos < ins.env_vp_ant as usize {
+                        let mut env_interpolate_flag = true;
+                        if ins.env_v_typ & 2 != 0 && ch.env_sustain_active {
+                            if env_pos - 1 == ins.env_v_sust as usize {
+                                env_pos -= 1;
+                                ch.env_v_ip_value = 0;
+                                env_interpolate_flag = false;
+                            }
+                        }
+
+                        if env_interpolate_flag {
+                            ch.env_v_pos = env_pos as u8;
+
+                            ch.env_v_ip_value = 0;
+                            if ins.env_vp[env_pos][0] > ins.env_vp[env_pos - 1][0] {
+                                ch.env_v_ip_value = ((ins.env_vp[env_pos][1] - ins.env_vp[env_pos - 1][1]) & 0x00FF) << 8;
+                                ch.env_v_ip_value /= ins.env_vp[env_pos][0] - ins.env_vp[env_pos - 1][0];
+
+                                env_val = ch.env_v_amp;
+                                env_did_interpolate = true;
+                            }
+                        }
+                    } else {
+                        ch.env_v_ip_value = 0;
+                    }
+                }
+
+                if !env_did_interpolate {
+                    ch.env_v_amp += ch.env_v_ip_value as u16;
+
+                    env_val = ch.env_v_amp as u16;
+                    if env_val>>8 > 0x40 {
+                        if env_val>>8 > (0x40 + 0xC0) / 2 {
+                            env_val = 16384;
+                        } else {
+                            env_val = 0;
+                        }
+
+                        ch.env_v_ip_value = 0;
+                    }
+                }
+
+                env_val >>= 8;
+
+                ch.final_vol = ((self.song.glob_vol as u32 * (((env_val * ch.out_vol as u16) as u32 * ch.fade_out_amp) >> (16 + 2))) >> 7) as u16;
+                ch.status  |= IS_VOL;
+            } else {
+                ch.final_vol = ((self.song.glob_vol as u32 * ((((ch.out_vol as u32) << 4) * ch.fade_out_amp) >> 16)) >> 7) as u16;
+            }
+
+            // non-FT2 ear security system
+            if ch.final_vol > 256 {
+                ch.final_vol = 256;
+            }
+        } else {
+            ch.final_vol = 0;
+        }
+
+        // *** PANNING ENVELOPE ***
+
+        let mut env_val = 0;
+        if ins.env_p_typ & 1 != 0 {
+            let mut env_did_interpolate = false;
+            let mut env_pos = ch.env_p_pos as usize;
+
+            ch.env_p_cnt += 1;
+            if ch.env_p_cnt == ins.env_pp[env_pos][0] as u16 {
+                ch.env_p_amp = ((ins.env_pp[env_pos][1] & 0x00FF) as u16) << 8;
+
+                env_pos += 1;
+                if ins.env_p_typ & 4 != 0 {
+                    env_pos -= 1;
+
+                    if env_pos == ins.env_p_rep_e as usize {
+                        if ins.env_p_typ & 2 == 0 || env_pos != ins.env_p_sust as usize || ch.env_sustain_active {
+                            env_pos = ins.env_p_rep_s as usize;
+
+                            ch.env_p_cnt = ins.env_pp[env_pos][0] as u16;
+                            ch.env_p_amp = ((ins.env_pp[env_pos][1] & 0x00FF) as u16) << 8;
+                        }
+                    }
+
+                    env_pos += 1;
+                }
+
+                if env_pos < ins.env_pp_ant as usize {
+                    let mut env_interpolate_flag = true;
+                    if ins.env_p_typ&2 != 0 && ch.env_sustain_active {
+                        if env_pos - 1 == ins.env_p_sust as usize {
+                            env_pos -= 1;
+                            ch.env_p_ip_value = 0;
+                            env_interpolate_flag = false;
+                        }
+                    }
+
+                    if env_interpolate_flag {
+                        ch.env_p_pos = env_pos as u8;
+
+                        ch.env_p_ip_value = 0;
+                        if ins.env_pp[env_pos][0] > ins.env_pp[env_pos - 1][0] {
+                            ch.env_p_ip_value  = ((ins.env_pp[env_pos][1] - ins.env_pp[env_pos - 1][1]) & 0x00FF) << 8;
+                            ch.env_p_ip_value /= ins.env_pp[env_pos][0] - ins.env_pp[env_pos - 1][0];
+
+                            env_val = ch.env_p_amp;
+                            env_did_interpolate = true;
+                        }
+                    }
+                } else {
+                    ch.env_p_ip_value = 0;
+                }
+            }
+
+            if !env_did_interpolate {
+                ch.env_p_amp += ch.env_p_ip_value as u16;
+
+                env_val = ch.env_p_amp;
+                if env_val>>8 > 0x40 {
+                    if env_val>>8 > (0x40 + 0xC0) / 2 {
+                        env_val = 16384;
+                    } else {
+                        env_val = 0;
+                    }
+
+                    ch.env_p_ip_value = 0;
+                }
+            }
+
+            // panning calculated exactly like FT2
+            let mut pan_tmp = ch.out_pan - 128;
+            if pan_tmp > 0 {
+                pan_tmp = 0 - pan_tmp;
+            }
+            pan_tmp += 128;
+
+            env_val -= 32 * 256;
+
+            ch.final_pan = ch.out_pan + (((env_val as i32 * ((pan_tmp as i32) << 3)) >> 16) & 0xFF) as u8;
+            ch.status  |= IS_PAN;
+        } else {
+            ch.final_pan = ch.out_pan;
+        }
+
+        // *** AUTO VIBRATO ***
+        if ins.vib_depth != 0 {
+            let mut auto_vib_amp: u16;
+            let mut auto_vib_val: i32;
+
+            if ch.e_vib_sweep != 0 {
+                auto_vib_amp = ch.e_vib_sweep;
+                if ch.env_sustain_active {
+                    auto_vib_amp += ch.e_vib_amp;
+                    if auto_vib_amp>>8 > ins.vib_depth as u16 {
+                        auto_vib_amp = (ins.vib_depth as u16) << 8;
+                        ch.e_vib_sweep = 0;
+                    }
+
+                    ch.e_vib_amp = auto_vib_amp;
+                }
+            } else {
+                auto_vib_amp = ch.e_vib_amp;
+            }
+
+            ch.e_vib_pos += ins.vib_rate;
+
+            // square
+            if ins.vib_typ == 1 {
+                auto_vib_val = if ch.e_vib_pos > 127 { 64 } else { -64 };
+            }
+
+            // ramp up
+            else if ins.vib_typ == 2 {
+                auto_vib_val = ((((ch.e_vib_pos as i32) >> 1) + 64) & 127) - 64;
+            }
+
+            // ramp down
+            else if ins.vib_typ == 3 {
+                auto_vib_val = (((0 - ((ch.e_vib_pos as i32) >> 1)) + 64) & 127) - 64;
+            }
+
+            // sine
+            else {
+                auto_vib_val = self.vib_sine_tab[ch.e_vib_pos as usize] as i32;
+            }
+
+            auto_vib_val <<= 2;
+
+            let mut tmp_period = ch.out_period + ((auto_vib_val * auto_vib_amp as i32) >> 16) as u16;
+            if tmp_period > (32000 - 1) {
+                tmp_period = 0; // yes, FT2 zeroes it out
+            }
+
+            ch.final_period = tmp_period;
+
+            ch.status  |= IS_PERIOD;
+        } else {
+            ch.final_period = ch.out_period;
+        }
+    }
+
+    fn relocate_ton(&mut self, period: i16, relative_note: i8, chn: usize) -> i16 {
+        let ch = &mut self.stm[chn];
+
+        let fine_tune: i32  = ((ch.fine_tune as i32) >> 3) + 16;  // MUST use >> 3 here (sar cl,3) - safe for x86/x86_64
+        let mut hi_period: i32 = 8 * 12 * 16;
+        let mut lo_period: i32 = 0;
+
+        let period_table = &self.note2period;
+
+        for i in 0..8 {
+            let mut tmp_period = (((lo_period + hi_period) / 2) & !15) + fine_tune;
+
+            let mut table_index = tmp_period as i32 - 8;
+            if table_index < 0 {  // added security check
+                table_index = 0
+            }
+
+            if period >= period_table[table_index as usize] {
+                hi_period = tmp_period - fine_tune;
+            } else {
+                lo_period = tmp_period - fine_tune;
+            }
+        }
+
+        let mut tmp_period = lo_period + fine_tune + (relative_note as i32 * 16);
+        if tmp_period < 0 {  // added security check
+            tmp_period = 0
+        }
+
+        if tmp_period >= ((8 * 12 * 16) + 15) - 1 {  // FT2 bug: stupid off-by-one edge case
+            tmp_period  =  (8 * 12 * 16) + 15
+        }
+
+        return period_table[tmp_period as usize];
+    }
+
 
 }
 
