@@ -13,8 +13,15 @@ pub fn from_mod(module: Module) -> Result<Module, Error> {
 
     let data = module.data.as_any().downcast_ref::<ModData>().unwrap();
 
-    let mut instruments = Vec::<S3mInstrument>::new();
+    let mut ins_num = 0;
     for i in 0..31 {
+        if data.instruments[i].size > 0 {
+            ins_num = i + 1
+        }
+    }
+
+    let mut instruments = Vec::<S3mInstrument>::new();
+    for i in 0..ins_num {
         instruments.push(S3mInstrument{
             typ     : 1,
             memseg  : 0,
@@ -46,10 +53,10 @@ pub fn from_mod(module: Module) -> Result<Module, Error> {
     let new_data = S3mData{
         song_name  : data.song_name.clone(),
         ord_num    : data.song_length as u16,
-        ins_num    : 31,
+        ins_num    : ins_num as u16,
         pat_num    : pat_num as u16,
         flags      : 0,
-        cwt_v      : 0x1301,  // Scream Tracker 3.01
+        cwt_v      : 0x1320,  // Scream Tracker 3.20
         ffi        : 1,       // signed samples
         g_v        : 64,
         i_s        : 6,
@@ -59,7 +66,7 @@ pub fn from_mod(module: Module) -> Result<Module, Error> {
         ch_settings: [ 0,  9, 10,  3,  4, 14, 15,  7, !0, !0, !0, !0, !0, !0, !0, !0,
                       !0, !0, !0, !0, !0, !0, !0, !0, !0, !0, !0, !0, !0, !0, !0, !0 ],
         orders     : data.orders.to_vec(),
-        instrum_pp : vec![0xd2; 31],        // != 0
+        instrum_pp : vec![0xd2; ins_num],   // != 0
         pattern_pp : vec![0xd2; pat_num],   // != 0
         ch_pan     : [0; 32],
         instruments,
@@ -79,6 +86,9 @@ pub fn from_mod(module: Module) -> Result<Module, Error> {
 fn encode_pattern(patterns: &ModPatterns, num: usize, ch: usize) -> S3mPattern {
     let mut size = 2;
     let mut data = Vec::<u8>::new();
+
+    data.push(0);   // make room for pattern size
+    data.push(0);
 
     for r in 0..64 {
         for c in 0..ch {
@@ -120,6 +130,9 @@ fn encode_pattern(patterns: &ModPatterns, num: usize, ch: usize) -> S3mPattern {
         }
         data.push(0); size += 1;
     }
+
+    data[0] = (size & 0xff) as u8;
+    data[1] = (size >> 8) as u8;
 
     S3mPattern{
         size,
