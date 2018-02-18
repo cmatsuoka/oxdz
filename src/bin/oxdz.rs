@@ -44,7 +44,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     let file = try!(File::open(name));
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
-    let module = try!(format::load(&mmap[..], ""));
+    let mut module = try!(format::load(&mmap[..], ""));
     println!("Title: {}", module.title());
 
     println!("Instruments:");
@@ -65,13 +65,16 @@ fn run(name: &String) -> Result<(), Box<Error>> {
         println!("{:5} {:40} {:?}", p.id, p.name, p.accepts);
     }
 
+    let list_entry = player::list_by_id(module.player)?;
+    module = list_entry.import(module)?;
+
     let mut player = player::Player::find(&module, module.player, "")?;
 
     println!("Length: {}", module.len());
     println!("Patterns: {}", module.patterns());
     println!("Position: {} ({})", player.position(), module.pattern_in_position(player.data.pos).unwrap());
 
-    show_pattern(&module, 2);
+    show_pattern(&module, 14);
 
     let mut frame_info = FrameInfo::new();
 

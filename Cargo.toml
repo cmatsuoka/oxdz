@@ -2,6 +2,8 @@
 name = "oxdz"
 version = "0.1.0"
 authors = ["Claudio Matsuoka <cmatsuoka@gmail.com>"]
+exclude = ["doc/reference", "doc/formats"]
+publish = false
 
 [[bin]]
 name = "oxdz"

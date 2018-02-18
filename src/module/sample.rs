@@ -4,14 +4,14 @@ use std::slice;
 pub const GUARD_SIZE: usize = 4;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SampleType {
     Sample8,
     Sample16,
     Empty,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Sample {
     pub sample_type : SampleType,
     pub num         : usize,

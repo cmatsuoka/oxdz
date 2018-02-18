@@ -82,6 +82,7 @@ pub struct PlayerInfo {
 pub trait PlayerListEntry {
     fn info(&self) -> PlayerInfo;
     fn player(&self, module: &Module, options: Options) -> Box<FormatPlayer>;
+    fn import(&self, module: Module) -> Result<Module, Error>;
 }
 
 

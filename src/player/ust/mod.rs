@@ -2,6 +2,7 @@ mod player;
 
 use module::Module;
 use player::{Options, PlayerListEntry, PlayerInfo, FormatPlayer};
+use ::*;
 
 pub struct Ust27;
 
@@ -18,6 +19,10 @@ impl PlayerListEntry for Ust27 {
 
    fn player(&self, module: &Module, options: Options) -> Box<FormatPlayer> {
        Box::new(self::player::USTPlayer::new(module, options))
+   }
+
+   fn import(&self, module: Module) -> Result<Module, Error> {
+       Ok(module)
    }
 }
 

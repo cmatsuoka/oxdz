@@ -38,16 +38,6 @@ impl Loader for S3mLoader {
             player::check_accepted(player_id, "s3m")?;
             Ok(Format::S3m)
         } else {
-            // not S3M
-            if is_st3_xxch(b) {  // check for ST3 xCHN, xxCH
-                player::check_accepted(player_id, "xxch")?;
-                println!(".. we can play this xxCH module");
-                return Ok(Format::Xxch)
-            } else if is_st3_mod(b) {  // check for ST3 M.K.
-                player::check_accepted(player_id, "m.k.")?;
-                println!(".. we can play this M.K. module");
-                return Ok(Format::Mk)
-            }
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
@@ -203,12 +193,4 @@ fn load_sample(b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sam
     }
 
     Ok(smp)
-}
-
-fn is_st3_mod(b: &[u8]) -> bool {
-    false
-}
-
-fn is_st3_xxch(b: &[u8]) -> bool {
-    false
 }
