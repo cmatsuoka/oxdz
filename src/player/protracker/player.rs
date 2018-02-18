@@ -14,9 +14,6 @@ use mixer::Mixer;
 /// * Mask finetune when playing voice
 /// * Mask note value in note delay command processing
 /// * Fix period table lookup by adding trailing zero values
-///
-/// Optimizations backported from Protracker 2.3D:
-/// * Move volume setting from command processing to the voice playing loop
 
 pub struct ModPlayer {
     options: Options, 
@@ -207,14 +204,14 @@ impl ModPlayer {
             let ch = &mut self.mt_chantemp[chn];
             let note = ch.n_note & 0xfff;
 
-            let mut i = 0;      // MOVEQ   #0,D0
+            let mut i = 0;                          // MOVEQ   #0,D0
             // mt_ftuloop
             while i < 36 {
-                if note >= MT_PERIOD_TABLE[i] {   // CMP.W   (A1,D0.W),D1
-                    break;      // BHS.S   mt_ftufound
+                if note >= MT_PERIOD_TABLE[i] {     // CMP.W   (A1,D0.W),D1
+                    break;                          // BHS.S   mt_ftufound
                 }
-                i += 1;         // ADDQ.L  #2,D0
-            }                   // DBRA    D7,mt_ftuloop
+                i += 1;                             // ADDQ.L  #2,D0
+            }                                       // DBRA    D7,mt_ftuloop
             // mt_ftufound
             ch.n_period = MT_PERIOD_TABLE[37 * ch.n_finetune as usize + i];
 
@@ -418,12 +415,12 @@ impl ModPlayer {
             }
         }
         // mt_TonePortaSetPer
-        let mut period = ch.n_period;               // MOVE.W  n_period(A6),D2
+        let mut period = ch.n_period;                   // MOVE.W  n_period(A6),D2
         if ch.n_glissfunk & 0x0f != 0 {
-            let ofs = 37 * ch.n_finetune as usize;  // MULU    #36*2,D0
+            let ofs = 37 * ch.n_finetune as usize;      // MULU    #36*2,D0
             let mut i = 0;
             // mt_GlissLoop
-            while period < MT_PERIOD_TABLE[ofs + i] {  // LEA     mt_PeriodTable(PC),A0 / CMP.W   (A0,D0.W),D2
+            while period < MT_PERIOD_TABLE[ofs + i] {   // LEA     mt_PeriodTable(PC),A0 / CMP.W   (A0,D0.W),D2
                 i += 1;
                 if i >= 37 {
                     i = 35;
@@ -431,10 +428,10 @@ impl ModPlayer {
                 }
             }
             // mt_GlissFound
-            period = MT_PERIOD_TABLE[ofs + i];         // MOVE.W  (A0,D0.W),D2
+            period = MT_PERIOD_TABLE[ofs + i];          // MOVE.W  (A0,D0.W),D2
         }
         // mt_GlissSkip
-        mixer.set_period(chn, period as f64);          // MOVE.W  D2,6(A5) ; Set period
+        mixer.set_period(chn, period as f64);           // MOVE.W  D2,6(A5) ; Set period
     }
 
     fn mt_vibrato(&mut self, chn: usize, mut mixer: &mut Mixer) {

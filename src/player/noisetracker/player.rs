@@ -5,8 +5,8 @@ use mixer::Mixer;
 
 /// NT1.1 Replayer
 ///
-/// An oxdz player based on the Noisetracker V1.1 play routine by Pex "Mahoney"
-/// Tufvesson and Anders “Kaktus” Berkeman (Mahoney & Kaktus - HALLONSOFT 1989).
+/// An oxdz player based on the Noisetracker V1.1 play routine by Pex Tufvesson
+/// and Anders Berkeman (Mahoney & Kaktus - HALLONSOFT 1989).
 
 pub struct ModPlayer {
     options: Options,
@@ -140,7 +140,7 @@ impl ModPlayer {
         {
             let ch = &mut self.mt_voice[chn];
             ch.n_10_period = (ch.n_0_note & 0xfff) as i16;
-            ch.n_1b_vibpos = 0;                     // clr.b   $1b(a6)
+            ch.n_1b_vibpos = 0;                 // clr.b   $1b(a6)
             mixer.set_sample_ptr(chn, ch.n_4_samplestart);
             mixer.set_period(chn, ch.n_10_period as f64);
         }
@@ -162,12 +162,12 @@ impl ModPlayer {
     fn mt_setmyport(&mut self, chn: usize) {
         let ch = &mut self.mt_voice[chn];
         ch.n_18_wantperiod = (ch.n_0_note & 0xfff) as i16;
-        ch.n_16_portdir = false;     // clr.b   $16(a6)
+        ch.n_16_portdir = false;            // clr.b   $16(a6)
         if ch.n_10_period == ch.n_18_wantperiod {
             // mt_clrport
-            ch.n_18_wantperiod = 0;  // clr.w   $18(a6)
+            ch.n_18_wantperiod = 0;         // clr.w   $18(a6)
         } else if ch.n_10_period < ch.n_18_wantperiod {
-            ch.n_16_portdir = true;  // move.b  #$1,$16(a6)
+            ch.n_16_portdir = true;         // move.b  #$1,$16(a6)
         }
     }
 
@@ -306,8 +306,8 @@ impl ModPlayer {
 
     fn mt_setvol(&mut self, chn: usize, mixer: &mut Mixer) {
         let ch = &mut self.mt_voice[chn];
-        if ch.n_3_cmdlo > 0x40 {  // cmp.b   #$40,$3(a6)
-            ch.n_3_cmdlo = 40     // move.b  #$40,$3(a6)
+        if ch.n_3_cmdlo > 0x40 {            // cmp.b   #$40,$3(a6)
+            ch.n_3_cmdlo = 40               // move.b  #$40,$3(a6)
         }
         // mt_vol4
         mixer.set_volume(chn, (ch.n_3_cmdlo as usize) << 4);  // move.b  $3(a6),$8(a5)
@@ -315,8 +315,8 @@ impl ModPlayer {
 
     fn mt_setspeed(&mut self, chn: usize) {
         let ch = &mut self.mt_voice[chn];
-        if ch.n_3_cmdlo > 0x1f {  // cmp.b   #$1f,$3(a6)
-            ch.n_3_cmdlo = 0x1f;  // move.b  #$1f,$3(a6)
+        if ch.n_3_cmdlo > 0x1f {            // cmp.b   #$1f,$3(a6)
+            ch.n_3_cmdlo = 0x1f;            // move.b  #$1f,$3(a6)
         }
         // mt_sets
         if ch.n_3_cmdlo != 0 {
