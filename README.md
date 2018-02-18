@@ -35,7 +35,7 @@ correctly implemented. Sound quality will be improved later.
   * Ultimate Soundtracker              :heavy_check_mark:
   * Scream Tracker 2                   :heavy_check_mark:
   * Scream Tracker 3                   :heavy_check_mark:
-    * Play ST3 M.K. file (e.g. Sundance.mod)
+    * Play ST3 M.K. file (e.g. Sundance.mod)  :heavy_check_mark:
     * Play ST3 xCHN/xxCH files
   * Fast Tracker II support
     * Also play non-ST3 xCHN and xxCH files
