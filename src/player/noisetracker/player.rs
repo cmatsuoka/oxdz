@@ -108,13 +108,13 @@ impl ModPlayer {
                 ch.n_12_volume = instrument.volume as u8;                   // move.w  $2(a3,d4.l),$12(a6)
                 if instrument.repeat != 0 {
                     ch.n_a_loopstart = ch.n_4_samplestart + instrument.repeat as u32 * 2;
-                    ch.n_8_length = (instrument.repeat + instrument.replen) * 2;
+                    ch.n_8_length = instrument.repeat * 2 + instrument.replen;
                     ch.n_e_replen = instrument.replen * 2;                  // move.w  $6(a3,d4.l),$e(a6)
                     mixer.set_volume(chn, (ch.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
                 } else {
                     // mt_noloop
                     ch.n_a_loopstart = ch.n_4_samplestart + instrument.repeat as u32 * 2;
-                    ch.n_e_replen = instrument.replen * 2;
+                    ch.n_e_replen = instrument.replen;
                     mixer.set_volume(chn, (ch.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
                 }
                 mixer.enable_loop(chn, instrument.replen != 0);
@@ -202,22 +202,22 @@ impl ModPlayer {
             let ch = &mut self.mt_voice[chn];
             if ch.n_3_cmdlo != 0 {
                 ch.n_1a_vibrato = ch.n_3_cmdlo;
-
-                let pos = (ch.n_1b_vibpos >> 2) & 0x1f;
-                let val = MT_SIN[pos as usize];
-                let amt = ((val as usize * (ch.n_1a_vibrato & 0xf) as usize) >> 6) as i16;
-
-                let mut period = ch.n_10_period;
-                if ch.n_1b_vibpos & 0x80 == 0 {
-                    period += amt
-                } else {
-                    // mt_vibmin
-                    period -= amt
-                }
-
-                mixer.set_period(chn, period as f64);
-                ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add((ch.n_1a_vibrato >> 2) & 0x3c);
             }
+            // mt_vi
+            let pos = (ch.n_1b_vibpos >> 2) & 0x1f;
+            let val = MT_SIN[pos as usize];
+            let amt = ((val as usize * (ch.n_1a_vibrato & 0xf) as usize) >> 6) as i16;
+
+            let mut period = ch.n_10_period;
+            if ch.n_1b_vibpos & 0x80 == 0 {
+                period += amt
+            } else {
+                // mt_vibmin
+                period -= amt
+            }
+
+            mixer.set_period(chn, period as f64);
+            ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add((ch.n_1a_vibrato >> 2) & 0x3c);
         }
     }
 
