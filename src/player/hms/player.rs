@@ -6,7 +6,7 @@ use mixer::Mixer;
 /// His Master's Noise Replayer
 ///
 /// An oxdz player based on Musicdisktrackerreplay Pex "Mahoney" Tufvesson
-/// (December 1990)
+/// (December 1990).
 ///
 /// ## Notes:
 ///
@@ -168,9 +168,9 @@ impl HmsPlayer {
             if ins > 0 && ins < 31 {  // sanity check added: was: ins != 0
                 let instrument = &module.instruments[ins as usize - 1];
                 ch.n_4_samplestart = self.l698_samplestarts[ins as usize -1];  // MOVE.L  $0(A1,D2.L),$04(A6)     ;instrmemstart
-                ch.n_1e_currstamm = instrument.volume;                            // MOVE.B  -$16+$18(A3,D4.L),$1E(A6)       ;CURRSTAMM
+                ch.n_1e_currstamm = instrument.volume;                         // MOVE.B  -$16+$18(A3,D4.L),$1E(A6)       ;CURRSTAMM
                 ch.n_1c_prog_onoff = false;                                    // clr.b   $1c(a6) ;prog on/off
-                if &instrument.name[..4] == "Mupp" {                            // CMP.L   #'Mupp',-$16(a3,d4.l)
+                if &instrument.name[..4] == "Mupp" {                           // CMP.L   #'Mupp',-$16(a3,d4.l)
                     ch.n_1c_prog_onoff = true;                                 // move.b  #1,$1c(a6)      ;prog on
                     // ...
                 }
@@ -212,14 +212,13 @@ impl HmsPlayer {
                             ch.n_10_period = (ch.n_0_note & 0xfff) as i16;
                             ch.n_1b_vibpos = 0;                    // CLR.B   $1B(A6)
                             ch.n_1d_prog_lj = 0;                   // clr.b   $1d(a6) ;proglj-datacou
+                            mixer.set_sample_ptr(chn, ch.n_4_samplestart);
                             if ch.n_1c_prog_onoff {
                                 mixer.set_loop_start(chn, ch.n_a_loopstart - ch.n_4_samplestart);
                                 mixer.set_loop_end(chn, ch.n_a_loopstart - ch.n_4_samplestart + ch.n_e_replen as u32);
                                 mixer.enable_loop(chn, ch.n_e_replen != 0);
                             } else {
                                 // normalljudstart
-                                mixer.set_loop_start(chn, 0);
-                                mixer.set_loop_end(chn, ch.n_8_length as u32);
                                 mixer.enable_loop(chn, false);
                             }
                         }
@@ -291,22 +290,27 @@ impl HmsPlayer {
         self.vibrato(chn, &mut mixer)
     }
 
-    fn vibrato(&mut self, chn: usize, mixer: &mut Mixer) {
+    fn vibrato(&mut self, chn: usize, mut mixer: &mut Mixer) {
+        let period = {
+            let ch = &mut self.voice[chn];
+    
+            let pos = (ch.n_1b_vibpos >> 2) & 0x1f;
+            let val = SIN[pos as usize];
+            let amt = ((val as usize * (ch.n_1a_vibrato & 0xf) as usize) >> 7) as i16;
+    
+            let mut period = ch.n_10_period;
+            if ch.n_1b_vibpos & 0x80 == 0 {
+                period += amt
+            } else {
+                // VIBMIN
+                period -= amt
+            }
+            period
+        };
+
+        self.percalc(chn, period, &mut mixer);
+
         let ch = &mut self.voice[chn];
-
-        let pos = (ch.n_1b_vibpos >> 2) & 0x1f;
-        let val = SIN[pos as usize];
-        let amt = ((val as usize * (ch.n_1a_vibrato & 0xf) as usize) >> 6) as i16;
-
-        let mut period = ch.n_10_period;
-        if ch.n_1b_vibpos & 0x80 == 0 {
-            period += amt
-        } else {
-            // VIBMIN
-            period -= amt
-        }
-
-        mixer.set_period(chn, period as f64);
         ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add((ch.n_1a_vibrato >> 2) & 0x3c);
     }
 
@@ -320,7 +324,8 @@ impl HmsPlayer {
     }
 
     fn percalc(&mut self, chn: usize, val: i16, mixer: &mut Mixer) {
-        mixer.set_period(chn, (((self.voice[chn].n_1e_currstamm as i16 * val) >> 8) + val) as f64);
+        //mixer.set_period(chn, (((self.voice[chn].n_1e_currstamm as i16 * val) >> 8) + val) as f64);
+        mixer.set_period(chn, (val & 0xfff) as f64);
     }
 
     fn nejdu(&mut self, chn: usize, mut mixer: &mut Mixer) {
