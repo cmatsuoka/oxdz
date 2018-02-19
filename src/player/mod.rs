@@ -5,6 +5,7 @@ mod soundtracker;
 mod ust;
 mod st2;
 mod st3;
+mod hms;
 
 pub use mixer::Mixer;
 
@@ -24,6 +25,7 @@ fn all() -> Vec<Box<PlayerListEntry>> {
         Box::new(st3::St3),
         Box::new(soundtracker::DocSt2),
         Box::new(ust::Ust27),
+        Box::new(hms::Hms),
     ]
 }
 
