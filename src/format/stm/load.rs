@@ -1,4 +1,4 @@
-use format::{Format, Loader};
+use format::{FormatInfo, Format, Loader};
 use format::stm::{StmData, StmPatterns, StmInstrument};
 use module::{Module, Sample};
 use module::sample::SampleType;
@@ -13,7 +13,7 @@ impl Loader for StmLoader {
         "Scream Tracker 2"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<FormatInfo, Error> {
         if b.len() < 1084 {
             return Err(Error::Format(format!("file too short ({})", b.len())));
         }
@@ -22,15 +22,15 @@ impl Loader for StmLoader {
 
         let magic = b.read_string(20, 10)?;
         if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {
-            Ok(Format::Stm)
+            Ok(FormatInfo{format: Format::Stm, title: b.read_string(0, 20)?})
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], info: FormatInfo) -> Result<Module, Error> {
 
-        if fmt != Format::Stm {
+        if info.format != Format::Stm {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 

@@ -18,12 +18,17 @@ pub enum Format {
     Stm,
 }
 
+pub struct FormatInfo {
+    pub format: Format,
+    pub title : String,
+}
+
 // Trait for module loader
 
 pub trait Loader {
     fn name(&self) -> &'static str;
-    fn probe(&self, &[u8], &str) -> Result<Format, Error>;
-    fn load(self: Box<Self>, &[u8], Format) -> Result<Module, Error>;
+    fn probe(&self, &[u8], &str) -> Result<FormatInfo, Error>;
+    fn load(self: Box<Self>, &[u8], FormatInfo) -> Result<Module, Error>;
 }
 
 
@@ -41,13 +46,13 @@ pub fn load(b: &[u8], player_id: &str) -> Result<Module, Error> {
     for f in list() {
         println!("Probing format: {}", f.name());
 
-        let fmt = match f.probe(b, player_id) {
+        let info = match f.probe(b, player_id) {
             Ok(val) => val,
             Err(_)  => continue,
         };
 
-        println!("Probe ok, load format {:?}", fmt);
-        return f.load(b, fmt)
+        println!("Probe ok, load format {:?}", info.format);
+        return f.load(b, info)
     }
 
     Err(Error::Format("unsupported module format".to_owned()))
