@@ -59,7 +59,7 @@ use mixer::Mixer;
 /// "patterns" of the song.
 
 
-pub struct HmsPlayer {
+pub struct HmnPlayer {
     options: Options,
 
     //l658_instr     : u16,
@@ -74,9 +74,9 @@ pub struct HmsPlayer {
     voice          : Vec<ChannelData>,
 }
 
-impl HmsPlayer {
+impl HmnPlayer {
     pub fn new(_module: &Module, options: Options) -> Self {
-        HmsPlayer {
+        HmnPlayer {
             options,
 
             l642_speed       : 6,
@@ -465,7 +465,7 @@ impl HmsPlayer {
     }
 }
 
-impl FormatPlayer for HmsPlayer {
+impl FormatPlayer for HmnPlayer {
     fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
