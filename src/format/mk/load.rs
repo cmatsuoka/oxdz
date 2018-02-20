@@ -20,11 +20,30 @@ impl Loader for ModLoader {
             return Err(Error::Format(format!("file too short ({})", b.len())));
         }
 
-        player::check_accepted(player_id, "m.k.")?;
 
         let magic = b.read_string(1080, 4)?;
         if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." || magic == "NSMS" {
+            player::check_accepted(player_id, "m.k.")?;
             Ok(FormatInfo{format: Format::Mk, title: b.read_string(0, 20)?})
+        } else if &magic[1..] == "CHN" {
+            let m: Vec<char> = magic.chars().collect();
+            if m[0].is_digit(10) && m[0] != '0' {
+                player::check_accepted(player_id, "xxch")?;
+                Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
+            } else {
+                Err(Error::Format(format!("bad magic {:?}", magic)))
+            }
+        } else if &magic[2..] == "CH" {
+            let m: Vec<char> = magic.chars().collect();
+            if m[0].is_digit(10) && m[1].is_digit(10) {
+                player::check_accepted(player_id, "xxch")?;
+                Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
+            } else {
+                Err(Error::Format(format!("bad magic {:?}", magic)))
+            }
+        } else if magic == "FLT4" || magic == "FLT8" {
+            player::check_accepted(player_id, "flt")?;
+            Ok(FormatInfo{format: Format::Flt, title: b.read_string(0, 20)?})
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
@@ -37,6 +56,8 @@ impl Loader for ModLoader {
         }
 
         let song_name = b.read_string(0, 20)?;
+
+        let chn = 4;
 
         // Load instruments
         let mut instruments: Vec<ModInstrument> = Vec::new();
@@ -57,10 +78,10 @@ impl Loader for ModLoader {
         pat += 1;
 
         // Load patterns
-        let patterns = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
+        let patterns = ModPatterns::from_slice(pat, b.slice(1084, 256*chn*pat)?, chn)?;
 
         // Load samples
-        let mut ofs = 1084 + 1024*pat;
+        let mut ofs = 1084 + 256*chn*pat;
         for i in 0..31 {
             let size = instruments[i].size as usize * 2;
             let smp = load_sample(b.slice(ofs, size)?, ofs, i, &instruments[i]);

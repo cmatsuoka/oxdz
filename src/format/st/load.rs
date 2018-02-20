@@ -185,7 +185,7 @@ impl Loader for StLoader {
         pat += 1;
 
         // Load patterns
-        let patterns = ModPatterns::from_slice(pat, b.slice(600, 1024*pat)?)?;
+        let patterns = ModPatterns::from_slice(pat, b.slice(600, 1024*pat)?, 4)?;
 
         // Load samples
         let mut ofs = 600 + 1024*pat;

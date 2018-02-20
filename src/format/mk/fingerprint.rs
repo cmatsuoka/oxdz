@@ -21,7 +21,6 @@ pub enum TrackerID {
     ProtrackerClone,
 }
 
-#[derive(Clone)]
 struct Magic {
     magic: &'static str,
     flag : bool,
