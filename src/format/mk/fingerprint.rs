@@ -1,6 +1,6 @@
 use format::mk::ModData;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum TrackerID {
     Unknown,
     Protracker,
@@ -8,6 +8,11 @@ pub enum TrackerID {
     Soundtracker,
     Screamtracker3,
     FastTracker,
+    FastTracker2,
+    Octalyser,
+    TakeTracker,
+    DigitalTracker,
+    ModsGrave,
     FlexTrax,
     OpenMPT,
     Converted,
@@ -16,13 +21,38 @@ pub enum TrackerID {
     ProtrackerClone,
 }
 
+#[derive(Clone)]
+struct Magic {
+    magic: &'static str,
+    flag : bool,
+    id   : TrackerID,
+    ch   : u8,
+}
+
+static MAGIC: [Magic; 13] = [
+    Magic{magic:"M.K.", flag:false, id:TrackerID::Protracker,     ch:4},
+    Magic{magic:"M!K!", flag:true,  id:TrackerID::Protracker,     ch:4},
+    Magic{magic:"M&K!", flag:true,  id:TrackerID::Noisetracker,   ch:4},
+    Magic{magic:"N.T.", flag:true,  id:TrackerID::Noisetracker,   ch:4},
+    Magic{magic:"6CHN", flag:false, id:TrackerID::FastTracker,    ch:6},
+    Magic{magic:"8CHN", flag:false, id:TrackerID::FastTracker,    ch:8},
+    Magic{magic:"CD61", flag:true,  id:TrackerID::Octalyser,      ch:6},  // Atari STe/Falcon
+    Magic{magic:"CD81", flag:true,  id:TrackerID::Octalyser,      ch:8},  // Atari STe/Falcon
+    Magic{magic:"TDZ4", flag:true,  id:TrackerID::TakeTracker,    ch:4},  // see XModule SaveTracker.c
+    Magic{magic:"FA04", flag:true,  id:TrackerID::DigitalTracker, ch:4},  // Atari Falcon
+    Magic{magic:"FA06", flag:true,  id:TrackerID::DigitalTracker, ch:6},  // Atari Falcon
+    Magic{magic:"FA08", flag:true,  id:TrackerID::DigitalTracker, ch:8},  // Atari Falcon
+    Magic{magic:"NSMS", flag:true,  id:TrackerID::Unknown,        ch:4},  // in Kingdom.mod
+
+];
+
 static STANDARD_NOTES: [u16; 36] = [
     856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
     428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
     214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113
 ];
 
-/// Try to identify the tracker used to create an M.K. module. This is a direct port of the
+/// Try to identify the tracker used to create a module. This is a direct port of the
 /// mod fingerprinting routine used in libxmp.
 pub struct Fingerprint;
 
@@ -51,16 +81,24 @@ impl Fingerprint {
                 }
             }
 
-            if out_of_range {
-                // Check out-of-range notes in Amiga trackers
-                if tracker_id == TrackerID::Protracker || tracker_id == TrackerID::Noisetracker || tracker_id == TrackerID::Soundtracker {
+            if tracker_id == TrackerID::Noisetracker {
+                if !Fingerprint::only_nt_cmds(&data) || !Fingerprint::standard_notes(&data) {
                     tracker_id = TrackerID::Unknown
                 }
+            } else if tracker_id == TrackerID::Soundtracker {
+                if !Fingerprint::standard_notes(&data) {
+                    tracker_id = TrackerID::Unknown
+                }
+            } else if tracker_id == TrackerID::Protracker {
+                if !Fingerprint::standard_octaves(&data) {
+                    tracker_id = TrackerID::Unknown
+                }
+            }
 
+            if out_of_range {
                 if tracker_id == TrackerID::Unknown && data.restart == 0x7f {
                     tracker_id = TrackerID::Screamtracker3
                 }
-
             }
         }
 
@@ -68,41 +106,72 @@ impl Fingerprint {
     }
 
     fn get_tracker_id(data: &ModData) -> TrackerID {
-        let mut tracker_id = match data.magic.as_ref() {
-            "M.K." => TrackerID::Protracker,
-            "M!K!" => return TrackerID::Protracker,
-            "M&K!" => return TrackerID::Noisetracker,
-            "N.T." => return TrackerID::Noisetracker,
-            _      => TrackerID::Unknown,
-        };
-    
+
+        let mut tracker_id = TrackerID::Unknown;
+        let mut detected = false;
+        let mut chn = 0;
+
+        for m in MAGIC.iter() {
+            if data.magic == m.magic {
+                tracker_id = m.id.clone();
+                chn        = m.ch;
+                detected   = m.flag;
+                break;
+            }
+        }
+
+        if detected {
+            return tracker_id;
+        }
+
+        if chn == 0 {
+            let magic: Vec<char> = data.magic.chars().collect();
+            if magic[0].is_digit(10) && magic[1].is_digit(10) && &data.magic[2..] == "CH" {
+                chn = (magic[0] as u8 - '0' as u8) * 10 + magic[1] as u8 - '0' as u8;
+            } else if magic[0].is_digit(10) && &data.magic[1..] == "CHN" {
+                chn = magic[0] as u8 - '0' as u8;
+            } else {
+                return TrackerID::Unknown;
+            }
+
+            return if chn&1 != 0 { TrackerID::TakeTracker } else { TrackerID::FastTracker2 };
+        }
+
         if Fingerprint::has_large_instruments(&data) {
             return TrackerID::OpenMPT;
         }
             
-        // Test for Flextrax modules
-    
-        // Test for Mod's Grave WOW modules
-    
         let has_replen_0 = Fingerprint::has_replen_0(&data);
         let has_st_instruments = Fingerprint::has_st_instruments(&data);
         let empty_ins_has_volume = Fingerprint::empty_ins_has_volume(&data);
     
         if data.restart as usize == data.patterns.num {
-            tracker_id = TrackerID::Soundtracker;
-        } else if data.restart == 0x78 {
-            // Not really sure, "MOD.Data City Remix" has Protracker effects and Noisetracker restart byte
-            return TrackerID::Noisetracker;
-        } else if data.restart < 0x7f {
-            tracker_id = if empty_ins_has_volume {
-                TrackerID::Unknown
+            tracker_id = if chn == 4 {
+                TrackerID::Soundtracker
             } else {
-                TrackerID::Noisetracker
+                TrackerID::Unknown
             }
-            // FIXME: assume restart as noisetracker restart
+        } else if data.restart == 0x78 {
+            tracker_id = if chn == 4 {
+                // Not really sure, "MOD.Data City Remix" has Protracker effects and Noisetracker restart byte
+                TrackerID::Noisetracker
+            } else {
+                TrackerID::Unknown
+            };
+            return tracker_id
+        } else if data.restart < 0x7f {
+            tracker_id = if chn == 4 && !empty_ins_has_volume {
+                TrackerID::Noisetracker
+            } else {
+                TrackerID::Unknown
+            }
         } else if data.restart == 0x7f {
-            if has_replen_0 {
-                tracker_id = TrackerID::ProtrackerClone;
+            if chn == 4 {
+                if has_replen_0 {
+                    tracker_id = TrackerID::ProtrackerClone;
+                }
+            } else {
+                tracker_id = TrackerID::Screamtracker3;
             }
             return tracker_id;
         } else if data.restart > 0x7f {
@@ -115,17 +184,31 @@ impl Fingerprint {
             }
     
             if !has_st_instruments {
-                if Fingerprint::empty_ins_replen_1(&data) {
-                    if empty_ins_has_volume {
-                        return TrackerID::OpenMPT
-                    } else if Fingerprint::only_nt_cmds(&data) && Fingerprint::standard_notes(&data) {
-                        return TrackerID::Noisetracker
+                for ins in &data.instruments {
+                    if ins.size != 0 || ins.replen != 1 {
+                        continue
                     }
+
+                    tracker_id = match chn {
+                        4 => {
+                            if empty_ins_has_volume {
+                                TrackerID::OpenMPT
+                            } else {
+                                TrackerID::Noisetracker  // or Octalyser
+                            }
+                         },
+                         6 => TrackerID::Octalyser,
+                         8 => TrackerID::Octalyser,
+                         _ => TrackerID::Unknown,
+                    };
+                    return tracker_id
                 }
-                tracker_id = if Fingerprint::standard_octaves(&data) {
-                    TrackerID::Protracker
-                } else {
-                    TrackerID::Unknown
+
+                tracker_id = match chn {
+                    4 => TrackerID::Protracker,
+                    6 => TrackerID::FastTracker,  // FastTracker 1.01?
+                    8 => TrackerID::FastTracker,  // FastTracker 1.01?
+                    _ => TrackerID::Unknown,
                 }
             }
         } else {  // Has loops with size 0
