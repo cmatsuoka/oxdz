@@ -67,8 +67,7 @@ impl Loader for FestLoader {
                 let size = 28*32;
                 let pat_num = instruments[i].name.as_bytes()[4] as usize;
                 let pat_ofs = 1084 + 1024*pat_num;
-println!("mupp {}", pat_ofs);
-                let smp = load_mupp(b.slice(pat_ofs, 1024)?, pat_ofs, i, &instruments[i]);
+                let smp = load_mupp(b.slice(pat_ofs, 1024)?, pat_ofs, i, pat_num);
                 samples.push(smp);
             } else {
                 let size = instruments[i].size as usize * 2;
@@ -117,17 +116,15 @@ fn load_instrument(b: &[u8], i: usize) -> Result<ModInstrument, Error> {
     Ok(ins)
 }
 
-fn load_mupp(b: &[u8], ofs: usize, i: usize, ins: &ModInstrument) -> Sample {
+fn load_mupp(b: &[u8], ofs: usize, i: usize, pat_num: usize) -> Sample {
     let mut smp = Sample::new();
 
     smp.num  = i + 1;
-    smp.name = format!("Mupp @{}", ins.name.as_bytes()[4]);
+    smp.name = format!("Mupp @{}", pat_num);
     smp.address = ofs as u32;
     smp.size = 28*32;
     smp.rate = util::C4_PAL_RATE;
-    if smp.size > 0 {
-        smp.sample_type = SampleType::Sample8;
-    }
+    smp.sample_type = SampleType::Sample8;
     smp.store(b);
 
     smp
