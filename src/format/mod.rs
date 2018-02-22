@@ -5,6 +5,7 @@ pub mod mk;
 pub mod st;
 pub mod stm;
 pub mod s3m;
+pub mod fest;
 
 // Supported formats
 
@@ -40,6 +41,7 @@ pub fn list() -> Vec<Box<Loader>> {
         Box::new(stm::StmLoader),
         Box::new(mk::ModLoader),
         Box::new(st::StLoader),
+        Box::new(fest::FestLoader),
     ]
 }
 

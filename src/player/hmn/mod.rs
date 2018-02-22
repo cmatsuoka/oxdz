@@ -11,7 +11,7 @@ impl PlayerListEntry for Hmn {
        PlayerInfo {
           id         : "nt11",
           name       : "His Master's Noise replayer",
-          description: "Based on Musicdisktrackerreplay by Mahoney December 1990",
+          description: "JAG VILL HELST HA EN GET I JULKLAPP",
           author     : "Claudio Matsuoka",
           accepts    : &[ "fest" ],
        }
