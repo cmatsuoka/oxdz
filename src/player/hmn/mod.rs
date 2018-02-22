@@ -9,11 +9,11 @@ pub struct Hmn;
 impl PlayerListEntry for Hmn {
    fn info(&self) -> PlayerInfo {
        PlayerInfo {
-          id         : "nt11",
+          id         : "hmn",
           name       : "His Master's Noise replayer",
           description: "JAG VILL HELST HA EN GET I JULKLAPP",
           author     : "Claudio Matsuoka",
-          accepts    : &[ "fest" ],
+          accepts    : &[ "fest", "m.k." ],
        }
    }
 

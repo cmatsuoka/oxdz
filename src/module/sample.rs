@@ -19,7 +19,7 @@ pub struct Sample {
     pub size        : u32,
     pub rate        : f64,
     pub name        : String,
-    data            : Vec<u8>,
+    pub data        : Vec<u8>,
 }
 
 impl Sample {

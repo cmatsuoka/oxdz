@@ -168,28 +168,38 @@ impl HmnPlayer {
             if ins > 0 && ins < 31 {  // sanity check added: was: ins != 0
                 let instrument = &module.instruments[ins as usize - 1];
                 ch.n_4_samplestart = self.l698_samplestarts[ins as usize -1];  // MOVE.L  $0(A1,D2.L),$04(A6)     ;instrmemstart
-                ch.n_1e_currstamm = instrument.volume;                         // MOVE.B  -$16+$18(A3,D4.L),$1E(A6)       ;CURRSTAMM
-                ch.n_1c_prog_onoff = false;                                    // clr.b   $1c(a6) ;prog on/off
+                ch.n_1e_currstamm = instrument.finetune;                       // MOVE.B  -$16+$18(A3,D4.L),$1E(A6)       ;CURRSTAMM
+                ch.n_1c_prog_on = false;                                       // clr.b   $1c(a6) ;prog on/off
                 if &instrument.name[..4] == "Mupp" {                           // CMP.L   #'Mupp',-$16(a3,d4.l)
-                    ch.n_1c_prog_onoff = true;                                 // move.b  #1,$1c(a6)      ;prog on
-                    // ...
-                }
-                // noprgo
-                ch.n_8_length = instrument.size;                               // MOVE.W  $0(A3,D4.L),$08(A6)
-                ch.n_12_volume = instrument.volume as u8;                      // MOVE.W  $2(A3,D4.L),$12(A6)
-                ch.n_12_volume = 0x40;                                         // move.b  #$40,$12(a6)
-                if instrument.repeat != 0 {                                    // MOVE.W  $4(A3,D4.L),D3 / TST.W   D3
-                    ch.n_a_loopstart = ch.n_4_samplestart + instrument.repeat as u32;      // MOVE.L  D2,$A(A6)       ;LOOPSTARTPOI
-                    ch.n_8_length = instrument.repeat + instrument.replen;                 // MOVE.W  $4(A3,D4.L),D0  ;REPEAT
-                                                                                           // ADD.W   $6(A3,D4.L),D0  ;+REPLEN
-                                                                                           // MOVE.W  D0,$8(A6)       ;STARTLENGTH
-                    ch.n_e_replen = instrument.replen;                         // MOVE.W  $6(A3,D4.L),$E(A6);LOOPLENGTH
-                    mixer.set_volume(chn, ((ch.n_12_volume&0xff) as usize) << 4);
+                    let insname = instrument.name.as_bytes();
+                    ch.n_1c_prog_on = true;                                    // move.b  #1,$1c(a6)      ;prog on
+                    ch.n_4_samplestart = 0x43c + 0x400 * insname[4] as u32;
+                    // we loaded pattern data as sample data
+                    let sample = &module.samples()[ins as usize - 1];
+                    ch.n_12_volume = sample.data[0x3c0];                       // MOVE.B  $3C0(A0),$12(A6)
+                    ch.n_12_volume &= 0x7f;
+                    //ch.n_a_loopstart = 32 * sample.data[0x380];
+                    //ch.n_13_volume = instrument.volume;                        // move.B  $3(a3,d4.l),$13(a6)     ;volume
+                    ch.n_a_loopstart = 0x20 * insname[5] as u32;               // move.b  -$16+$5(a3,d4.l),8(a6)  ;dataloopstart
+                    ch.n_e_replen = 0x20;                                      // move.w  #$10,$e(a6)     ;looplen
                 } else {
-                    // L505_K_noloop
-                    ch.n_a_loopstart = ch.n_4_samplestart + instrument.repeat as u32 * 2;
-                    ch.n_e_replen = instrument.replen;
-                    mixer.set_volume(chn, ((ch.n_12_volume&0xff) as usize) << 4);
+                    // noprgo
+                    ch.n_8_length = instrument.size;                           // MOVE.W  $0(A3,D4.L),$08(A6)
+                    ch.n_12_volume = instrument.volume as u8;                  // MOVE.W  $2(A3,D4.L),$12(A6)
+                    //ch.n_12_volume = 0x40;                                     // move.b  #$40,$12(a6)
+                    if instrument.repeat != 0 {                                // MOVE.W  $4(A3,D4.L),D3 / TST.W   D3
+                        ch.n_a_loopstart = instrument.repeat as u32;           // MOVE.L  D2,$A(A6)       ;LOOPSTARTPOI
+                        ch.n_8_length = instrument.repeat + instrument.replen;                 // MOVE.W  $4(A3,D4.L),D0  ;REPEAT
+                                                                                               // ADD.W   $6(A3,D4.L),D0  ;+REPLEN
+                                                                                               // MOVE.W  D0,$8(A6)       ;STARTLENGTH
+                        ch.n_e_replen = instrument.replen;                     // MOVE.W  $6(A3,D4.L),$E(A6);LOOPLENGTH
+                        mixer.set_volume(chn, ((ch.n_12_volume&0xff) as usize) << 4);
+                    } else {
+                        // L505_K_noloop
+                        ch.n_a_loopstart = instrument.repeat as u32 * 2;
+                        ch.n_e_replen = instrument.replen;
+                        mixer.set_volume(chn, ((ch.n_12_volume&0xff) as usize) << 4);
+                    }
                 }
             }
         }
@@ -213,14 +223,9 @@ impl HmnPlayer {
                             ch.n_1b_vibpos = 0;                    // CLR.B   $1B(A6)
                             ch.n_1d_prog_lj = 0;                   // clr.b   $1d(a6) ;proglj-datacou
                             mixer.set_sample_ptr(chn, ch.n_4_samplestart);
-                            if ch.n_1c_prog_onoff {
-                                mixer.set_loop_start(chn, ch.n_a_loopstart - ch.n_4_samplestart);
-                                mixer.set_loop_end(chn, ch.n_a_loopstart - ch.n_4_samplestart + ch.n_e_replen as u32);
-                                mixer.enable_loop(chn, ch.n_e_replen != 0);
-                            } else {
-                                // normalljudstart
-                                mixer.enable_loop(chn, false);
-                            }
+                            mixer.set_loop_start(chn, ch.n_a_loopstart);
+                            mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32);
+                            mixer.enable_loop(chn, ch.n_e_replen != 0);
                         }
                         // onormalljudstart
                         let period = self.voice[chn].n_10_period & 0xfff;
@@ -324,8 +329,7 @@ impl HmnPlayer {
     }
 
     fn percalc(&mut self, chn: usize, val: i16, mixer: &mut Mixer) {
-        //mixer.set_period(chn, (((self.voice[chn].n_1e_currstamm as i16 * val) >> 8) + val) as f64);
-        mixer.set_period(chn, (val & 0xfff) as f64);
+        mixer.set_period(chn, (((self.voice[chn].n_1e_currstamm as i16 * val) >> 8) + val) as f64);
     }
 
     fn nejdu(&mut self, chn: usize, mut mixer: &mut Mixer) {
@@ -536,7 +540,7 @@ struct ChannelData {
     n_18_wantperiod : i16,
     n_1a_vibrato    : u8,
     n_1b_vibpos     : u8,
-    n_1c_prog_onoff : bool,
+    n_1c_prog_on    : bool,
     n_1d_prog_lj    : u8,
     n_1e_currstamm  : u8,
 }
