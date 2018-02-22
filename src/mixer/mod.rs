@@ -252,6 +252,10 @@ impl<'a> Mixer<'a> {
                     }
                 }
 
+                if samples == 0 {
+                    break;
+                }
+
                 if v.vol > 0 {
                     let mix_size = samples * 2;
 
@@ -298,6 +302,7 @@ impl<'a> Mixer<'a> {
                     continue;
                 }
 
+                // reached end of loop
                 v.loop_reposition(&sample);
             }
         }
