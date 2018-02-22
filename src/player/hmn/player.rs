@@ -176,11 +176,10 @@ impl HmnPlayer {
                     ch.n_4_samplestart = 0x43c + 0x400 * insname[4] as u32;
                     // we loaded pattern data as sample data
                     let sample = &module.samples()[ins as usize - 1];
-                    ch.n_12_volume = sample.data[0x3c0];                       // MOVE.B  $3C0(A0),$12(A6)
-                    ch.n_12_volume &= 0x7f;
-                    //ch.n_a_loopstart = 32 * sample.data[0x380];
+                    ch.n_12_volume = sample.data[0x3c0] & 0x7f;                // MOVE.B  $3C0(A0),$12(A6) / AND.B   #$7F,$12(A6)
+                    ch.n_a_loopstart = 32 * sample.data[0x380] as u32;
                     //ch.n_13_volume = instrument.volume;                        // move.B  $3(a3,d4.l),$13(a6)     ;volume
-                    ch.n_a_loopstart = 0x20 * insname[5] as u32;               // move.b  -$16+$5(a3,d4.l),8(a6)  ;dataloopstart
+                    //ch.n_a_loopstart = insname[5] as u32;               // move.b  -$16+$5(a3,d4.l),8(a6)  ;dataloopstart
                     ch.n_e_replen = 0x20;                                      // move.w  #$10,$e(a6)     ;looplen
                 } else {
                     // noprgo
@@ -193,14 +192,13 @@ impl HmnPlayer {
                                                                                                // ADD.W   $6(A3,D4.L),D0  ;+REPLEN
                                                                                                // MOVE.W  D0,$8(A6)       ;STARTLENGTH
                         ch.n_e_replen = instrument.replen;                     // MOVE.W  $6(A3,D4.L),$E(A6);LOOPLENGTH
-                        mixer.set_volume(chn, ((ch.n_12_volume&0xff) as usize) << 4);
                     } else {
                         // L505_K_noloop
-                        ch.n_a_loopstart = instrument.repeat as u32 * 2;
                         ch.n_e_replen = instrument.replen;
-                        mixer.set_volume(chn, ((ch.n_12_volume&0xff) as usize) << 4);
                     }
                 }
+                // L505_LQ
+                mixer.set_volume(chn, ((ch.n_12_volume&0xff) as usize) << 4);
             }
         }
 
@@ -222,10 +220,15 @@ impl HmnPlayer {
                             ch.n_10_period = (ch.n_0_note & 0xfff) as i16;
                             ch.n_1b_vibpos = 0;                    // CLR.B   $1B(A6)
                             ch.n_1d_prog_lj = 0;                   // clr.b   $1d(a6) ;proglj-datacou
+                            /*if ch.n_1c_prog_on {
+                                
+                            } else {
+                                // normalljudstart
+                            }*/
                             mixer.set_sample_ptr(chn, ch.n_4_samplestart);
                             mixer.set_loop_start(chn, ch.n_a_loopstart);
                             mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32);
-                            mixer.enable_loop(chn, ch.n_e_replen != 0);
+                            mixer.enable_loop(chn, ch.n_1c_prog_on || ch.n_e_replen > 1);
                         }
                         // onormalljudstart
                         let period = self.voice[chn].n_10_period & 0xfff;

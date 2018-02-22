@@ -67,6 +67,7 @@ impl Loader for FestLoader {
                 let size = 28*32;
                 let pat_num = instruments[i].name.as_bytes()[4] as usize;
                 let pat_ofs = 1084 + 1024*pat_num;
+println!("mupp {}", pat_ofs);
                 let smp = load_mupp(b.slice(pat_ofs, 1024)?, pat_ofs, i, &instruments[i]);
                 samples.push(smp);
             } else {
