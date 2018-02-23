@@ -95,6 +95,10 @@ impl HmnPlayer {
             // L505_4_nonew
             for chn in 0..4 {
                 self.l577_2_checkcom(chn, &mut mixer);
+                self.prog_handler(chn, &module, &mut mixer);
+                let ch = &mut self.voice[chn];
+                mixer.set_loop_start(chn, ch.n_a_loopstart);
+                mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32);
             }
             return
         }
@@ -133,6 +137,15 @@ impl HmnPlayer {
         }
 
         // L505_M_setdma
+        for chn in 0..4 {
+            self.prog_handler(chn, &module, &mut mixer);
+            let ch = &mut self.voice[chn];
+            mixer.set_loop_start(chn, ch.n_a_loopstart);
+            mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32);
+        }
+
+        // L505_R
+        // L505_HA
         self.l692_pattpos +=1;
         loop {
             if self.l692_pattpos == 64 {
@@ -166,26 +179,29 @@ impl HmnPlayer {
             let ins = (((event.note & 0xf000) >> 8) | ((event.cmd as u16 & 0xf0) >> 4)) as usize;
     
             if ins > 0 && ins < 31 {  // sanity check added: was: ins != 0
-                let instrument = &module.instruments[ins as usize - 1];
-                ch.n_4_samplestart = self.l698_samplestarts[ins as usize -1];  // MOVE.L  $0(A1,D2.L),$04(A6)     ;instrmemstart
+                let prog_ins = ins as usize - 1;
+                let instrument = &module.instruments[prog_ins];
+                ch.n_4_samplestart = self.l698_samplestarts[prog_ins];         // MOVE.L  $0(A1,D2.L),$04(A6)     ;instrmemstart
                 ch.n_1e_currstamm = instrument.finetune;                       // MOVE.B  -$16+$18(A3,D4.L),$1E(A6)       ;CURRSTAMM
                 ch.n_1c_prog_on = false;                                       // clr.b   $1c(a6) ;prog on/off
                 if &instrument.name[..4] == "Mupp" {                           // CMP.L   #'Mupp',-$16(a3,d4.l)
                     let insname = instrument.name.as_bytes();
                     ch.n_1c_prog_on = true;                                    // move.b  #1,$1c(a6)      ;prog on
-                    ch.n_4_samplestart = 0x43c + 0x400 * insname[4] as u32;
+                    ch.n_4_samplestart = 0x43c + 0x400 * insname[4] as u32;    // proginstr data-start
+                    ch.prog_ins = prog_ins;
                     // we loaded pattern data as sample data
-                    let sample = &module.samples()[ins as usize - 1];
+                    let sample = &module.samples()[prog_ins];
                     ch.n_12_volume = sample.data[0x3c0] & 0x7f;                // MOVE.B  $3C0(A0),$12(A6) / AND.B   #$7F,$12(A6)
-                    ch.n_a_loopstart = 32 * sample.data[0x380] as u32;
-                    //ch.n_13_volume = instrument.volume;                        // move.B  $3(a3,d4.l),$13(a6)     ;volume
-                    //ch.n_a_loopstart = insname[5] as u32;               // move.b  -$16+$5(a3,d4.l),8(a6)  ;dataloopstart
+                    ch.n_a_loopstart = 32 * sample.data[0x380] as u32;         // loopstartmempoi = startmempoi
+                    ch.n_13_volume = instrument.volume;                        // move.B  $3(a3,d4.l),$13(a6)     ;volume
+                    ch.n_8_dataloopstart = insname[5];                         // move.b  -$16+$5(a3,d4.l),8(a6)  ;dataloopstart
+                    ch.n_9_dataloopend = insname[6];                           // move.b  -$16+$6(a3,d4.l),9(a6)  ;dataloopend
                     ch.n_e_replen = 0x20;                                      // move.w  #$10,$e(a6)     ;looplen
                 } else {
                     // noprgo
                     ch.n_8_length = instrument.size;                           // MOVE.W  $0(A3,D4.L),$08(A6)
-                    ch.n_12_volume = instrument.volume as u8;                  // MOVE.W  $2(A3,D4.L),$12(A6)
-                    //ch.n_12_volume = 0x40;                                     // move.b  #$40,$12(a6)
+                    ch.n_13_volume = instrument.volume as u8;                  // MOVE.W  $2(A3,D4.L),$12(A6)
+                    ch.n_12_volume = 0x40;                                     // move.b  #$40,$12(a6)
                     if instrument.repeat != 0 {                                // MOVE.W  $4(A3,D4.L),D3 / TST.W   D3
                         ch.n_a_loopstart = instrument.repeat as u32;           // MOVE.L  D2,$A(A6)       ;LOOPSTARTPOI
                         ch.n_8_length = instrument.repeat + instrument.replen;                 // MOVE.W  $4(A3,D4.L),D0  ;REPEAT
@@ -198,7 +214,8 @@ impl HmnPlayer {
                     }
                 }
                 // L505_LQ
-                mixer.set_volume(chn, ((ch.n_12_volume&0xff) as usize) << 4);
+                //let volume = (ch.n_13_volume as u16 * ch.n_12_volume as u16) >> 6;
+                //mixer.set_volume(chn, volume << 4);
             }
         }
 
@@ -220,15 +237,17 @@ impl HmnPlayer {
                             ch.n_10_period = (ch.n_0_note & 0xfff) as i16;
                             ch.n_1b_vibpos = 0;                    // CLR.B   $1B(A6)
                             ch.n_1d_prog_lj = 0;                   // clr.b   $1d(a6) ;proglj-datacou
-                            /*if ch.n_1c_prog_on {
-                                
+                            if ch.n_1c_prog_on {
+                                mixer.set_sample_ptr(chn, ch.n_4_samplestart);
+                                mixer.set_loop_start(chn, ch.n_a_loopstart);
+                                mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32);
                             } else {
                                 // normalljudstart
-                            }*/
-                            mixer.set_sample_ptr(chn, ch.n_4_samplestart);
-                            mixer.set_loop_start(chn, ch.n_a_loopstart);
-                            mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32);
-                            mixer.enable_loop(chn, ch.n_1c_prog_on || ch.n_e_replen > 1);
+                                mixer.set_sample_ptr(chn, ch.n_4_samplestart);
+                                mixer.set_loop_start(chn, ch.n_a_loopstart);
+                                mixer.set_loop_end(chn, ch.n_8_length as u32);
+                            }
+                            mixer.enable_loop(chn, ch.n_e_replen > 1);
                         }
                         // onormalljudstart
                         let period = self.voice[chn].n_10_period & 0xfff;
@@ -241,6 +260,27 @@ impl HmnPlayer {
         // EFTERSTOPSUND
         // L505_L_setregs2
         self.l577_2_checkcom2(chn, &mut mixer);
+    }
+
+    fn prog_handler(&mut self, chn: usize, module: &ModData, mixer: &mut Mixer) {
+        let ch = &mut self.voice[chn];
+
+        if ch.n_1c_prog_on {
+            let mut datacou = ch.n_1d_prog_lj;
+            let sample = &module.samples()[ch.prog_ins];
+            let index = 0x380 + datacou as usize;
+            ch.n_12_volume = sample.data[index + 0x40] & 0x7f;            // progvolume
+            mixer.set_loop_start(chn, sample.data[index] as u32 * 0x20);  // loopstartmempoi
+            datacou += 1;
+            if datacou > ch.n_9_dataloopend {
+                datacou = ch.n_8_dataloopstart;
+            }
+            // norestartofdata
+            ch.n_1d_prog_lj = datacou;
+        }
+        // norvolum
+        let volume = (ch.n_12_volume as u16 * ch.n_13_volume as u16) as usize >> 6;
+        mixer.set_volume(chn, volume << 4);
     }
 
     fn setmyport(&mut self, chn: usize) {
@@ -371,19 +411,17 @@ impl HmnPlayer {
         if ch.n_3_cmdlo >> 4 == 0 {
             // mt_voldown
             let cmdlo = ch.n_3_cmdlo & 0x0f;
-            if ch.n_12_volume > cmdlo {
-                ch.n_12_volume -= cmdlo;
+            if ch.n_13_volume > cmdlo {
+                ch.n_13_volume -= cmdlo;
             } else {
-                ch.n_12_volume = 0;
+                ch.n_13_volume = 0;
             }
         } else {
-            ch.n_12_volume += ch.n_3_cmdlo >> 4;
-            if ch.n_12_volume > 0x40 {
-                ch.n_12_volume = 0x40;
+            ch.n_13_volume += ch.n_3_cmdlo >> 4;
+            if ch.n_13_volume > 0x40 {
+                ch.n_13_volume = 0x40;
             }
         }
-        // mt_vol2
-        mixer.set_volume(chn, (ch.n_12_volume as usize) << 4);
     }
 
     fn vibvolslide(&mut self, chn: usize, mut mixer: &mut Mixer) {
@@ -455,8 +493,7 @@ impl HmnPlayer {
         if ch.n_3_cmdlo > 0x40 {            // cmp.b   #$40,$3(a6)
             ch.n_3_cmdlo = 40               // move.b  #$40,$3(a6)
         }
-        // mt_vol4
-        mixer.set_volume(chn, (ch.n_3_cmdlo as usize) << 4);  // move.b  $3(a6),$8(a5)
+        ch.n_13_volume = ch.n_3_cmdlo;
     }
 
     fn l577_m_setspeed(&mut self, chn: usize) {
@@ -546,6 +583,12 @@ struct ChannelData {
     n_1c_prog_on    : bool,
     n_1d_prog_lj    : u8,
     n_1e_currstamm  : u8,
+
+    n_8_dataloopstart: u8,
+    n_9_dataloopend  : u8,
+    n_13_volume      : u8,
+
+    prog_ins: usize,
 }
 
 impl ChannelData {
