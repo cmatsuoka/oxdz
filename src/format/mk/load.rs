@@ -7,7 +7,7 @@ use module::sample::SampleType;
 use util::{self, BinaryRead};
 use ::*;
 
-/// Protracker module loader
+/// Amiga tracker module loader
 pub struct ModLoader;
 
 impl Loader for ModLoader {
@@ -21,27 +21,28 @@ impl Loader for ModLoader {
         }
 
 
-        let magic = b.read_string(1080, 4)?;
-        if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." || magic == "NSMS" {
+        let magic = b.read32b(1080)?;
+        if magic == magic4!('M', '.', 'K', '.') || magic == magic4!('M', '!', 'K', '!') || magic == magic4!('M', '&', 'K', '!') || magic == magic4!('N', 'S', 'M', 'S') {
             player::check_accepted(player_id, "m.k.")?;
             Ok(FormatInfo{format: Format::Mk, title: b.read_string(0, 20)?})
-        } else if &magic[1..] == "CHN" {
-            let m: Vec<char> = magic.chars().collect();
-            if m[0].is_digit(10) && m[0] != '0' {
+        } else if magic & 0xffffff == magic4!('\0', 'C', 'H', 'N') {
+            let c = ((magic >> 24) + '0' as u32) as u8 as char;
+            if c.is_digit(10) && c != '0' {
                 player::check_accepted(player_id, "xxch")?;
                 Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
             } else {
                 Err(Error::Format(format!("bad magic {:?}", magic)))
             }
-        } else if &magic[2..] == "CH" {
-            let m: Vec<char> = magic.chars().collect();
-            if m[0].is_digit(10) && m[1].is_digit(10) {
+        } else if magic & 0xffff == magic4!('\0', '\0', 'C', 'H') {
+            let c1 = ((magic >> 24) + '0' as u32) as u8 as char;
+            let c2 = (((magic & 0xff0000) >> 16) + '0' as u32) as u8 as char;
+            if c1.is_digit(10) && c2.is_digit(10) {
                 player::check_accepted(player_id, "xxch")?;
                 Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
             } else {
                 Err(Error::Format(format!("bad magic {:?}", magic)))
             }
-        } else if magic == "FLT4" || magic == "FLT8" {
+        } else if magic == magic4!('F', 'L', 'T', '4') || magic == magic4!('F', 'L', 'T', '8') {
             player::check_accepted(player_id, "flt")?;
             Ok(FormatInfo{format: Format::Flt, title: b.read_string(0, 20)?})
         } else {
