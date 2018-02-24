@@ -98,7 +98,7 @@ impl HmnPlayer {
                 self.prog_handler(chn, &module, &mut mixer);
                 let ch = &mut self.voice[chn];
                 mixer.set_loop_start(chn, ch.n_a_loopstart);
-                mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32);
+                mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32 * 2);
             }
             return
         }
@@ -141,7 +141,7 @@ impl HmnPlayer {
             self.prog_handler(chn, &module, &mut mixer);
             let ch = &mut self.voice[chn];
             mixer.set_loop_start(chn, ch.n_a_loopstart);
-            mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32);
+            mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32 * 2);
         }
 
         // L505_R
@@ -182,7 +182,7 @@ impl HmnPlayer {
                 let prog_ins = ins as usize - 1;
                 let instrument = &module.instruments[prog_ins];
                 ch.n_4_samplestart = self.l698_samplestarts[prog_ins];         // MOVE.L  $0(A1,D2.L),$04(A6)     ;instrmemstart
-                ch.n_1e_currstamm = instrument.finetune;                       // MOVE.B  -$16+$18(A3,D4.L),$1E(A6)       ;CURRSTAMM
+                ch.n_1e_finetune = instrument.finetune;                        // MOVE.B  -$16+$18(A3,D4.L),$1E(A6)       ;CURRSTAMM
                 ch.n_1c_prog_on = false;                                       // clr.b   $1c(a6) ;prog on/off
                 if &instrument.name[..4] == "Mupp" {                           // CMP.L   #'Mupp',-$16(a3,d4.l)
                     let insname = instrument.name.as_bytes();
@@ -197,7 +197,7 @@ impl HmnPlayer {
                     ch.n_8_dataloopstart = insname[5];                         // move.b  -$16+$5(a3,d4.l),8(a6)  ;dataloopstart
                     ch.n_9_dataloopend = insname[6];                           // move.b  -$16+$6(a3,d4.l),9(a6)  ;dataloopend
                     ch.n_8_length = ((insname[5] as u16) << 8) | insname[6] as u16;  // ouch! that was a nasty variable reuse trick
-                    ch.n_e_replen = 0x20;                                      // move.w  #$10,$e(a6)     ;looplen
+                    ch.n_e_replen = 0x10;                                      // move.w  #$10,$e(a6)     ;looplen
                 } else {
                     // noprgo
                     ch.n_8_length = instrument.size;                           // MOVE.W  $0(A3,D4.L),$08(A6)
@@ -241,12 +241,13 @@ impl HmnPlayer {
                             if ch.n_1c_prog_on {
                                 mixer.set_sample_ptr(chn, ch.n_4_samplestart);
                                 mixer.set_loop_start(chn, ch.n_a_loopstart);
-                                mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32);
+                                mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32 * 2);
                             } else {
                                 // normalljudstart
                                 mixer.set_sample_ptr(chn, ch.n_4_samplestart);
                                 mixer.set_loop_start(chn, ch.n_a_loopstart);
-                                mixer.set_loop_end(chn, ch.n_8_length as u32);
+                                //mixer.set_loop_end(chn, ch.n_8_length as u32);
+                                mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32 * 2);
                             }
                             mixer.enable_loop(chn, ch.n_e_replen > 1);
                         }
@@ -373,18 +374,16 @@ impl HmnPlayer {
     }
 
     fn percalc(&mut self, chn: usize, val: i16, mixer: &mut Mixer) {
-        mixer.set_period(chn, (((self.voice[chn].n_1e_currstamm as i16 * val) >> 8) + val) as f64);
+        mixer.set_period(chn, (((self.voice[chn].n_1e_finetune as i16 * val) >> 8) + val) as f64);
     }
 
-    fn nejdu(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        let period = self.voice[chn].n_10_period;
-        self.percalc(chn, period, &mut mixer);
-    }
 
     fn l577_2_checkcom(&mut self, chn: usize, mut mixer: &mut Mixer) {
         let cmd = self.voice[chn].n_2_cmd & 0xf;
         if self.voice[chn].n_2_cmd & 0x0f == 0 && self.voice[chn].n_3_cmdlo == 0 {
-            self.nejdu(chn, &mut mixer);
+            // NEJDU
+            let period = self.voice[chn].n_10_period;
+            self.percalc(chn, period, &mut mixer);
             return
         }
         match cmd {
@@ -588,7 +587,7 @@ struct ChannelData {
     n_9_dataloopend  : u8,
     n_13_volume      : u8,
     n_1d_prog_datacou: u8,
-    n_1e_currstamm   : u8,
+    n_1e_finetune    : u8,
 
     prog_ins: usize,
 }

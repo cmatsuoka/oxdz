@@ -121,8 +121,8 @@ impl ModPlayer {
         for chn in 0..4 {
             let ch = &mut self.mt_chantemp[chn];
             mixer.set_loop_start(chn, ch.n_loopstart - ch.n_start);
-            mixer.set_loop_end(chn, ch.n_loopstart - ch.n_start + ch.n_replen as u32);
-            mixer.enable_loop(chn, ch.n_replen > 2);
+            mixer.set_loop_end(chn, ch.n_loopstart - ch.n_start + ch.n_replen as u32 * 2);
+            mixer.enable_loop(chn, ch.n_replen > 1);
         }
     }
 
@@ -146,14 +146,14 @@ impl ModPlayer {
             if ins > 0 && ins <= 31 {       // sanity check: was: ins != 0
                 let instrument = &module.instruments[ins - 1];
                 ch.n_start = self.mt_samplestarts[ins - 1];
-                ch.n_length = instrument.repeat + instrument.replen * 2;
+                ch.n_length = instrument.size;
                 //ch.n_reallength = instrument.size;
                 // PT2.3D fix: mask finetune
                 ch.n_finetune = instrument.finetune & 0x0f;
                 ch.n_volume = instrument.volume;
                 ch.n_replen = instrument.replen * 2;
 
-                if instrument.repeat > 0 {
+                if instrument.repeat != 0 {
                     ch.n_loopstart = ch.n_start + instrument.repeat as u32 * 2;
                     ch.n_wavestart = ch.n_loopstart;
                     ch.n_length = instrument.repeat + ch.n_replen;
@@ -162,7 +162,7 @@ impl ModPlayer {
                     // mt_NoLoop
                     ch.n_loopstart = ch.n_start;
                     ch.n_wavestart = ch.n_start;
-                    ch.n_replen = instrument.replen * 2;  // MOVE.W  6(A3,D4.L),n_replen(A6) ; Save replen
+                    ch.n_replen = instrument.replen;                           // MOVE.W  6(A3,D4.L),n_replen(A6) ; Save replen
                     mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 }
             }
