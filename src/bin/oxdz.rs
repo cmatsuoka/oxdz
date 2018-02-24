@@ -74,7 +74,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     println!("Patterns: {}", module.patterns());
     println!("Position: {} ({})", player.position(), module.pattern_in_position(player.data.pos).unwrap());
 
-    show_pattern(&module, 14);
+    show_pattern(&module, 0);
 
     let mut frame_info = FrameInfo::new();
 
