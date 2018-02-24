@@ -464,7 +464,7 @@ impl HmnPlayer {
 
     fn l577_2_checkcom2(&mut self, chn: usize, mut mixer: &mut Mixer) {
         match self.voice[chn].n_2_cmd & 0xf {
-            0xe => self.l577_h_setfilt(),
+            0xe => self.l577_h_setfilt(chn, &mut mixer),
             0xd => self.l577_i_pattbreak(),
             0xb => self.l577_j_mt_posjmp(chn),
             0xc => self.l577_k_setvol(chn, &mut mixer),
@@ -475,7 +475,9 @@ impl HmnPlayer {
         }
     }
 
-    fn l577_h_setfilt(&self) {
+    fn l577_h_setfilt(&mut self, chn: usize, mixer: &mut Mixer) {
+        let ch = &mut self.voice[chn];
+        mixer.enable_filter(ch.n_3_cmdlo & 0x0f != 0);
     }
 
     fn l577_i_pattbreak(&mut self) {

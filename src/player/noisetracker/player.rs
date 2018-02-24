@@ -282,7 +282,7 @@ impl ModPlayer {
 
     fn mt_checkcom2(&mut self, chn: usize, mut mixer: &mut Mixer) {
         match self.mt_voice[chn].n_2_cmd & 0xf {
-            0xe => self.mt_setfilt(),
+            0xe => self.mt_setfilt(chn, &mut mixer),
             0xd => self.mt_pattbreak(),
             0xb => self.mt_posjmp(chn),
             0xc => self.mt_setvol(chn, &mut mixer),
@@ -291,8 +291,11 @@ impl ModPlayer {
         }
     }
 
-    fn mt_setfilt(&self) {
+    fn mt_setfilt(&mut self, chn: usize, mixer: &mut Mixer) {
+        let ch = &mut self.mt_voice[chn];
+        mixer.enable_filter(ch.n_3_cmdlo & 0x0f != 0);
     }
+
 
     fn mt_pattbreak(&mut self) {
         self.mt_break = !self.mt_break;

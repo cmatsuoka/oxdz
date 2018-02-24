@@ -30,6 +30,7 @@ pub struct Paula {
 
     pub remainder: f64,
     pub fdiv     : f64,
+    filter       : bool,
 }
 
 impl Paula {
@@ -40,12 +41,14 @@ impl Paula {
             bleps              : [Default::default(); MAX_BLEPS],
             fdiv               : PAULA_HZ / freq as f64,
             remainder          : PAULA_HZ / freq as f64,
+            filter             : false,
         }
     }
 
     // return output simulated as series of bleps
-    pub fn output_sample(&self, tabnum: usize) -> i16 {
+    pub fn output_sample(&self) -> i16 {
         let mut output = (self.global_output_level as i32) << BLEP_SCALE;
+        let tabnum = if self.filter { 1 } else { 0 };
         for i in 0..self.active_bleps {
             let age = self.bleps[i].age as usize;
             let level = self.bleps[i].level as i32;
@@ -92,6 +95,10 @@ impl Paula {
                 break
             }
         }
+    }
+
+    pub fn enable_filter(&mut self, val: bool) {
+        self.filter = val
     }
 }
 

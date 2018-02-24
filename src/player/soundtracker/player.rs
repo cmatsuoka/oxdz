@@ -189,7 +189,7 @@ impl StPlayer {
             0xb => self.mt_posjmp(chn),
             0xc => self.mt_setvol(chn, &mut mixer),
             0xd => self.mt_break(),
-            0xe => self.mt_setfil(),
+            0xe => self.mt_setfil(chn, &mut mixer),
             0xf => self.mt_setspeed(chn),
             _   => {},
         }
@@ -211,7 +211,9 @@ impl StPlayer {
         self.mt_status = !self.mt_status;
     }
 
-    fn mt_setfil(&self) {
+    fn mt_setfil(&mut self, chn: usize, mixer: &mut Mixer) {
+        let ch = &mut self.mt_audtemp[chn];
+        mixer.enable_filter(ch.n_3_cmdlo & 0x0f != 0);
     }
 
     fn mt_setspeed(&mut self, chn: usize) {

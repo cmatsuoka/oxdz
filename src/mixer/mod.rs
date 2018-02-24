@@ -79,6 +79,15 @@ impl<'a> Mixer<'a> {
         }
     }
 
+    pub fn enable_filter(&mut self, val: bool) {
+        for v in &mut self.voices {
+            match v.paula {
+                Some(ref mut paula) => paula.enable_filter(val),
+                None                => (),
+            };
+        }
+    }
+
     pub fn set_tempo(&mut self, tempo: usize) {
         self.framesize = ((self.rate as f64 * PAL_RATE) / (self.factor * tempo as f64 * 100.0)) as usize;
     }
@@ -452,7 +461,6 @@ impl MixerData {
         let mut pos = self.pos as usize;
         let mut frac = ((1 << SMIX_SHIFT) as f64 * (self.pos - pos as f64)) as usize;
         let mut bpos = self.buf_pos;
-        let filter = 0;
 
         for _ in 0..self.size {
             let num_in = paula.remainder as usize / paula::MINIMUM_INTERVAL;
@@ -478,7 +486,7 @@ impl MixerData {
             pos += frac >> SMIX_SHIFT;
             frac &= SMIX_MASK;
 
-            let smp = paula.output_sample(filter) as i32;
+            let smp = paula.output_sample() as i32;
             let cycles = (paula::MINIMUM_INTERVAL - paula.remainder as usize) as i16;
             paula.do_clock(cycles);
 

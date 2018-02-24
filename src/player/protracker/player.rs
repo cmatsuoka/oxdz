@@ -633,7 +633,7 @@ impl ModPlayer {
     fn mt_e_commands(&mut self, chn: usize, mut mixer: &mut Mixer) {
 
         match self.mt_chantemp[chn].n_cmdlo >> 4 {
-           0x0 => self.mt_filter_on_off(),
+           0x0 => self.mt_filter_on_off(chn, &mut mixer),
            0x1 => self.mt_fine_porta_up(chn, &mut mixer),
            0x2 => self.mt_fine_porta_down(chn, &mut mixer),
            0x3 => self.mt_set_gliss_control(chn),
@@ -652,7 +652,9 @@ impl ModPlayer {
         }
     }
 
-    fn mt_filter_on_off(&self) {
+    fn mt_filter_on_off(&mut self, chn: usize, mixer: &mut Mixer) {
+        let ch = &mut self.mt_chantemp[chn];
+        mixer.enable_filter(ch.n_cmdlo & 0x0f != 0);
     }
 
     fn mt_set_gliss_control(&mut self, chn: usize) {
