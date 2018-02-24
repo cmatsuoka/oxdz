@@ -159,7 +159,6 @@ fn load_sample(b: &[u8], ofs: usize, i: usize, ins: &ModInstrument) -> Sample {
     smp.name = ins.name.to_owned();
     smp.address = ofs as u32;
     smp.size = ins.size as u32 * 2;
-    smp.rate = util::C4_PAL_RATE;
     if smp.size > 0 {
         smp.sample_type = SampleType::Sample8;
     }

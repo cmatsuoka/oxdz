@@ -175,7 +175,6 @@ fn load_sample(b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sam
     smp.address = (ins.memseg as u32) << 4;
     smp.name = ins.name.to_owned();
     smp.size = ins.length;
-    smp.rate = 8363.0;
 
     if smp.size > 0 {
         smp.sample_type = if ins.flags & 0x04 != 0 { SampleType::Sample16 } else { SampleType::Sample8 };

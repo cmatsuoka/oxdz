@@ -123,7 +123,7 @@ fn load_sample(b: &[u8], ofs: usize, i: usize, ins: &StmInstrument) -> Sample {
     smp.num = i + 1;
     smp.address = ofs as u32;
     smp.name = ins.name.to_owned();
-    smp.rate = ins.c2spd as f64;
+    smp.rate = ins.c2spd as f64 / 8448.0;
     smp.size = ins.size as u32;
     if smp.size > 0 {
         smp.sample_type = SampleType::Sample8;

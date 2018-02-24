@@ -8,6 +8,13 @@ use ::*;
 mod interpolator;
 mod paula;
 
+
+const C4_PAL_RATE : f64 = 8287.0;   // 7093789.2 / period (C4) * 2
+const C4_NTSC_RATE: f64 = 8363.0;   // 7159090.5 / period (C4) * 2
+
+// [Amiga] PAL color carrier frequency (PCCF) = 4.43361825 MHz
+// [Amiga] CPU clock = 1.6 * PCCF = 7.0937892 MHz
+
 const PAL_RATE     : f64 = 250.0;
 const C4_PERIOD    : f64 = 428.0;
 const SMIX_SHIFT   : usize = 16;
@@ -230,7 +237,7 @@ impl<'a> Mixer<'a> {
             let vol_l = v.vol * (0x80 + v.pan) as usize;
         
             let sample = &self.sample[v.smp];
-            let step = C4_PERIOD * sample.rate / self.rate as f64 / v.period;
+            let step = C4_PERIOD * C4_PAL_RATE * sample.rate / self.rate as f64 / v.period;
             if step < 0.001 {
                 continue;
             }

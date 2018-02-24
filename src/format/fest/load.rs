@@ -123,7 +123,6 @@ fn load_mupp(b: &[u8], ofs: usize, i: usize, pat_num: usize) -> Sample {
     smp.name = format!("Mupp @{}", pat_num);
     smp.address = ofs as u32;
     smp.size = 28*32;
-    smp.rate = util::C4_PAL_RATE;
     smp.sample_type = SampleType::Sample8;
     smp.store(b);
 
@@ -137,7 +136,6 @@ fn load_sample(b: &[u8], ofs: usize, i: usize, ins: &ModInstrument) -> Sample {
     smp.name = ins.name.to_owned();
     smp.address = ofs as u32;
     smp.size = ins.size as u32 * 2;
-    smp.rate = util::C4_PAL_RATE;
     if smp.size > 0 {
         smp.sample_type = SampleType::Sample8;
     }

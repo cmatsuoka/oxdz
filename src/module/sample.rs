@@ -29,7 +29,7 @@ impl Sample {
             num         : 0,
             address     : 0,
             size        : 0,
-            rate        : 8000_f64,
+            rate        : 1.0,
             name        : "".to_owned(),
             data        : Vec::new(),
         }
