@@ -377,6 +377,9 @@ impl Voice {
         if self.loop_end > sample.size {
             self.loop_end = sample.size;
         }
+        if self.pos > self.loop_end as f64 {
+            self.pos = self.loop_end as f64;
+        }
         
         let loop_size = self.loop_end - self.loop_start;
 
