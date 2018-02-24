@@ -11,7 +11,7 @@ impl PlayerListEntry for Hmn {
        PlayerInfo {
           id         : "hmn",
           name       : "His Master's Noise replayer",
-          description: "JAG VILL HELST HA EN GET I JULKLAPP",
+          description: "Jag vill helst ha en get i julklapp",
           author     : "Claudio Matsuoka",
           accepts    : &[ "fest", "m.k." ],
        }

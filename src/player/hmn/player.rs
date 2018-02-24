@@ -196,6 +196,7 @@ impl HmnPlayer {
                     ch.n_13_volume = instrument.volume;                        // move.B  $3(a3,d4.l),$13(a6)     ;volume
                     ch.n_8_dataloopstart = insname[5];                         // move.b  -$16+$5(a3,d4.l),8(a6)  ;dataloopstart
                     ch.n_9_dataloopend = insname[6];                           // move.b  -$16+$6(a3,d4.l),9(a6)  ;dataloopend
+                    ch.n_8_length = ((insname[5] as u16) << 8) | insname[6] as u16;  // ouch! that was a nasty variable reuse trick
                     ch.n_e_replen = 0x20;                                      // move.w  #$10,$e(a6)     ;looplen
                 } else {
                     // noprgo
@@ -204,9 +205,9 @@ impl HmnPlayer {
                     ch.n_12_volume = 0x40;                                     // move.b  #$40,$12(a6)
                     if instrument.repeat != 0 {                                // MOVE.W  $4(A3,D4.L),D3 / TST.W   D3
                         ch.n_a_loopstart = instrument.repeat as u32;           // MOVE.L  D2,$A(A6)       ;LOOPSTARTPOI
-                        ch.n_8_length = instrument.repeat + instrument.replen;                 // MOVE.W  $4(A3,D4.L),D0  ;REPEAT
-                                                                                               // ADD.W   $6(A3,D4.L),D0  ;+REPLEN
-                                                                                               // MOVE.W  D0,$8(A6)       ;STARTLENGTH
+                        ch.n_8_length = instrument.repeat + instrument.replen; // MOVE.W  $4(A3,D4.L),D0  ;REPEAT
+                                                                               // ADD.W   $6(A3,D4.L),D0  ;+REPLEN
+                                                                               // MOVE.W  D0,$8(A6)       ;STARTLENGTH
                         ch.n_e_replen = instrument.replen;                     // MOVE.W  $6(A3,D4.L),$E(A6);LOOPLENGTH
                     } else {
                         // L505_K_noloop
@@ -236,7 +237,7 @@ impl HmnPlayer {
                             let ch = &mut self.voice[chn];
                             ch.n_10_period = (ch.n_0_note & 0xfff) as i16;
                             ch.n_1b_vibpos = 0;                    // CLR.B   $1B(A6)
-                            ch.n_1d_prog_lj = 0;                   // clr.b   $1d(a6) ;proglj-datacou
+                            ch.n_1d_prog_datacou = 0;              // clr.b   $1d(a6) ;proglj-datacou
                             if ch.n_1c_prog_on {
                                 mixer.set_sample_ptr(chn, ch.n_4_samplestart);
                                 mixer.set_loop_start(chn, ch.n_a_loopstart);
@@ -266,17 +267,17 @@ impl HmnPlayer {
         let ch = &mut self.voice[chn];
 
         if ch.n_1c_prog_on {
-            let mut datacou = ch.n_1d_prog_lj;
+            let mut datacou = ch.n_1d_prog_datacou;
             let sample = &module.samples()[ch.prog_ins];
             let index = 0x380 + datacou as usize;
-            ch.n_12_volume = sample.data[index + 0x40] & 0x7f;            // progvolume
-            mixer.set_loop_start(chn, sample.data[index] as u32 * 0x20);  // loopstartmempoi
+            ch.n_12_volume = sample.data[index + 0x40] & 0x7f;     // progvolume
+            ch.n_a_loopstart = sample.data[index] as u32 * 0x20;   // loopstartmempoi
             datacou += 1;
             if datacou > ch.n_9_dataloopend {
                 datacou = ch.n_8_dataloopstart;
             }
             // norestartofdata
-            ch.n_1d_prog_lj = datacou;
+            ch.n_1d_prog_datacou = datacou;
         }
         // norvolum
         let volume = (ch.n_12_volume as u16 * ch.n_13_volume as u16) as usize >> 6;
@@ -565,28 +566,29 @@ impl FormatPlayer for HmnPlayer {
 
 #[derive(Clone,Default)]
 struct ChannelData {
-    n_0_note        : u16,
-    n_2_cmd         : u8,
-    n_3_cmdlo       : u8,
-    n_4_samplestart : u32,
-    n_8_length      : u16,
-    n_a_loopstart   : u32,
-    n_e_replen      : u16,
-    n_10_period     : i16,
-    n_12_volume     : u8,
+    n_0_note         : u16,
+    n_2_cmd          : u8,
+    n_3_cmdlo        : u8,
+    n_4_samplestart  : u32,
+    n_8_length       : u16,
+    n_a_loopstart    : u32,
+    n_e_replen       : u16,
+    n_10_period      : i16,
+    n_12_volume      : u8,
     //n_14_dma_control: u16,
-    n_16_portdir    : bool,
-    n_17_toneportspd: u8,
-    n_18_wantperiod : i16,
-    n_1a_vibrato    : u8,
-    n_1b_vibpos     : u8,
-    n_1c_prog_on    : bool,
-    n_1d_prog_lj    : u8,
-    n_1e_currstamm  : u8,
+    n_16_portdir     : bool,
+    n_17_toneportspd : u8,
+    n_18_wantperiod  : i16,
+    n_1a_vibrato     : u8,
+    n_1b_vibpos      : u8,
+    n_1c_prog_on     : bool,
 
+    // progdata
     n_8_dataloopstart: u8,
     n_9_dataloopend  : u8,
     n_13_volume      : u8,
+    n_1d_prog_datacou: u8,
+    n_1e_currstamm   : u8,
 
     prog_ins: usize,
 }
