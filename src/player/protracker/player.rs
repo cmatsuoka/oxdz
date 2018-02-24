@@ -3,9 +3,9 @@ use player::{Options, PlayerData, FormatPlayer};
 use format::mk::ModData;
 use mixer::Mixer;
 
-/// PT2.1A Replayer
+/// PT2.3A Replayer
 ///
-/// An oxdz player based on the Protracker V2.1A play routine written by Peter
+/// An oxdz player based on the Protracker V2.1A/V2.3A replayer written by Peter
 /// "CRAYON" Hanning / Mushroom Studios in 1992. Original names are used whenever
 /// possible (converted to snake case according to Rust convention, i.e.
 /// mt_PosJumpFlag becomes mt_pos_jump_flag).
