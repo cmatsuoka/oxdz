@@ -2,6 +2,7 @@ mod ft2play;
 
 use module::Module;
 use player::{Options, PlayerListEntry, PlayerInfo, FormatPlayer};
+use ::Error;
 
 pub struct Ft2;
 
@@ -18,5 +19,9 @@ impl PlayerListEntry for Ft2 {
 
    fn player(&self, module: &Module, options: Options) -> Box<FormatPlayer> {
        Box::new(self::ft2play::Ft2Play::new(module, options))
+   }
+
+   fn import(&self, module: Module) -> Result<Module, Error> {
+       Ok(module)
    }
 }
