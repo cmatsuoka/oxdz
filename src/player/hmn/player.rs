@@ -364,17 +364,30 @@ impl HmnPlayer {
         ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add((ch.n_1a_vibrato >> 2) & 0x3c);
     }
 
-    fn megaarp(&mut self, chn: usize, mixer: &mut Mixer) {
-        let ch = &mut self.voice[chn];
-        let pos = ch.n_1b_vibpos;
-        ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add(1);
-        let index = ((ch.n_3_cmdlo & 0xf) << 4) + pos;
-        //MEGA_ARP[index] * 2
-        //ch.n_10_period & 0xfff
+    fn megaarp(&mut self, chn: usize, mut mixer: &mut Mixer) {
+        let mut val = {
+            let ch = &mut self.voice[chn];
+            let pos = ch.n_1b_vibpos;
+            ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add(1);
+            let index = ((ch.n_3_cmdlo & 0xf) << 4) + (pos & 0xf);
+            MEGA_ARPS[index as usize] as usize
+        };
+
+        // MegaAlo
+        for i in 0..36 {
+            if self.voice[chn].n_10_period&0xfff >= PERIODS[i] {
+                if i+val <= PERIODS.len() {
+                    val -= 12;
+                }
+                // MegaOk
+                self.percalc(chn, PERIODS[i+val], &mut mixer);
+                return
+            }
+        }
     }
 
     fn percalc(&mut self, chn: usize, val: i16, mixer: &mut Mixer) {
-        mixer.set_period(chn, (((self.voice[chn].n_1e_finetune as i16 * val) >> 8) + val) as f64);
+        mixer.set_period(chn, (((self.voice[chn].n_1e_finetune as i8 as i16 * val) >> 8) + val) as f64);
     }
 
 
