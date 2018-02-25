@@ -4,7 +4,7 @@ use format::mk::{ModData, ModPatterns, ModInstrument};
 use format::mk::fingerprint::{Fingerprint, TrackerID};
 use module::{Module, Sample};
 use module::sample::SampleType;
-use util::{self, BinaryRead};
+use util::BinaryRead;
 use ::*;
 
 /// Amiga tracker module loader

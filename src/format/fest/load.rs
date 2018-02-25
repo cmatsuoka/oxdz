@@ -3,7 +3,7 @@ use format::{FormatInfo, Format, Loader};
 use format::mk::{ModData, ModPatterns, ModInstrument};
 use module::{Module, Sample};
 use module::sample::SampleType;
-use util::{self, BinaryRead};
+use util::BinaryRead;
 use ::*;
 
 /// His Master's Noise module loader
@@ -64,7 +64,6 @@ impl Loader for FestLoader {
         let mut ofs = 1084 + 256*chn*pat;
         for i in 0..31 {
             if &instruments[i].name[..4] == "Mupp" {
-                let size = 28*32;
                 let pat_num = instruments[i].name.as_bytes()[4] as usize;
                 let pat_ofs = 1084 + 1024*pat_num;
                 let smp = load_mupp(b.slice(pat_ofs, 1024)?, pat_ofs, i, pat_num);

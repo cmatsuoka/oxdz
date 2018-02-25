@@ -29,9 +29,8 @@ pub struct Oxdz {
 }
 
 impl<'a> Oxdz {
-    pub fn new(b: &[u8], mut player_id: &str) -> Result<Self, Error> {
+    pub fn new(b: &[u8], player_id: &str) -> Result<Self, Error> {
         let mut module = format::load(&b, &player_id)?;
-        let player = module.player.to_owned();
         let id = (if player_id.is_empty() { module.player } else { player_id }).to_owned();
 
         // import the module if needed

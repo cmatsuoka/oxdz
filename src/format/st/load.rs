@@ -4,7 +4,7 @@ use format::st::StData;
 use format::mk::{ModPatterns, ModInstrument};
 use module::{Module, Sample};
 use module::sample::SampleType;
-use util::{self, BinaryRead};
+use util::BinaryRead;
 use ::*;
 
 

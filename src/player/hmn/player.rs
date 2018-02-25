@@ -399,14 +399,14 @@ impl HmnPlayer {
                 let period = self.voice[chn].n_10_period;
                 self.percalc(chn, period, &mut mixer);
                 match cmd {
-                    0xa => self.l577_3_volslide(chn, &mut mixer),
+                    0xa => self.l577_3_volslide(chn),
                     _   => {},
                 }
             }
         }
     }
 
-    fn l577_3_volslide(&mut self, chn: usize, mixer: &mut Mixer) {
+    fn l577_3_volslide(&mut self, chn: usize) {
         let ch = &mut self.voice[chn];
         if ch.n_3_cmdlo >> 4 == 0 {
             // mt_voldown
@@ -426,12 +426,12 @@ impl HmnPlayer {
 
     fn vibvolslide(&mut self, chn: usize, mut mixer: &mut Mixer) {
         self.vibrato(chn, &mut mixer);
-        self.l577_3_volslide(chn, &mut mixer);
+        self.l577_3_volslide(chn);
     }
 
     fn myportvolslide(&mut self, chn: usize, mut mixer: &mut Mixer) {
         self.myslide(chn, &mut mixer);
-        self.l577_3_volslide(chn, &mut mixer);
+        self.l577_3_volslide(chn);
     }
 
     fn l577_7_portup(&mut self, chn: usize, mut mixer: &mut Mixer) {
@@ -467,7 +467,7 @@ impl HmnPlayer {
             0xe => self.l577_h_setfilt(chn, &mut mixer),
             0xd => self.l577_i_pattbreak(),
             0xb => self.l577_j_mt_posjmp(chn),
-            0xc => self.l577_k_setvol(chn, &mut mixer),
+            0xc => self.l577_k_setvol(chn),
             0xf => self.l577_m_setspeed(chn),
             _   => {
                 self.l577_2_checkcom(chn, &mut mixer)
@@ -490,7 +490,7 @@ impl HmnPlayer {
         self.l681_break = !self.l681_break;
     }
 
-    fn l577_k_setvol(&mut self, chn: usize, mixer: &mut Mixer) {
+    fn l577_k_setvol(&mut self, chn: usize) {
         let ch = &mut self.voice[chn];
         if ch.n_3_cmdlo > 0x40 {            // cmp.b   #$40,$3(a6)
             ch.n_3_cmdlo = 40               // move.b  #$40,$3(a6)
