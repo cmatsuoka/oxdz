@@ -1,26 +1,20 @@
 use mixer::SMIX_SHIFT;
 
-pub trait Interpolate {
-    fn name() -> &'static str;
-    fn bsize() -> usize;
+pub trait Interpolator: Send + Sync {
+    fn name(&self) -> &'static str;
+    fn bsize(&self) -> usize;
     fn get_sample(&self, &[i32], i32) -> i32;
-}
-
-pub enum Interpolator {
-    Nearest,
-    Linear,
-    Spline,
 }
 
 // Nearest neighbor interpolator
 pub struct Nearest;
 
-impl Interpolate for Nearest {
-    fn name() -> &'static str {
+impl Interpolator for Nearest {
+    fn name(&self) -> &'static str {
         "nearest neighbor"
     }
 
-    fn bsize() -> usize {
+    fn bsize(&self) -> usize {
         2
     }
 
@@ -33,12 +27,12 @@ impl Interpolate for Nearest {
 // Linear interpolator
 pub struct Linear;
 
-impl Interpolate for Linear {
-    fn name() -> &'static str {
+impl Interpolator for Linear {
+    fn name(&self) -> &'static str {
         "linear"
     }
 
-    fn bsize() -> usize {
+    fn bsize(&self) -> usize {
         2
     }
 
@@ -55,12 +49,12 @@ pub struct Spline;
 
 const SPLINE_SHIFT: u32 = 14;
 
-impl Interpolate for Spline {
-    fn name() -> &'static str {
+impl Interpolator for Spline {
+    fn name(&self) -> &'static str {
         "spline"
     }
 
-    fn bsize() -> usize {
+    fn bsize(&self) -> usize {
         4
     }
 

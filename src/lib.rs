@@ -60,6 +60,7 @@ impl<'a> Oxdz {
 #[derive(Debug)]
 pub enum Error {
     Format(String),
+    Player(String),
     Load(String),
     Io(io::Error),
 }
@@ -68,6 +69,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Error::Format(ref descr) => write!(f, "{}", descr),
+            &Error::Player(ref descr) => write!(f, "{}", descr),
             &Error::Load(ref descr)   => write!(f, "{}", descr),
             &Error::Io(ref err)       => write!(f, "{}", err),
         }
@@ -78,6 +80,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Format(_)   => "Unsupported module format",
+            Error::Player(_)   => "Can't play module",
             Error::Load(_)     => "Can't load module data",
             Error::Io(ref err) => err.description(),
         }

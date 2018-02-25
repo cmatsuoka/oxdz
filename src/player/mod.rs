@@ -171,6 +171,10 @@ impl<'a> Player<'a> {
         self
     }
 
+    pub fn set_interpolator(&mut self, name: &str) -> Result<(), Error> {
+        self.mixer.set_interpolator(name)
+    }
+
 /*
     pub fn restart(&mut self) -> &Self {
         self.data.pos = 0;
