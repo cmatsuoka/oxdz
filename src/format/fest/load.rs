@@ -91,8 +91,8 @@ impl Loader for FestLoader {
 
         let m = Module {
             format_id  : "fest",
-            description: "His Master's Noise FEST".to_owned(),
-            creator    : "Smaksak".to_owned(),
+            description: "4 channel FEST".to_owned(),
+            creator    : "His Master's NoiseTracker".to_owned(),
             player     : "hmn",
             data       : Box::new(data),
         };
