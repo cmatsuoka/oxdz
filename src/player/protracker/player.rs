@@ -685,6 +685,7 @@ impl ModPlayer {
         if cmdlo == 0 {
             // mt_SetLoop
             ch.n_pattpos = self.mt_pattern_pos as u8;
+            ch.inside_loop = true;
         } else {
             if ch.n_loopcount == 0 {
                 // mt_jmpcnt
@@ -692,6 +693,7 @@ impl ModPlayer {
             } else {
                 ch.n_loopcount -= 1;
                 if ch.n_loopcount == 0 {
+                    ch.inside_loop = false;
                     return
                 }
             }
@@ -888,6 +890,8 @@ struct ChannelData {
     n_loopcount    : u8,
     n_funkoffset   : u8,
     n_wavestart    : u32,
+
+    inside_loop    : bool,
 }
 
 impl ChannelData {

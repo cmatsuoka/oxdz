@@ -1,4 +1,4 @@
-//mod scan;
+mod scan;
 mod protracker;
 mod noisetracker;
 mod soundtracker;
@@ -13,6 +13,7 @@ use std::cmp;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use module::{Module, ModuleData};
+use player::scan::ScanData;
 use util::MemOpExt;
 use ::*;
 
@@ -107,6 +108,10 @@ pub struct PlayerData {
 
     initial_speed: usize,
     initial_tempo: usize,
+
+    loop_count: usize,
+    end_point : usize,
+    scan_data : [ScanData; MAX_SEQUENCES],
 }
 
 impl PlayerData {
@@ -122,6 +127,18 @@ impl PlayerData {
         self.speed = self.initial_speed;
         self.tempo = self.initial_tempo;
     }
+
+    pub fn check_end_of_module(&mut self) {
+        let song = self.song;
+        if self.pos == self.scan_data[song].ord && self.row == self.scan_data[song].row {
+            if self.end_point == 0 {
+                self.loop_count += 1;
+                self.end_point = self.scan_data[song].num;
+            }
+            self.end_point -= 1;
+        }
+    }
+
 }
 
 
