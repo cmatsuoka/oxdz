@@ -156,7 +156,7 @@ fn load_instrument(b: &[u8], ofs: usize) -> Result<S3mInstrument, Error> {
     let mut ins = S3mInstrument::new();
 
     ins.typ      = b.read8(ofs)?;
-    ins.memseg   = b.read16l(ofs + 0x0e)?;
+    ins.memseg   = (b.read16l(ofs + 0x0e)? as u32) | ((b.read8(ofs + 0x0d)? as u32) << 16);
     ins.length   = b.read16l_lo_hi(ofs + 0x10)?;
     ins.loop_beg = b.read16l_lo_hi(ofs + 0x14)?;
     ins.loop_end = b.read16l_lo_hi(ofs + 0x18)?;

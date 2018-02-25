@@ -278,6 +278,7 @@ impl St3Play {
         if tmpspd == 0 {
             // cut channel
             //self.voice_set_sampling_frequency(ch, 0);
+            mixer.set_period(ch, 0.0);
             return;
         }
 
@@ -557,7 +558,7 @@ impl St3Play {
                         let has_loop = insdat.flags & 1 != 0 && inslen != 0 && insrepend > insrepbeg;
 
                         // This specific portion differs from what sound card driver you use in ST3...
-                        if self.soundcardtype == SOUNDCARD_SB || cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64) {
+                        if self.soundcardtype == SOUNDCARD_SB || (cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64)) {
                             mixer.set_sample(ch, ins);
                             mixer.set_loop_start(ch, insrepbeg);
                             mixer.set_loop_end(ch, insrepend);
@@ -2095,7 +2096,7 @@ impl FormatPlayer for St3Play {
 
         let module = mdata.as_any().downcast_ref::<S3mData>().unwrap();
 
-        self.soundcardtype == SOUNDCARD_GUS;
+        self.soundcardtype = SOUNDCARD_GUS;
 
         self.loadheaderparms(&module);
 

@@ -166,7 +166,7 @@ impl ModuleData for S3mData {
 #[derive(Debug, Default)]
 pub struct S3mInstrument {
     pub typ     : u8,
-    pub memseg  : u16,
+    pub memseg  : u32,
     pub length  : u32,
     pub loop_beg: u32,
     pub loop_end: u32,
