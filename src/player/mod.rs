@@ -247,6 +247,14 @@ impl<'a> Player<'a> {
         self
     }
 
+    pub fn set_mute(&mut self, chn: usize, val: bool) {
+        self.mixer.set_mute(chn, val)
+    }
+
+    pub fn set_mute_all(&mut self, val: bool) {
+        self.mixer.set_mute_all(val)
+    }
+
     pub fn position(&self) -> usize {
         self.data.pos
     }

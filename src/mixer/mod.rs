@@ -213,6 +213,17 @@ impl<'a> Mixer<'a> {
         self.voices[voice].has_loop = val;
     }
 
+    pub fn set_mute(&mut self, voice: usize, val: bool) {
+        try_voice!(voice, self.voices);
+        self.voices[voice].mute = val;
+    }
+
+    pub fn set_mute_all(&mut self, val: bool) {
+        for mut v in &mut self.voices {
+            v.mute = val
+        }
+    }
+
     pub fn mix(&mut self) {
 
         let mut md = MixerData{
@@ -227,7 +238,7 @@ impl<'a> Mixer<'a> {
         self.buf32[..].fill(0, self.framesize);
 
         for v in &mut self.voices {
-            if v.period < 1.0 {
+            if v.mute || v.period < 1.0 {
                 continue
             }
 
@@ -372,6 +383,7 @@ struct Voice {
     loop_end  : u32,
     has_loop  : bool,
     sample_end: bool,
+    mute      : bool,
 
     i_buffer  : [i32; 4],
 
