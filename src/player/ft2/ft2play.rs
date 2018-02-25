@@ -146,7 +146,7 @@ struct StmTyp {
     e_vib_amp             : u16,
     e_vib_sweep           : u16,
     porta_speed           : u16,
-    want_period           : u16,
+    want_period           : i16, //u16,
     final_period          : u16,
     out_period            : u16,
     fade_out_amp          : u32,
@@ -960,11 +960,11 @@ impl<'a> Ft2Play<'a> {
                 let porta_tmp = ((((p.ton as i8 - 1) + ch.rel_ton_nr) & 0x00FF) * 16) + ((ch.fine_tune >> 3) + 16) & 0x00FF;
 
                 if porta_tmp < MAX_NOTES as i8 {
-                    ch.want_period = self.note2period[porta_tmp as usize] as u16;
+                    ch.want_period = self.note2period[porta_tmp as usize];
 
-                    if ch.want_period == ch.real_period as u16 {
+                    if ch.want_period == ch.real_period {
                         ch.porta_dir = 0
-                    } else if ch.want_period > ch.real_period as u16 {
+                    } else if ch.want_period > ch.real_period {
                         ch.porta_dir = 1;
                     } else {
                         ch.porta_dir = 2;
@@ -1352,7 +1352,7 @@ impl<'a> Ft2Play<'a> {
         let period_table = &self.note2period;
 
         for i in 0..8 {
-            let mut tmp_period = (((lo_period + hi_period) / 2) & !15) + fine_tune;
+            let tmp_period = (((lo_period + hi_period) / 2) & !15) + fine_tune;
 
             let mut table_index = tmp_period as i32 - 8;
             if table_index < 0 {  // added security check
@@ -1378,7 +1378,516 @@ impl<'a> Ft2Play<'a> {
         return period_table[tmp_period as usize];
     }
 
+    fn tone_porta(&mut self, chn: usize) {
 
+        if self.stm[chn].porta_dir != 0 {
+            if self.stm[chn].porta_dir > 1 {
+                let ch = &mut self.stm[chn];
+                ch.real_period -= ch.porta_speed as i16;
+                if ch.real_period <= ch.want_period {
+                    ch.porta_dir   = 1;
+                    ch.real_period = ch.want_period;
+                }
+            } else {
+                let ch = &mut self.stm[chn];
+                ch.real_period += ch.porta_speed as i16;
+                if ch.real_period >= ch.want_period {
+                    ch.porta_dir   = 1;
+                    ch.real_period = ch.want_period;
+                }
+            }
+    
+            if self.stm[chn].gliss_funk != 0 {  // semi-tone slide flag
+                let period = self.stm[chn].real_period;
+                self.stm[chn].out_period = self.relocate_ton(period, 0, chn) as u16;
+            } else {
+                self.stm[chn].out_period = self.stm[chn].real_period as u16;
+            }
+    
+            self.stm[chn].status |= IS_PERIOD;
+        }
+    }
+    
+    fn volume(&mut self, chn: usize) {  // actually volume slide
+        let ch = &mut self.stm[chn];
+
+        let mut tmp_eff = ch.eff;
+        if tmp_eff == 0 {
+            tmp_eff = ch.vol_slide_speed;
+        }
+    
+        ch.vol_slide_speed = tmp_eff;
+    
+        if tmp_eff & 0xF0 == 0 {
+            // unsigned clamp
+            if ch.real_vol >= tmp_eff as i8 {
+                ch.real_vol -= tmp_eff as i8;
+            } else {
+                ch.real_vol = 0;
+            }
+        } else {
+            // unsigned clamp
+            if ch.real_vol <= 64 - (tmp_eff >> 4) as i8 {
+                ch.real_vol += (tmp_eff >> 4) as i8;
+            } else {
+                ch.real_vol = 64;
+            }
+        }
+    
+        ch.out_vol = ch.real_vol;
+        ch.status |= IS_VOL;
+    }
+    
+    fn vibrato2(&mut self, chn: usize) {
+        let ch = &mut self.stm[chn];
+    
+        let mut tmp_vib = (ch.vib_pos / 4) & 0x1F;
+    
+        match ch.wave_ctrl & 0x03 {
+            // 0: sine
+            0 => tmp_vib = VIB_TAB[tmp_vib as usize],
+    
+            // 1: ramp
+            1 => {
+                tmp_vib *= 8;
+                if ch.vib_pos >= 128 {
+                    tmp_vib ^= 0xFF;
+                }
+            }
+    
+            // 2/3: square
+            _ => tmp_vib = 255,
+        }
+    
+        tmp_vib = (tmp_vib * ch.vib_depth) / 32;
+    
+        ch.out_period = if ch.vib_pos >= 128 {
+            ch.real_period - tmp_vib as i16
+        } else {
+            ch.real_period + tmp_vib as i16
+        } as u16;
+    
+        ch.status |= IS_PERIOD;
+        ch.vib_pos += ch.vib_speed;
+    }
+    
+    fn vibrato(&mut self, chn: usize) {
+        {
+            let ch = &mut self.stm[chn];
+    
+            if ch.eff != 0 {
+                if ch.eff & 0x0F != 0 {
+                    ch.vib_depth = ch.eff & 0x0F;
+                }
+                if ch.eff & 0xF0 != 0 {
+                    ch.vib_speed = (ch.eff >> 4) * 4;
+                }
+            }
+        }
+    
+        self.vibrato2(chn);
+    }
+
+    fn do_effects(&mut self, chn: usize) {
+    
+        // *** VOLUME COLUMN EFFECTS (TICKS >0) ***
+
+        let vol_kol_vol = self.stm[chn].vol_kol_vol;
+    
+        // volume slide down
+        if vol_kol_vol & 0xF0 == 0x60 {
+            let ch = &mut self.stm[chn];
+
+            // unsigned clamp
+            if ch.real_vol >= (vol_kol_vol & 0x0F) as i8 {
+                ch.real_vol -= (vol_kol_vol & 0x0F) as i8;
+            } else {
+                ch.real_vol = 0;
+            }
+    
+            ch.out_vol = ch.real_vol;
+            ch.status |= IS_VOL;
+        }
+    
+        // volume slide up
+        else if vol_kol_vol & 0xF0 == 0x7 {
+            let ch = &mut self.stm[chn];
+
+            // unsigned clamp
+            if ch.real_vol <= 64 - (vol_kol_vol & 0x0F) as i8 {
+                ch.real_vol += (vol_kol_vol & 0x0F) as i8;
+            } else {
+                ch.real_vol = 64;
+            }
+    
+            ch.out_vol = ch.real_vol;
+            ch.status |= IS_VOL;
+        }
+    
+        // vibrato (+ set vibrato depth)
+        else if vol_kol_vol & 0xF0 == 0xB0 {
+            if vol_kol_vol != 0xB0 {
+                self.stm[chn].vib_depth = vol_kol_vol & 0x0F;
+            }
+    
+            self.vibrato2(chn);
+        }
+    
+        // pan slide left
+        else if vol_kol_vol & 0xF0 == 0xD0 {
+            let ch = &mut self.stm[chn];
+
+            // unsigned clamp + a bug when the parameter is 0
+            if vol_kol_vol & 0x0F == 0 || ch.out_pan < vol_kol_vol & 0x0F {
+                ch.out_pan = 0;
+            } else {
+                ch.out_pan -= vol_kol_vol & 0x0F;
+            }
+    
+            ch.status |= IS_PAN;
+        }
+    
+        // pan slide right
+        else if vol_kol_vol & 0xF0 == 0xE0 {
+            let ch = &mut self.stm[chn];
+
+            // unsigned clamp
+            if ch.out_pan <= 255 - (vol_kol_vol & 0x0F) {
+                ch.out_pan += vol_kol_vol & 0x0F;
+            } else {
+                ch.out_pan = 255;
+            }
+    
+            ch.status |= IS_PAN;
+        }
+    
+        // tone portamento
+        else if vol_kol_vol & 0xF0 == 0xF0 {
+            self.tone_porta(chn);
+        }
+    
+        // *** MAIN EFFECTS (TICKS >0) ***
+
+        let eff = self.stm[chn].eff;
+        let eff_typ = self.stm[chn].eff_typ;
+    
+        if (eff == 0 && eff_typ == 0) || eff_typ >= 36 {
+            return
+        }
+    
+        // 0xy - Arpeggio
+        if eff_typ == 0 {
+            let mut tick = self.song.timer;
+            let mut note = 0;
+    
+            // FT2 'out of boundary' arp LUT simulation
+            if tick > 16 {
+                tick = 2;
+            } else if tick == 16 {
+                tick = 0;
+            } else {
+                tick %= 3;
+            }
+    
+            //
+            // this simulation doesn't work properly for >=128 tick arps,
+            // but you'd need to hexedit the initial speed to get >31
+            //
+    
+            self.stm[chn].out_period = if tick == 0 {
+                self.stm[chn].real_period
+            } else {
+                if tick == 1 {
+                    note = eff >> 4;
+                } else if tick > 1 {
+                    note = eff & 0x0F;
+                }
+    
+                let period = self.stm[chn].real_period;
+                self.relocate_ton(period, note as i8, chn)
+            } as u16;
+    
+            self.stm[chn].status |= IS_PERIOD;
+        }
+    
+        // 1xx - period slide up
+        else if eff_typ == 1 {
+            let ch = &mut self.stm[chn];
+
+            let mut tmp_eff = eff;
+            if tmp_eff == 0 {
+                tmp_eff = ch.porta_up_speed;
+            }
+    
+            ch.porta_up_speed = tmp_eff;
+    
+            ch.real_period -= tmp_eff as i16 * 4;
+            if ch.real_period < 1 {
+                ch.real_period = 1;
+            }
+    
+            ch.out_period = ch.real_period as u16;
+            ch.status |= IS_PERIOD;
+        }
+    
+        // 2xx - period slide down
+        else if eff_typ == 2 {
+            let ch = &mut self.stm[chn];
+
+            let mut tmp_eff = eff;
+            if tmp_eff == 0 {
+                tmp_eff = ch.porta_down_speed;
+            }
+    
+            ch.porta_down_speed = tmp_eff;
+    
+            ch.real_period += tmp_eff as i16 * 4;
+            if ch.real_period > 32000 - 1 {
+                ch.real_period = 32000 - 1;
+            }
+    
+            ch.out_period = ch.real_period as u16;
+            ch.status   |= IS_PERIOD;
+        }
+    
+        // 3xx - tone portamento
+        else if eff_typ == 3 {
+            self.tone_porta(chn)
+        }
+    
+        // 4xy - vibrato
+        else if eff_typ == 4 {
+            self.vibrato(chn)
+        }
+    
+        // 5xy - tone portamento + volume slide
+        else if eff_typ == 5 {
+            self.tone_porta(chn);
+            self.volume(chn);
+        }
+    
+        // 6xy - vibrato + volume slide
+        else if eff_typ == 6 {
+            self.vibrato2(chn);
+            self.volume(chn);
+        }
+    
+        // 7xy - tremolo
+        else if eff_typ == 7 {
+            let ch = &mut self.stm[chn];
+
+            let tmp_eff = eff;
+            if tmp_eff != 0 {
+                if tmp_eff & 0x0F != 0 {
+                    ch.trem_depth = tmp_eff & 0x0F;
+                }
+                if tmp_eff & 0xF0 != 0 {
+                    ch.trem_speed = (tmp_eff >> 4) * 4;
+                }
+            }
+    
+            let mut tmp_trem = (ch.trem_pos / 4) & 0x1F;
+    
+            match (ch.wave_ctrl >> 4) & 3 {
+                // 0: sine
+                0 => tmp_trem = VIB_TAB[tmp_trem as usize],
+    
+                // 1: ramp
+                1 => {
+                    tmp_trem *= 8;
+                    if ch.vib_pos >= 128 {
+                        tmp_trem ^= 0xFF;  // FT2 bug, should've been TremPos
+                    }
+                },
+    
+                // 2/3: square
+                _ => tmp_trem = 255,
+            }
+    
+            tmp_trem = (tmp_trem * ch.trem_depth) / 64;
+    
+            let mut trem_vol: i16;
+            if ch.trem_pos >= 128 {
+                trem_vol = ch.real_vol as i16 - tmp_trem as i16;
+                if trem_vol < 0 {
+                    trem_vol = 0;
+                }
+            } else {
+                trem_vol = ch.real_vol as i16 + tmp_trem as i16;
+                if trem_vol > 64 {
+                    trem_vol = 64;
+                }
+            }
+    
+            ch.out_vol = (trem_vol & 0x00FF) as i8;
+    
+            ch.trem_pos += ch.trem_speed;
+    
+            ch.status |= IS_VOL;
+        }
+    
+        // Axy - volume slide
+        else if eff_typ == 10 {
+            self.volume(chn);  // actually volume slide
+        }
+    
+        // Exy - E effects
+        else if eff_typ == 14 {
+            // E9x - note retrigger
+            if eff & 0xF0 == 0x90 {
+                if eff != 0x90 {  // E90 is handled in getNewNote()
+                    if (self.song.tempo - self.song.timer) % (eff & 0x0F) as u16 == 0 {
+                        self.start_tone(0, 0, 0, chn);
+                        self.retrig_envelope_vibrato(chn);
+                    }
+                }
+            }
+    
+            // ECx - note cut
+            else if eff & 0xF0 == 0xC0 {
+                let ch = &mut self.stm[chn];
+
+                if ((self.song.tempo - self.song.timer) & 0x00FF) as u8 == eff & 0x0F {
+                    ch.out_vol  = 0;
+                    ch.real_vol = 0;
+                    ch.status |= IS_VOL + IS_QUICKVOL;
+                }
+            }
+    
+            // EDx - note delay
+            else if (eff & 0xF0) == 0xD0 {
+                if ((self.song.tempo - self.song.timer) & 0x00FF) as u8 == eff & 0x0F {
+                    let ton_typ = (self.stm[chn].ton_typ & 0x00FF) as u8;
+                    self.start_tone(ton_typ, 0, 0, chn);
+    
+                    if self.stm[chn].ton_typ & 0xFF00 != 0 {
+                        self.retrig_volume(chn);
+                    }
+    
+                    self.retrig_envelope_vibrato(chn);
+
+                    let ch = &mut self.stm[chn];
+    
+                    if ch.vol_kol_vol >= 0x10 && ch.vol_kol_vol <= 0x50 {
+                        ch.out_vol  = (ch.vol_kol_vol - 16) as i8;
+                        ch.real_vol = ch.out_vol;
+                    } else if ch.vol_kol_vol >= 0xC0 && ch.vol_kol_vol <= 0xCF {
+                        ch.out_pan = (ch.vol_kol_vol & 0x0F) << 4;
+                    }
+                }
+            }
+        }
+    
+        // Hxy - global volume slide
+        else if eff_typ == 17 {
+            {
+                let ch = &mut self.stm[chn];
+    
+                let mut tmp_eff = eff;
+                if tmp_eff != 0 {
+                    tmp_eff = ch.glob_vol_slide_speed;
+                }
+        
+                ch.glob_vol_slide_speed = tmp_eff;
+        
+                if tmp_eff & 0xF0 == 0 {
+                    // unsigned clamp
+                    if self.song.glob_vol >= tmp_eff  as u16 {
+                        self.song.glob_vol -= tmp_eff as u16;
+                    } else {
+                        self.song.glob_vol = 0;
+                    }
+                } else {
+                    // unsigned clamp
+                    if self.song.glob_vol <= 64 - (tmp_eff >> 4) as u16 {
+                        self.song.glob_vol += (tmp_eff >> 4) as u16;
+                    } else {
+                        self.song.glob_vol = 64;
+                    }
+                }
+            }
+    
+            for i in 0..self.song.ant_chn as usize {
+                self.stm[i].status |= IS_VOL;
+            }
+        }
+    
+        // Kxx - key off
+        else if eff_typ == 20 {
+            if (self.song.tempo - self.song.timer) & 31 == eff as u16 & 0x0F {
+                self.key_off(chn);
+            }
+        }
+    
+        // Pxy - panning slide
+        else if eff_typ == 25 {
+            let ch = &mut self.stm[chn];
+
+            let mut tmp_eff = eff;
+            if tmp_eff == 0 {
+                tmp_eff = ch.panning_slide_speed;
+            }
+    
+            ch.panning_slide_speed = tmp_eff;
+    
+            if tmp_eff & 0xF0 == 0 {
+                // unsigned clamp
+                if ch.out_pan >= tmp_eff {
+                    ch.out_pan -= tmp_eff;
+                } else {
+                    ch.out_pan = 0;
+                }
+            } else {
+                tmp_eff >>= 4;
+    
+                // unsigned clamp */
+                if ch.out_pan <= 255 - tmp_eff {
+                    ch.out_pan += tmp_eff;
+                } else {
+                    ch.out_pan = 255;
+                }
+            }
+    
+            ch.status |= IS_PAN;
+        }
+    
+        // Rxy - multi note retrig
+        else if eff_typ == 27 {
+            self.multi_retrig(chn);
+        }
+    
+        // Txy - tremor
+        else if eff_typ == 29 {
+            let ch = &mut self.stm[chn];
+
+            let mut tmp_eff = eff;
+            if tmp_eff == 0 {
+                tmp_eff = ch.tremor_save;
+            }
+    
+            ch.tremor_save = tmp_eff;
+    
+            let mut tremor_sign = ch.tremor_pos & 0x80;
+            let mut tremor_data = ch.tremor_pos & 0x7F;
+    
+            tremor_data -= 1;
+            if tremor_data & 0x80 != 0 {
+                if tremor_sign == 0x80 {
+                    tremor_sign = 0x00;
+                    tremor_data = tmp_eff & 0x0F;
+                } else {
+                    tremor_sign = 0x80;
+                    tremor_data = tmp_eff >> 4;
+                }
+            }
+    
+            ch.tremor_pos = tremor_data | tremor_sign;
+    
+            ch.out_vol  = if tremor_sign != 0 { ch.real_vol } else { 0 };
+            ch.status |= IS_VOL + IS_QUICKVOL;
+        }
+    }
+    
 }
 
 
