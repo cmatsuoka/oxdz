@@ -13,9 +13,11 @@ main problems found during the development of libxmp: error handling, player acc
 maintainability.
 
 Current mixing is using code chunks borrowed from libxmp to verify if the players are
-correctly implemented. Sound quality will be improved later.
+correctly implemented. Sound quality will be improved over time.
 
 [Supported module formats](https://github.com/cmatsuoka/oxdz/wiki/Supported-formats)
+
+[Experimental CLI player](https://github.com/cmatsuoka/0xd2)
 
 
 ## Task list
@@ -33,7 +35,7 @@ correctly implemented. Sound quality will be improved later.
   * Ultimate Soundtracker              :heavy_check_mark:
   * Scream Tracker 2                   :heavy_check_mark:
   * Scream Tracker 3                   :heavy_check_mark:
-    * Play ST3 M.K. file (e.g. Sundance.mod)
+    * Play ST3 M.K. file (e.g. Sundance.mod)  :heavy_check_mark:
     * Play ST3 xCHN/xxCH files
   * Fast Tracker II support
     * Also play non-ST3 xCHN and xxCH files

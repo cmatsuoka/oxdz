@@ -1,10 +1,10 @@
 use std::cmp;
-use format::{Format, Loader};
+use format::{FormatInfo, Format, Loader};
 use format::st::StData;
 use format::mk::{ModPatterns, ModInstrument};
 use module::{Module, Sample};
 use module::sample::SampleType;
-use util::{self, BinaryRead};
+use util::BinaryRead;
 use ::*;
 
 
@@ -16,7 +16,7 @@ impl Loader for StLoader {
         "Soundtracker"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<FormatInfo, Error> {
 
         player::check_accepted(player_id, "st")?;
 
@@ -149,16 +149,18 @@ impl Loader for StLoader {
             ust = false
         }
 
+	let title = b.read_string(0,20)?;
+
         if ust {
-            Ok(Format::Ust)
+            Ok(FormatInfo{format: Format::Ust, title})
         } else {
-            Ok(Format::St)
+            Ok(FormatInfo{format: Format::St, title})
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], info: FormatInfo) -> Result<Module, Error> {
 
-        if fmt != Format::St && fmt != Format::Ust {
+        if info.format != Format::St && info.format != Format::Ust {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 
@@ -183,7 +185,7 @@ impl Loader for StLoader {
         pat += 1;
 
         // Load patterns
-        let patterns = ModPatterns::from_slice(pat, b.slice(600, 1024*pat)?)?;
+        let patterns = ModPatterns::from_slice(pat, b.slice(600, 1024*pat)?, 4)?;
 
         // Load samples
         let mut ofs = 600 + 1024*pat;
@@ -206,7 +208,7 @@ impl Loader for StLoader {
 
         data.orders.copy_from_slice(orders);
 
-        let m = if fmt == Format::Ust {
+        let m = if info.format == Format::Ust {
             Module {
                 format_id  : "st",
                 description: "15 instrument module".to_owned(),
@@ -257,7 +259,6 @@ fn load_sample(b: &[u8], ofs: usize, i: usize, ins: &ModInstrument) -> Sample {
     smp.name = ins.name.to_owned();
     smp.address = ofs as u32;
     smp.size = ins.size as u32 * 2;
-    smp.rate = util::C4_PAL_RATE;
     if smp.size > 0 {
         smp.sample_type = SampleType::Sample8;
     }

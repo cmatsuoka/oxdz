@@ -6,6 +6,7 @@ mod ust;
 mod st2;
 mod st3;
 mod ft2;
+mod hmn;
 
 pub use mixer::Mixer;
 
@@ -26,6 +27,7 @@ fn all() -> Vec<Box<PlayerListEntry>> {
         Box::new(st2::St2),
         Box::new(st3::St3),
         Box::new(ft2::Ft2),
+        Box::new(hmn::Hmn),
     ]
 }
 
@@ -84,6 +86,7 @@ pub struct PlayerInfo {
 pub trait PlayerListEntry {
     fn info(&self) -> PlayerInfo;
     fn player(&self, module: &Module, options: Options) -> Box<FormatPlayer>;
+    fn import(&self, module: Module) -> Result<Module, Error>;
 }
 
 
@@ -170,6 +173,10 @@ impl<'a> Player<'a> {
         self
     }
 
+    pub fn set_interpolator(&mut self, name: &str) -> Result<(), Error> {
+        self.mixer.set_interpolator(name)
+    }
+
 /*
     pub fn restart(&mut self) -> &Self {
         self.data.pos = 0;
@@ -244,6 +251,14 @@ impl<'a> Player<'a> {
         info.speed = self.data.speed;
         info.tempo = self.data.tempo;
         self
+    }
+
+    pub fn set_mute(&mut self, chn: usize, val: bool) {
+        self.mixer.set_mute(chn, val)
+    }
+
+    pub fn set_mute_all(&mut self, val: bool) {
+        self.mixer.set_mute_all(val)
     }
 
     pub fn position(&self) -> usize {

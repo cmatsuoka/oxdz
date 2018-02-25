@@ -5,8 +5,8 @@ use mixer::Mixer;
 
 /// NT1.1 Replayer
 ///
-/// An oxdz player based on the Noisetracker V1.1 play routine by Pex "Mahoney"
-/// Tufvesson and Anders “Kaktus” Berkeman (Mahoney & Kaktus - HALLONSOFT 1989).
+/// An oxdz player based on the Noisetracker V1.1 play routine by Pex Tufvesson
+/// and Anders Berkeman (Mahoney & Kaktus - HALLONSOFT 1989).
 
 pub struct ModPlayer {
     options: Options,
@@ -107,19 +107,19 @@ impl ModPlayer {
                 ch.n_8_length = instrument.size;                            // move.w  (a3,d4.l),$8(a6)
                 ch.n_12_volume = instrument.volume as u8;                   // move.w  $2(a3,d4.l),$12(a6)
                 if instrument.repeat != 0 {
-                    ch.n_a_loopstart = ch.n_4_samplestart + instrument.repeat as u32 * 2;
-                    ch.n_8_length = (instrument.repeat + instrument.replen) * 2;
-                    ch.n_e_replen = instrument.replen * 2;                  // move.w  $6(a3,d4.l),$e(a6)
+                    ch.n_a_loopstart = instrument.repeat as u32;
+                    ch.n_8_length = instrument.size;
+                    ch.n_e_replen = instrument.replen;                      // move.w  $6(a3,d4.l),$e(a6)
                     mixer.set_volume(chn, (ch.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
                 } else {
                     // mt_noloop
-                    ch.n_a_loopstart = ch.n_4_samplestart + instrument.repeat as u32 * 2;
-                    ch.n_e_replen = instrument.replen * 2;
+                    ch.n_a_loopstart = instrument.repeat as u32;
+                    ch.n_e_replen = instrument.replen;
                     mixer.set_volume(chn, (ch.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
                 }
                 mixer.enable_loop(chn, instrument.replen != 0);
-                mixer.set_loop_start(chn, ch.n_a_loopstart - ch.n_4_samplestart);
-                mixer.set_loop_end(chn, ch.n_a_loopstart  - ch.n_4_samplestart + ch.n_e_replen as u32);
+                mixer.set_loop_start(chn, ch.n_a_loopstart);
+                mixer.set_loop_end(chn, ch.n_a_loopstart + ch.n_e_replen as u32 * 2);
             }
         }
 
@@ -140,7 +140,7 @@ impl ModPlayer {
         {
             let ch = &mut self.mt_voice[chn];
             ch.n_10_period = (ch.n_0_note & 0xfff) as i16;
-            ch.n_1b_vibpos = 0;                     // clr.b   $1b(a6)
+            ch.n_1b_vibpos = 0;                 // clr.b   $1b(a6)
             mixer.set_sample_ptr(chn, ch.n_4_samplestart);
             mixer.set_period(chn, ch.n_10_period as f64);
         }
@@ -162,12 +162,12 @@ impl ModPlayer {
     fn mt_setmyport(&mut self, chn: usize) {
         let ch = &mut self.mt_voice[chn];
         ch.n_18_wantperiod = (ch.n_0_note & 0xfff) as i16;
-        ch.n_16_portdir = false;     // clr.b   $16(a6)
+        ch.n_16_portdir = false;            // clr.b   $16(a6)
         if ch.n_10_period == ch.n_18_wantperiod {
             // mt_clrport
-            ch.n_18_wantperiod = 0;  // clr.w   $18(a6)
+            ch.n_18_wantperiod = 0;         // clr.w   $18(a6)
         } else if ch.n_10_period < ch.n_18_wantperiod {
-            ch.n_16_portdir = true;  // move.b  #$1,$16(a6)
+            ch.n_16_portdir = true;         // move.b  #$1,$16(a6)
         }
     }
 
@@ -202,22 +202,22 @@ impl ModPlayer {
             let ch = &mut self.mt_voice[chn];
             if ch.n_3_cmdlo != 0 {
                 ch.n_1a_vibrato = ch.n_3_cmdlo;
-
-                let pos = (ch.n_1b_vibpos >> 2) & 0x1f;
-                let val = MT_SIN[pos as usize];
-                let amt = ((val as usize * (ch.n_1a_vibrato & 0xf) as usize) >> 6) as i16;
-
-                let mut period = ch.n_10_period;
-                if ch.n_1b_vibpos & 0x80 == 0 {
-                    period += amt
-                } else {
-                    // mt_vibmin
-                    period -= amt
-                }
-
-                mixer.set_period(chn, period as f64);
-                ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add((ch.n_1a_vibrato >> 2) & 0x3c);
             }
+            // mt_vi
+            let pos = (ch.n_1b_vibpos >> 2) & 0x1f;
+            let val = MT_SIN[pos as usize];
+            let amt = ((val as usize * (ch.n_1a_vibrato & 0xf) as usize) >> 6) as i16;
+
+            let mut period = ch.n_10_period;
+            if ch.n_1b_vibpos & 0x80 == 0 {
+                period += amt
+            } else {
+                // mt_vibmin
+                period -= amt
+            }
+
+            mixer.set_period(chn, period as f64);
+            ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add((ch.n_1a_vibrato >> 2) & 0x3c);
         }
     }
 
@@ -282,7 +282,7 @@ impl ModPlayer {
 
     fn mt_checkcom2(&mut self, chn: usize, mut mixer: &mut Mixer) {
         match self.mt_voice[chn].n_2_cmd & 0xf {
-            0xe => self.mt_setfilt(),
+            0xe => self.mt_setfilt(chn, &mut mixer),
             0xd => self.mt_pattbreak(),
             0xb => self.mt_posjmp(chn),
             0xc => self.mt_setvol(chn, &mut mixer),
@@ -291,8 +291,11 @@ impl ModPlayer {
         }
     }
 
-    fn mt_setfilt(&self) {
+    fn mt_setfilt(&mut self, chn: usize, mixer: &mut Mixer) {
+        let ch = &mut self.mt_voice[chn];
+        mixer.enable_filter(ch.n_3_cmdlo & 0x0f != 0);
     }
+
 
     fn mt_pattbreak(&mut self) {
         self.mt_break = !self.mt_break;
@@ -306,8 +309,8 @@ impl ModPlayer {
 
     fn mt_setvol(&mut self, chn: usize, mixer: &mut Mixer) {
         let ch = &mut self.mt_voice[chn];
-        if ch.n_3_cmdlo > 0x40 {  // cmp.b   #$40,$3(a6)
-            ch.n_3_cmdlo = 40     // move.b  #$40,$3(a6)
+        if ch.n_3_cmdlo > 0x40 {            // cmp.b   #$40,$3(a6)
+            ch.n_3_cmdlo = 40               // move.b  #$40,$3(a6)
         }
         // mt_vol4
         mixer.set_volume(chn, (ch.n_3_cmdlo as usize) << 4);  // move.b  $3(a6),$8(a5)
@@ -315,8 +318,8 @@ impl ModPlayer {
 
     fn mt_setspeed(&mut self, chn: usize) {
         let ch = &mut self.mt_voice[chn];
-        if ch.n_3_cmdlo > 0x1f {  // cmp.b   #$1f,$3(a6)
-            ch.n_3_cmdlo = 0x1f;  // move.b  #$1f,$3(a6)
+        if ch.n_3_cmdlo > 0x1f {            // cmp.b   #$1f,$3(a6)
+            ch.n_3_cmdlo = 0x1f;            // move.b  #$1f,$3(a6)
         }
         // mt_sets
         if ch.n_3_cmdlo != 0 {

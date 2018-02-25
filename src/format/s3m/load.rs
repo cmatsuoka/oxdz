@@ -1,4 +1,4 @@
-use format::{Loader, Format};
+use format::{FormatInfo, Loader, Format};
 use format::s3m::{S3mData, S3mPattern, S3mInstrument};
 use module::{Module, Sample};
 use module::sample::SampleType;
@@ -26,7 +26,7 @@ impl Loader for S3mLoader {
         "Scream Tracker 3"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<FormatInfo, Error> {
         if b.len() < 256 {
             return Err(Error::Format(format!("file too short ({})", b.len())));
         }
@@ -36,30 +36,15 @@ impl Loader for S3mLoader {
         if typ == 16 && magic == "SCRM" {
             // is S3M
             player::check_accepted(player_id, "s3m")?;
-            Ok(Format::S3m)
+            Ok(FormatInfo{format: Format::S3m, title: b.read_string(0, 28)?})
         } else {
-            // not S3M
-            if is_st3_xxch(b) {  // check for ST3 xCHN, xxCH
-                player::check_accepted(player_id, "xxch")?;
-                println!(".. we can play this xxCH module");
-                return Ok(Format::Xxch)
-            } else if is_st3_mod(b) {  // check for ST3 M.K.
-                player::check_accepted(player_id, "m.k.")?;
-                println!(".. we can play this M.K. module");
-                return Ok(Format::Mk)
-            }
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], info: FormatInfo) -> Result<Module, Error> {
 
-        if fmt == Format::Mk {
-            println!(".. load this module as M.K.");
-            //return format::s3m::import::from_mod(b: &[u8]);
-        } else if fmt == Format::Xxch {
-            println!(".. load this module as xxCH");
-        } else if fmt != Format::S3m {
+        if info.format != Format::S3m {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 
@@ -82,12 +67,12 @@ impl Loader for S3mLoader {
 
         // Instrument parapointers
         let mut ofs = 0x60_usize + ord_num as usize;
-        let mut instrum_pp = Vec::<usize>::new();
-        for _ in 0..ins_num { instrum_pp.push(b.read16l(ofs)? as usize * 16); ofs += 2; }
+        let mut instrum_pp = Vec::<u32>::new();
+        for _ in 0..ins_num { instrum_pp.push(b.read16l(ofs)? as u32 * 16); ofs += 2; }
 
         // Pattern parapointers
-        let mut pattern_pp = Vec::<usize>::new();
-        for _ in 0..pat_num { pattern_pp.push(b.read16l(ofs)? as usize * 16); ofs += 2; }
+        let mut pattern_pp = Vec::<u32>::new();
+        for _ in 0..pat_num { pattern_pp.push(b.read16l(ofs)? as u32 * 16); ofs += 2; }
  
         // Channel pan positions
         let ch_pan = b.slice(ofs, 32)?;
@@ -96,7 +81,7 @@ impl Loader for S3mLoader {
         let mut instruments = Vec::<S3mInstrument>::new();
         let mut samples = Vec::<Sample>::new();
         for i in 0..ins_num as usize {
-            let ins = load_instrument(b, instrum_pp[i])?;
+            let ins = load_instrument(b, instrum_pp[i] as usize)?;
             let smp = load_sample(b, i, &ins, ffi != 1)?;
             instruments.push(ins);
             samples.push(smp);
@@ -105,7 +90,7 @@ impl Loader for S3mLoader {
         // Load patterns
         let mut patterns = Vec::<S3mPattern>::new();
         for i in 0..pat_num as usize {
-            let ofs = pattern_pp[i];
+            let ofs = pattern_pp[i] as usize;
             let plen = b.read16l(ofs)? as usize;
             patterns.push(S3mPattern{ size: plen, data: b.slice(ofs, plen + 2)?.to_vec() });
         }
@@ -171,7 +156,7 @@ fn load_instrument(b: &[u8], ofs: usize) -> Result<S3mInstrument, Error> {
     let mut ins = S3mInstrument::new();
 
     ins.typ      = b.read8(ofs)?;
-    ins.memseg   = b.read16l(ofs + 0x0e)?;
+    ins.memseg   = (b.read16l(ofs + 0x0e)? as u32) | ((b.read8(ofs + 0x0d)? as u32) << 16);
     ins.length   = b.read16l_lo_hi(ofs + 0x10)?;
     ins.loop_beg = b.read16l_lo_hi(ofs + 0x14)?;
     ins.loop_end = b.read16l_lo_hi(ofs + 0x18)?;
@@ -190,7 +175,6 @@ fn load_sample(b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sam
     smp.address = (ins.memseg as u32) << 4;
     smp.name = ins.name.to_owned();
     smp.size = ins.length;
-    smp.rate = 8363.0;
 
     if smp.size > 0 {
         smp.sample_type = if ins.flags & 0x04 != 0 { SampleType::Sample16 } else { SampleType::Sample8 };
@@ -203,12 +187,4 @@ fn load_sample(b: &[u8], i: usize, ins: &S3mInstrument, cvt: bool) -> Result<Sam
     }
 
     Ok(smp)
-}
-
-fn is_st3_mod(b: &[u8]) -> bool {
-    false
-}
-
-fn is_st3_xxch(b: &[u8]) -> bool {
-    false
 }

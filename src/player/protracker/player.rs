@@ -3,9 +3,9 @@ use player::{Options, PlayerData, FormatPlayer};
 use format::mk::ModData;
 use mixer::Mixer;
 
-/// PT2.1A Replayer
+/// PT2.3A Replayer
 ///
-/// An oxdz player based on the Protracker V2.1A play routine written by Peter
+/// An oxdz player based on the Protracker V2.1A/V2.3A replayer written by Peter
 /// "CRAYON" Hanning / Mushroom Studios in 1992. Original names are used whenever
 /// possible (converted to snake case according to Rust convention, i.e.
 /// mt_PosJumpFlag becomes mt_pos_jump_flag).
@@ -14,9 +14,6 @@ use mixer::Mixer;
 /// * Mask finetune when playing voice
 /// * Mask note value in note delay command processing
 /// * Fix period table lookup by adding trailing zero values
-///
-/// Optimizations backported from Protracker 2.3D:
-/// * Move volume setting from command processing to the voice playing loop
 
 pub struct ModPlayer {
     options: Options, 
@@ -124,8 +121,8 @@ impl ModPlayer {
         for chn in 0..4 {
             let ch = &mut self.mt_chantemp[chn];
             mixer.set_loop_start(chn, ch.n_loopstart - ch.n_start);
-            mixer.set_loop_end(chn, ch.n_loopstart - ch.n_start + ch.n_replen as u32);
-            mixer.enable_loop(chn, ch.n_replen > 2);
+            mixer.set_loop_end(chn, ch.n_loopstart - ch.n_start + ch.n_replen as u32 * 2);
+            mixer.enable_loop(chn, ch.n_replen > 1);
         }
     }
 
@@ -149,14 +146,14 @@ impl ModPlayer {
             if ins > 0 && ins <= 31 {       // sanity check: was: ins != 0
                 let instrument = &module.instruments[ins - 1];
                 ch.n_start = self.mt_samplestarts[ins - 1];
-                ch.n_length = instrument.repeat + instrument.replen * 2;
+                ch.n_length = instrument.size;
                 //ch.n_reallength = instrument.size;
                 // PT2.3D fix: mask finetune
                 ch.n_finetune = instrument.finetune & 0x0f;
                 ch.n_volume = instrument.volume;
                 ch.n_replen = instrument.replen * 2;
 
-                if instrument.repeat > 0 {
+                if instrument.repeat != 0 {
                     ch.n_loopstart = ch.n_start + instrument.repeat as u32 * 2;
                     ch.n_wavestart = ch.n_loopstart;
                     ch.n_length = instrument.repeat + ch.n_replen;
@@ -165,7 +162,7 @@ impl ModPlayer {
                     // mt_NoLoop
                     ch.n_loopstart = ch.n_start;
                     ch.n_wavestart = ch.n_start;
-                    ch.n_replen = instrument.replen * 2;  // MOVE.W  6(A3,D4.L),n_replen(A6) ; Save replen
+                    ch.n_replen = instrument.replen;                           // MOVE.W  6(A3,D4.L),n_replen(A6) ; Save replen
                     mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 }
             }
@@ -207,14 +204,14 @@ impl ModPlayer {
             let ch = &mut self.mt_chantemp[chn];
             let note = ch.n_note & 0xfff;
 
-            let mut i = 0;      // MOVEQ   #0,D0
+            let mut i = 0;                          // MOVEQ   #0,D0
             // mt_ftuloop
             while i < 36 {
-                if note >= MT_PERIOD_TABLE[i] {   // CMP.W   (A1,D0.W),D1
-                    break;      // BHS.S   mt_ftufound
+                if note >= MT_PERIOD_TABLE[i] {     // CMP.W   (A1,D0.W),D1
+                    break;                          // BHS.S   mt_ftufound
                 }
-                i += 1;         // ADDQ.L  #2,D0
-            }                   // DBRA    D7,mt_ftuloop
+                i += 1;                             // ADDQ.L  #2,D0
+            }                                       // DBRA    D7,mt_ftuloop
             // mt_ftufound
             ch.n_period = MT_PERIOD_TABLE[37 * ch.n_finetune as usize + i];
 
@@ -418,12 +415,12 @@ impl ModPlayer {
             }
         }
         // mt_TonePortaSetPer
-        let mut period = ch.n_period;               // MOVE.W  n_period(A6),D2
+        let mut period = ch.n_period;                   // MOVE.W  n_period(A6),D2
         if ch.n_glissfunk & 0x0f != 0 {
-            let ofs = 37 * ch.n_finetune as usize;  // MULU    #36*2,D0
+            let ofs = 37 * ch.n_finetune as usize;      // MULU    #36*2,D0
             let mut i = 0;
             // mt_GlissLoop
-            while period < MT_PERIOD_TABLE[ofs + i] {  // LEA     mt_PeriodTable(PC),A0 / CMP.W   (A0,D0.W),D2
+            while period < MT_PERIOD_TABLE[ofs + i] {   // LEA     mt_PeriodTable(PC),A0 / CMP.W   (A0,D0.W),D2
                 i += 1;
                 if i >= 37 {
                     i = 35;
@@ -431,10 +428,10 @@ impl ModPlayer {
                 }
             }
             // mt_GlissFound
-            period = MT_PERIOD_TABLE[ofs + i];         // MOVE.W  (A0,D0.W),D2
+            period = MT_PERIOD_TABLE[ofs + i];          // MOVE.W  (A0,D0.W),D2
         }
         // mt_GlissSkip
-        mixer.set_period(chn, period as f64);          // MOVE.W  D2,6(A5) ; Set period
+        mixer.set_period(chn, period as f64);           // MOVE.W  D2,6(A5) ; Set period
     }
 
     fn mt_vibrato(&mut self, chn: usize, mut mixer: &mut Mixer) {
@@ -636,7 +633,7 @@ impl ModPlayer {
     fn mt_e_commands(&mut self, chn: usize, mut mixer: &mut Mixer) {
 
         match self.mt_chantemp[chn].n_cmdlo >> 4 {
-           0x0 => self.mt_filter_on_off(),
+           0x0 => self.mt_filter_on_off(chn, &mut mixer),
            0x1 => self.mt_fine_porta_up(chn, &mut mixer),
            0x2 => self.mt_fine_porta_down(chn, &mut mixer),
            0x3 => self.mt_set_gliss_control(chn),
@@ -655,7 +652,9 @@ impl ModPlayer {
         }
     }
 
-    fn mt_filter_on_off(&self) {
+    fn mt_filter_on_off(&mut self, chn: usize, mixer: &mut Mixer) {
+        let ch = &mut self.mt_chantemp[chn];
+        mixer.enable_filter(ch.n_cmdlo & 0x0f != 0);
     }
 
     fn mt_set_gliss_control(&mut self, chn: usize) {

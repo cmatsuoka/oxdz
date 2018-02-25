@@ -1,13 +1,13 @@
 use std::cmp;
-use format::{Format, Loader};
+use format::{FormatInfo, Format, Loader};
 use format::mk::{ModData, ModPatterns, ModInstrument};
 use format::mk::fingerprint::{Fingerprint, TrackerID};
 use module::{Module, Sample};
 use module::sample::SampleType;
-use util::{self, BinaryRead};
+use util::BinaryRead;
 use ::*;
 
-/// Protracker module loader
+/// Amiga tracker module loader
 pub struct ModLoader;
 
 impl Loader for ModLoader {
@@ -15,28 +15,50 @@ impl Loader for ModLoader {
         "Amiga Protracker/Compatible"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<FormatInfo, Error> {
         if b.len() < 1084 {
             return Err(Error::Format(format!("file too short ({})", b.len())));
         }
 
-        player::check_accepted(player_id, "m.k.")?;
 
-        let magic = b.read_string(1080, 4)?;
-        if magic == "M.K." || magic == "M!K!" || magic == "M&K!" || magic == "N.T." || magic == "NSMS" {
-            Ok(Format::Mk)
+        let magic = b.read32b(1080)?;
+        if magic == magic4!('M', '.', 'K', '.') || magic == magic4!('M', '!', 'K', '!') || magic == magic4!('M', '&', 'K', '!') || magic == magic4!('N', 'S', 'M', 'S') {
+            player::check_accepted(player_id, "m.k.")?;
+            Ok(FormatInfo{format: Format::Mk, title: b.read_string(0, 20)?})
+        } else if magic & 0xffffff == magic4!('\0', 'C', 'H', 'N') {
+            let c = ((magic >> 24) + '0' as u32) as u8 as char;
+            if c.is_digit(10) && c != '0' {
+                player::check_accepted(player_id, "xxch")?;
+                Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
+            } else {
+                Err(Error::Format(format!("bad magic {:?}", magic)))
+            }
+        } else if magic & 0xffff == magic4!('\0', '\0', 'C', 'H') {
+            let c1 = ((magic >> 24) + '0' as u32) as u8 as char;
+            let c2 = (((magic & 0xff0000) >> 16) + '0' as u32) as u8 as char;
+            if c1.is_digit(10) && c2.is_digit(10) {
+                player::check_accepted(player_id, "xxch")?;
+                Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
+            } else {
+                Err(Error::Format(format!("bad magic {:?}", magic)))
+            }
+        } else if magic == magic4!('F', 'L', 'T', '4') || magic == magic4!('F', 'L', 'T', '8') {
+            player::check_accepted(player_id, "flt")?;
+            Ok(FormatInfo{format: Format::Flt, title: b.read_string(0, 20)?})
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], info: FormatInfo) -> Result<Module, Error> {
 
-        if fmt != Format::Mk {
+        if info.format != Format::Mk {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 
         let song_name = b.read_string(0, 20)?;
+
+        let chn = 4;
 
         // Load instruments
         let mut instruments: Vec<ModInstrument> = Vec::new();
@@ -57,10 +79,10 @@ impl Loader for ModLoader {
         pat += 1;
 
         // Load patterns
-        let patterns = ModPatterns::from_slice(pat, b.slice(1084, 1024*pat)?)?;
+        let patterns = ModPatterns::from_slice(pat, b.slice(1084, 256*chn*pat)?, chn)?;
 
         // Load samples
-        let mut ofs = 1084 + 1024*pat;
+        let mut ofs = 1084 + 256*chn*pat;
         for i in 0..31 {
             let size = instruments[i].size as usize * 2;
             let smp = load_sample(b.slice(ofs, size)?, ofs, i, &instruments[i]);
@@ -88,8 +110,13 @@ impl Loader for ModLoader {
             TrackerID::Protracker         => ("Protracker",       "pt2"),
             TrackerID::Noisetracker       => ("Noisetracker",     "nt11"),
             TrackerID::Soundtracker       => ("Soundtracker",     "pt2"),
-            TrackerID::Screamtracker3     => ("Scream Tracker 3", "pt2"),
+            TrackerID::Screamtracker3     => ("Scream Tracker 3", "st3"),
             TrackerID::FastTracker        => ("Fast Tracker",     "pt2"),
+            TrackerID::FastTracker2       => ("Fast Tracker",     "pt2"),
+            TrackerID::TakeTracker        => ("TakeTracker",      "pt2"),
+            TrackerID::Octalyser          => ("Octalyser",        "pt2"),
+            TrackerID::DigitalTracker     => ("Digital Tracker",  "pt2"),
+            TrackerID::ModsGrave          => ("Mod's Grave",      "pt2"),
             TrackerID::FlexTrax           => ("FlexTrax",         "pt2"),
             TrackerID::OpenMPT            => ("OpenMPT",          "pt2"),
             TrackerID::Converted          => ("Converted",        "pt2"),
@@ -132,7 +159,6 @@ fn load_sample(b: &[u8], ofs: usize, i: usize, ins: &ModInstrument) -> Sample {
     smp.name = ins.name.to_owned();
     smp.address = ofs as u32;
     smp.size = ins.size as u32 * 2;
-    smp.rate = util::C4_PAL_RATE;
     if smp.size > 0 {
         smp.sample_type = SampleType::Sample8;
     }

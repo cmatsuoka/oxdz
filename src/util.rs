@@ -7,12 +7,6 @@ pub const NOTES: &'static [&'static str] = &[
     "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#", "A ", "A#", "B "
 ];
 
-pub const C4_PAL_RATE : f64 = 8287.0;   // 7093789.2 / period (C4) * 2
-pub const C4_NTSC_RATE: f64 = 8363.0;   // 7159090.5 / period (C4) * 2
-
-// [Amiga] PAL color carrier frequency (PCCF) = 4.43361825 MHz
-// [Amiga] CPU clock = 1.6 * PCCF = 7.0937892 MHz
-
 
 #[macro_export]
 macro_rules! try_option {
@@ -33,6 +27,12 @@ macro_rules! clamp {
             $a = $max
         }
     }
+}
+
+#[macro_export]
+macro_rules! magic4 {
+    ( $a:expr, $b:expr, $c:expr, $d:expr ) =>
+        ((($a as u32) << 24) | (($b as u32) << 16) | (($c as u32) << 8) | ($d as u32))
 }
 
 
@@ -112,6 +112,7 @@ pub fn note_to_period_mix(note: usize, bend: isize) -> f64 {
     PERIOD_BASE / 2.0_f64.powf(d / 12.0)
 }
 
+/*
 pub fn note_to_period(note: usize, finetune: isize, period_type: PeriodType) -> f64 {
     let d = note as f64 + finetune as f64 / 128_f64;
     match period_type {
@@ -135,6 +136,7 @@ pub fn period_to_bend(period: f64, note: usize, ptype: PeriodType) -> isize {
         },
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
@@ -154,6 +156,7 @@ mod tests {
         assert_delta!(note_to_period_mix(60, -1000), 429.935790);
     }
 
+/*
     #[test]
     fn test_note_to_period() {
         assert_delta!(note_to_period(60, 20, PeriodType::Amiga), 424.154528);
@@ -166,4 +169,5 @@ mod tests {
         assert_eq!(period_to_bend(500.0_f64, 60, PeriodType::Amiga), -34455);
         assert_eq!(period_to_bend(500.0_f64, 60, PeriodType::Linear), 1904000);
     }
+*/
 }

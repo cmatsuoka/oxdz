@@ -180,7 +180,7 @@ impl USTPlayer {
             datachn.n_16_last_saved_note = datachn.n_0_note;                 // save note for effect
             mixer.set_sample_ptr(chn, datachn.n_4_soundstart);
             mixer.set_loop_start(chn, datachn.n_10_repeatstart - datachn.n_4_soundstart);
-            mixer.set_loop_end(chn, datachn.n_10_repeatstart - datachn.n_4_soundstart + datachn.n_14_repeatlength as u32);
+            mixer.set_loop_end(chn, datachn.n_10_repeatstart - datachn.n_4_soundstart + datachn.n_14_repeatlength as u32 * 2);
             mixer.set_period(chn, datachn.n_0_note as f64);
             datachn.n_20_volume_trigger = datachn.n_18_volume;
         }

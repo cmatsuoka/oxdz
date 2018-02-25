@@ -159,7 +159,7 @@ impl StPlayer {
                     ch.n_4_samplestart += repeat;                           // move.l  4(a6),d2 / add.l   d3,d2 / move.l  d2,4(a6)
                     ch.n_10_loopstart = ch.n_4_samplestart;                 // move.l  d2,10(a6)
                     ch.n_8_length = instrument.replen;                      // move.w  6(a3,d4),8(a6)
-                    ch.n_14_replen = instrument.replen; // *2?              // move.w  6(a3,d4),14(a6)
+                    ch.n_14_replen = instrument.replen;                     // move.w  6(a3,d4),14(a6)
                     mixer.set_volume(chn, (ch.n_18_volume as usize) << 4);  // move.w  18(a6),8(a5)
                 } else {
                     // mt_displace
@@ -169,7 +169,7 @@ impl StPlayer {
                 }
                 mixer.enable_loop(chn, instrument.repeat != 0);
                 mixer.set_loop_start(chn, ch.n_10_loopstart - ch.n_4_samplestart);
-                mixer.set_loop_end(chn, ch.n_10_loopstart - ch.n_4_samplestart + ch.n_14_replen as u32);
+                mixer.set_loop_end(chn, ch.n_10_loopstart + ch.n_14_replen as u32 * 2);
             }
 
             // mt_nosamplechange
@@ -189,7 +189,7 @@ impl StPlayer {
             0xb => self.mt_posjmp(chn),
             0xc => self.mt_setvol(chn, &mut mixer),
             0xd => self.mt_break(),
-            0xe => self.mt_setfil(),
+            0xe => self.mt_setfil(chn, &mut mixer),
             0xf => self.mt_setspeed(chn),
             _   => {},
         }
@@ -211,7 +211,9 @@ impl StPlayer {
         self.mt_status = !self.mt_status;
     }
 
-    fn mt_setfil(&self) {
+    fn mt_setfil(&mut self, chn: usize, mixer: &mut Mixer) {
+        let ch = &mut self.mt_audtemp[chn];
+        mixer.enable_filter(ch.n_3_cmdlo & 0x0f != 0);
     }
 
     fn mt_setspeed(&mut self, chn: usize) {

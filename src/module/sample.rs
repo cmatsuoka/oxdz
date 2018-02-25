@@ -4,14 +4,14 @@ use std::slice;
 pub const GUARD_SIZE: usize = 4;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SampleType {
     Sample8,
     Sample16,
     Empty,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Sample {
     pub sample_type : SampleType,
     pub num         : usize,
@@ -19,7 +19,7 @@ pub struct Sample {
     pub size        : u32,
     pub rate        : f64,
     pub name        : String,
-    data            : Vec<u8>,
+    pub data        : Vec<u8>,
 }
 
 impl Sample {
@@ -29,7 +29,7 @@ impl Sample {
             num         : 0,
             address     : 0,
             size        : 0,
-            rate        : 8000_f64,
+            rate        : 1.0,
             name        : "".to_owned(),
             data        : Vec::new(),
         }

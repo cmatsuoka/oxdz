@@ -1,4 +1,4 @@
-use format::{Format, Loader};
+use format::{FormatInfo, Format, Loader};
 use format::stm::{StmData, StmPatterns, StmInstrument};
 use module::{Module, Sample};
 use module::sample::SampleType;
@@ -13,7 +13,7 @@ impl Loader for StmLoader {
         "Scream Tracker 2"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<Format, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<FormatInfo, Error> {
         if b.len() < 1084 {
             return Err(Error::Format(format!("file too short ({})", b.len())));
         }
@@ -22,15 +22,15 @@ impl Loader for StmLoader {
 
         let magic = b.read_string(20, 10)?;
         if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {
-            Ok(Format::Stm)
+            Ok(FormatInfo{format: Format::Stm, title: b.read_string(0, 20)?})
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], fmt: Format) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], info: FormatInfo) -> Result<Module, Error> {
 
-        if fmt != Format::Stm {
+        if info.format != Format::Stm {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 
@@ -123,7 +123,7 @@ fn load_sample(b: &[u8], ofs: usize, i: usize, ins: &StmInstrument) -> Sample {
     smp.num = i + 1;
     smp.address = ofs as u32;
     smp.name = ins.name.to_owned();
-    smp.rate = ins.c2spd as f64;
+    smp.rate = ins.c2spd as f64 / 8448.0;
     smp.size = ins.size as u32;
     if smp.size > 0 {
         smp.sample_type = SampleType::Sample8;

@@ -2,6 +2,7 @@ mod player;
 
 use module::Module;
 use player::{Options, PlayerListEntry, PlayerInfo, FormatPlayer};
+use ::*;
 
 pub struct DocSt2;
 
@@ -18,6 +19,10 @@ impl PlayerListEntry for DocSt2 {
 
    fn player(&self, module: &Module, options: Options) -> Box<FormatPlayer> {
        Box::new(self::player::StPlayer::new(module, options))
+   }
+
+   fn import(&self, module: Module) -> Result<Module, Error> {
+       Ok(module)
    }
 }
 

@@ -138,20 +138,22 @@ impl ModEvent {
 
 pub struct ModPatterns {
     num : usize,
+    chn : usize,
     data: Vec<ModEvent>,
 }
 
 impl ModPatterns {
-    pub fn from_slice(num: usize, b: &[u8]) -> Result<Self, Error> {
+    pub fn from_slice(num: usize, b: &[u8], chn: usize) -> Result<Self, Error> {
         let mut pat = ModPatterns{
             num,
+            chn,
             data: Vec::new(),
         };
 
         for p in 0..num {
             for r in 0..64 {
-                for c in 0..4 {
-                    let ofs = p * 1024 + r * 16 + c * 4;
+                for c in 0..chn {
+                    let ofs = (p*256 + r*4 + c) * chn;
                     let e = ModEvent::from_slice(b.slice(ofs, 4)?);
                     pat.data.push(e);
                 }
@@ -170,7 +172,7 @@ impl ModPatterns {
     }
 
     pub fn event(&self, pat: usize, row: u8, chn: usize) -> &ModEvent {
-        &self.data[pat * 256 + row as usize * 4 + chn]
+        &self.data[pat*64*self.chn + row as usize*self.chn + chn]
     }
 }
 

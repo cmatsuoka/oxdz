@@ -1,5 +1,5 @@
 use module::sample::{Sample, SampleType};
-use mixer::interpolator::{Interpolator, Interpolate};
+use mixer::interpolator::Interpolator;
 use mixer::paula::Paula;
 use util::MemOpExt;
 use util;
@@ -7,6 +7,13 @@ use ::*;
 
 mod interpolator;
 mod paula;
+
+
+const C4_PAL_RATE : f64 = 8287.0;   // 7093789.2 / period (C4) * 2
+//const C4_NTSC_RATE: f64 = 8363.0;   // 7159090.5 / period (C4) * 2
+
+// [Amiga] PAL color carrier frequency (PCCF) = 4.43361825 MHz
+// [Amiga] CPU clock = 1.6 * PCCF = 7.0937892 MHz
 
 const PAL_RATE     : f64 = 250.0;
 const C4_PERIOD    : f64 = 428.0;
@@ -33,12 +40,11 @@ macro_rules! try_voice {
 pub struct Mixer<'a> {
     pub rate  : u32,
     pub factor: f64,  // tempo factor multiplier
-    mute      : bool,
     voices    : Vec<Voice>,
     framesize : usize,
     buf32     : [i32; MAX_FRAMESIZE],
     buffer    : [i16; MAX_FRAMESIZE],
-    pub interp: interpolator::Interpolator,
+    pub interp: &'a interpolator::Interpolator,
     sample    : &'a Vec<Sample>,
 }
 
@@ -49,12 +55,11 @@ impl<'a> Mixer<'a> {
         let mut mixer = Mixer {
             rate     : 44100,
             factor   : 1.0,
-            mute     : false,
             voices   : vec![Voice::new(); num],
             framesize: 0,
             buf32    : [0; MAX_FRAMESIZE],
             buffer   : [0; MAX_FRAMESIZE],
-            interp   : Interpolator::Spline,
+            interp   : &interpolator::Spline,
             sample,
         };
 
@@ -63,6 +68,17 @@ impl<'a> Mixer<'a> {
         }
 
         mixer
+    }
+
+    pub fn set_interpolator(&mut self, name: &str) -> Result<(), Error> {
+        self.enable_paula(false);
+        self.interp = match name.as_ref() {
+            "nearest" => &interpolator::Nearest,
+            "linear"  => &interpolator::Linear,
+            "spline"  => &interpolator::Spline,
+            _         => return Err(Error::Player(format!(r#"unknown interpolator "{}""#, name))),
+        };
+        Ok(())
     }
 
     pub fn num_voices(&self) -> usize {
@@ -75,7 +91,16 @@ impl<'a> Mixer<'a> {
                 Some(Paula::new(self.rate))
             } else {
                 None
-            }
+            };
+        }
+    }
+
+    pub fn enable_filter(&mut self, val: bool) {
+        for v in &mut self.voices {
+            match v.paula {
+                Some(ref mut paula) => paula.enable_filter(val),
+                None                => (),
+            };
         }
     }
 
@@ -197,6 +222,17 @@ impl<'a> Mixer<'a> {
         self.voices[voice].has_loop = val;
     }
 
+    pub fn set_mute(&mut self, voice: usize, val: bool) {
+        try_voice!(voice, self.voices);
+        self.voices[voice].mute = val;
+    }
+
+    pub fn set_mute_all(&mut self, val: bool) {
+        for mut v in &mut self.voices {
+            v.mute = val
+        }
+    }
+
     pub fn mix(&mut self) {
 
         let mut md = MixerData{
@@ -211,7 +247,7 @@ impl<'a> Mixer<'a> {
         self.buf32[..].fill(0, self.framesize);
 
         for v in &mut self.voices {
-            if v.period < 1.0 {
+            if v.mute || v.period < 1.0 {
                 continue
             }
 
@@ -221,7 +257,7 @@ impl<'a> Mixer<'a> {
             let vol_l = v.vol * (0x80 + v.pan) as usize;
         
             let sample = &self.sample[v.smp];
-            let step = C4_PERIOD * sample.rate / self.rate as f64 / v.period;
+            let step = C4_PERIOD * C4_PAL_RATE * sample.rate / self.rate as f64 / v.period;
             if step < 0.001 {
                 continue;
             }
@@ -252,6 +288,10 @@ impl<'a> Mixer<'a> {
                     }
                 }
 
+                if samples == 0 {
+                    break;
+                }
+
                 if v.vol > 0 {
                     let mix_size = samples * 2;
 
@@ -268,8 +308,8 @@ impl<'a> Mixer<'a> {
                             None          => {
                                 match sample.sample_type {
                                     SampleType::Empty    => {},
-                                    SampleType::Sample8  => md.mix::<i8>(&self.interp, &sample.data_8(), &mut self.buf32, &mut v.i_buffer),
-                                    SampleType::Sample16 => md.mix::<i16>(&self.interp, &sample.data_16(), &mut self.buf32, &mut v.i_buffer),
+                                    SampleType::Sample8  => md.mix::<i8>(self.interp, &sample.data_8(), &mut self.buf32, &mut v.i_buffer),
+                                    SampleType::Sample16 => md.mix::<i16>(self.interp, &sample.data_16(), &mut self.buf32, &mut v.i_buffer),
                                 };
                             }
                         }
@@ -298,6 +338,7 @@ impl<'a> Mixer<'a> {
                     continue;
                 }
 
+                // reached end of loop
                 v.loop_reposition(&sample);
             }
         }
@@ -351,6 +392,7 @@ struct Voice {
     loop_end  : u32,
     has_loop  : bool,
     sample_end: bool,
+    mute      : bool,
 
     i_buffer  : [i32; 4],
 
@@ -372,6 +414,9 @@ impl Voice {
         if self.loop_end > sample.size {
             self.loop_end = sample.size;
         }
+        if self.pos > self.loop_end as f64 {
+            self.pos = self.loop_end as f64;
+        }
         
         let loop_size = self.loop_end - self.loop_start;
 
@@ -384,8 +429,8 @@ impl Voice {
         //}
     }
 
-    pub fn anticlick(&self) {
-    }
+    //pub fn anticlick(&self) {
+    //}
 }
 
 
@@ -406,11 +451,7 @@ impl MixerData {
         let mut frac = ((1 << SMIX_SHIFT) as f64 * (self.pos - pos as f64)) as usize;
         let mut bpos = self.buf_pos;
 
-        let bmax = match interp {
-            &Interpolator::Nearest => interpolator::Nearest::bsize(),
-            &Interpolator::Linear  => interpolator::Linear::bsize(),
-            &Interpolator::Spline  => interpolator::Spline::bsize(),
-        } - 1;
+        let bmax = interp.bsize() - 1;
 
         for _ in 0..self.size {
             frac += self.step;
@@ -426,11 +467,7 @@ impl MixerData {
                 pos += istep;
             }
 
-            let smp = match interp {
-                &Interpolator::Nearest => interpolator::Nearest.get_sample(&ibuf, frac as i32),
-                &Interpolator::Linear  => interpolator::Linear.get_sample(&ibuf, frac as i32),
-                &Interpolator::Spline  => interpolator::Spline.get_sample(&ibuf, frac as i32),
-            };
+            let smp = interp.get_sample(&ibuf, frac as i32);
 
             // Store stereo
             buf32[bpos    ] += smp * self.vol_r as i32;
@@ -444,7 +481,6 @@ impl MixerData {
         let mut pos = self.pos as usize;
         let mut frac = ((1 << SMIX_SHIFT) as f64 * (self.pos - pos as f64)) as usize;
         let mut bpos = self.buf_pos;
-        let filter = 0;
 
         for _ in 0..self.size {
             let num_in = paula.remainder as usize / paula::MINIMUM_INTERVAL;
@@ -470,7 +506,7 @@ impl MixerData {
             pos += frac >> SMIX_SHIFT;
             frac &= SMIX_MASK;
 
-            let smp = paula.output_sample(filter) as i32;
+            let smp = paula.output_sample() as i32;
             let cycles = (paula::MINIMUM_INTERVAL - paula.remainder as usize) as i16;
             paula.do_clock(cycles);
 

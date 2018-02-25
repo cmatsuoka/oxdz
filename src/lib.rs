@@ -23,15 +23,44 @@ pub const MAX_FRAMESIZE: usize = (5 * MAX_RATE / MIN_BPM) as usize;
 pub const MAX_KEYS     : usize = 128;
 pub const MAX_CHANNELS : usize = 64;
 
-#[derive(Debug)]
-pub enum PeriodType {
-    Linear,
-    Amiga,
+pub struct Oxdz {
+    pub module   : module::Module,
+    pub player_id: String,
 }
+
+impl<'a> Oxdz {
+    pub fn new(b: &[u8], player_id: &str) -> Result<Self, Error> {
+        let mut module = format::load(&b, &player_id)?;
+        let id = (if player_id.is_empty() { module.player } else { player_id }).to_owned();
+
+        // import the module if needed
+        module = player::list_by_id(&id)?.import(module)?;
+
+        Ok(Oxdz {
+            module,
+            player_id: id,
+        })
+    }
+
+    pub fn module(&'a self) -> &'a module::Module {
+        &self.module
+    }
+
+    pub fn player_info(&self) -> Result<player::PlayerInfo, Error> {
+        Ok(player::list_by_id(&self.player_id)?.info())
+    }
+
+    pub fn player(&mut self) -> Result<player::Player, Error> {
+        let player = player::Player::find(&mut self.module, &self.player_id, "")?;
+        Ok(player)
+    }
+}
+
 
 #[derive(Debug)]
 pub enum Error {
     Format(String),
+    Player(String),
     Load(String),
     Io(io::Error),
 }
@@ -40,6 +69,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Error::Format(ref descr) => write!(f, "{}", descr),
+            &Error::Player(ref descr) => write!(f, "{}", descr),
             &Error::Load(ref descr)   => write!(f, "{}", descr),
             &Error::Io(ref err)       => write!(f, "{}", err),
         }
@@ -50,6 +80,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Format(_)   => "Unsupported module format",
+            Error::Player(_)   => "Can't play module",
             Error::Load(_)     => "Can't load module data",
             Error::Io(ref err) => err.description(),
         }

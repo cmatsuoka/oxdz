@@ -44,8 +44,8 @@ pub struct S3mData {
     pub d_p        : u8,
     pub ch_settings: [u8; 32],
     pub orders     : Vec<u8>,
-    pub instrum_pp : Vec<usize>,
-    pub pattern_pp : Vec<usize>,
+    pub instrum_pp : Vec<u32>,
+    pub pattern_pp : Vec<u32>,
     pub ch_pan     : [u8; 32],
     pub instruments: Vec<S3mInstrument>,
     pub patterns   : Vec<S3mPattern>,
@@ -166,7 +166,7 @@ impl ModuleData for S3mData {
 #[derive(Debug, Default)]
 pub struct S3mInstrument {
     pub typ     : u8,
-    pub memseg  : u16,
+    pub memseg  : u32,
     pub length  : u32,
     pub loop_beg: u32,
     pub loop_end: u32,

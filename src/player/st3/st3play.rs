@@ -125,44 +125,22 @@ pub struct St3Play {
     patmusicrand      : u16,
     aspdmax           : i32,
     aspdmin           : i32,
-    np_patseg         : usize,  // u32,
+    np_patseg         : u32,
     chn               : [Chn; 32],
     soundcardtype     : u8,
-    //soundBufferSize   : i32,
-    //audioFreq         : u32,
-    //VOICE voice[32];
-    //WAVEFORMATEX wfx;
-    //WAVEHDR waveBlocks[MIX_BUF_NUM];
-    //HWAVEOUT _hWaveOut;
-    //float f_audioFreq;
-    //float f_masterVolume;
-    //samplingInterpolation: i8,
-    //float *masterBufferL;
-    //float *masterBufferR;
-    //*mixerBuffer : i8,
-    //samplesLeft : i32,
-    //samplesPerFrame : u32,
-    //volatile mixingMutex : i8,
-    //volatile isMixing : i8,
 
-    /* GLOBAL VARIABLES */
-    //ModuleLoaded : i8,
-    //MusicPaused : i8,
-    //Playing : i8,
-
-    //instrumentadd   : u16,
-    lastachannelused: u8, // i8,
-    tracker         : u8,
-    oldstvib        : bool,
-    fastvolslide    : bool,
-    amigalimits     : bool,
-    musicmax        : u8,
-    //numChannels     : u8,
-    tempo           : i16,
-    globalvol       : i16,
-    //stereomode      : bool,
-    //mastervol       : u8,
-    //mseg_len        : u32,
+    lastachannelused  : u8, // i8,
+    tracker           : u8,
+    oldstvib          : bool,
+    fastvolslide      : bool,
+    amigalimits       : bool,
+    musicmax          : u8,
+    //numChannels       : u8,
+    tempo             : i16,
+    globalvol         : i16,
+    //stereomode        : bool,
+    //mastervol         : u8,
+    //mseg_len          : u32,
 } 
 
 
@@ -300,6 +278,7 @@ impl St3Play {
         if tmpspd == 0 {
             // cut channel
             //self.voice_set_sampling_frequency(ch, 0);
+            mixer.set_period(ch, 0.0);
             return;
         }
 
@@ -466,7 +445,7 @@ impl St3Play {
                 if self.np_row != 0 {
                     let mut i = self.np_row;
                     while i != 0 {
-                        let dat = module.patterns[self.np_patseg].data[j]; j += 1;
+                        let dat = module.patterns[self.np_pat as usize].data[j]; j += 1;
                         if dat == 0 {
                             i -= 1;
                         } else {
@@ -579,7 +558,7 @@ impl St3Play {
                         let has_loop = insdat.flags & 1 != 0 && inslen != 0 && insrepend > insrepbeg;
 
                         // This specific portion differs from what sound card driver you use in ST3...
-                        if self.soundcardtype == SOUNDCARD_SB || cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64) {
+                        if self.soundcardtype == SOUNDCARD_SB || (cmd != ('G' as u8 - 64) && cmd != ('L' as u8 - 64)) {
                             mixer.set_sample(ch, ins);
                             mixer.set_loop_start(ch, insrepbeg);
                             mixer.set_loop_end(ch, insrepend);
@@ -2117,7 +2096,7 @@ impl FormatPlayer for St3Play {
 
         let module = mdata.as_any().downcast_ref::<S3mData>().unwrap();
 
-        self.soundcardtype == SOUNDCARD_GUS;
+        self.soundcardtype = SOUNDCARD_GUS;
 
         self.loadheaderparms(&module);
 
