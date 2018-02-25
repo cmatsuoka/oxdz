@@ -298,15 +298,6 @@ impl Fingerprint {
         false
     }
 
-    fn empty_ins_replen_1(data: &ModData) -> bool {
-        for ins in &data.instruments {
-            if ins.size == 0 && ins.replen == 1 {
-                return true
-            }
-        }
-        false
-    }
-
     fn size_1_and_volume_0(data: &ModData) -> bool {
         for ins in &data.instruments {
             if ins.size == 1 && ins.volume == 0 {

@@ -10,7 +10,7 @@ mod paula;
 
 
 const C4_PAL_RATE : f64 = 8287.0;   // 7093789.2 / period (C4) * 2
-const C4_NTSC_RATE: f64 = 8363.0;   // 7159090.5 / period (C4) * 2
+//const C4_NTSC_RATE: f64 = 8363.0;   // 7159090.5 / period (C4) * 2
 
 // [Amiga] PAL color carrier frequency (PCCF) = 4.43361825 MHz
 // [Amiga] CPU clock = 1.6 * PCCF = 7.0937892 MHz
@@ -429,8 +429,8 @@ impl Voice {
         //}
     }
 
-    pub fn anticlick(&self) {
-    }
+    //pub fn anticlick(&self) {
+    //}
 }
 
 
