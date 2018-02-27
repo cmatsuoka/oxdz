@@ -365,7 +365,7 @@ impl HmnPlayer {
     }
 
     fn megaarp(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        let mut val = {
+        let val = {
             let ch = &mut self.voice[chn];
             let pos = ch.n_1b_vibpos;
             ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add(1);
@@ -376,11 +376,12 @@ impl HmnPlayer {
         // MegaAlo
         for i in 0..36 {
             if self.voice[chn].n_10_period&0xfff >= PERIODS[i] {
-                if i+val <= PERIODS.len() {
-                    val -= 12;
+                let mut index = i + val;
+                while index >= PERIODS.len() {
+                    index -= 12;
                 }
                 // MegaOk
-                self.percalc(chn, PERIODS[i+val], &mut mixer);
+                self.percalc(chn, PERIODS[index], &mut mixer);
                 return
             }
         }
