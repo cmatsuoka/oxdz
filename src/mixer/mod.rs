@@ -212,13 +212,11 @@ impl<'a> Mixer<'a> {
     pub fn set_loop_start(&mut self, voice: usize, val: u32) {
         try_voice!(voice, self.voices);
         self.voices[voice].loop_start = val;
-        self.voices[voice].fix_loop();
     }
 
     pub fn set_loop_end(&mut self, voice: usize, val: u32) {
         try_voice!(voice, self.voices);
         self.voices[voice].loop_end = val;
-        self.voices[voice].fix_loop();
     }
 
     pub fn enable_loop(&mut self, voice: usize, val: bool) {
@@ -421,6 +419,11 @@ impl Voice {
         self.pos -= loop_size as f64;  // forward loop
         self.end = self.loop_end;
         self.has_loop = true;
+
+        // sanity check
+        if self.pos < 0.0 {
+            self.pos = 0.0;
+        }
 
         //if self.bidir_loop {
         //}
