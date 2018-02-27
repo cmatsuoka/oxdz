@@ -267,7 +267,6 @@ impl<'a> Mixer<'a> {
             //let lps = sample.loop_start;
             //let lpe = sample.loop_end;
 
-            let mut usmp = 0;
             let mut size = self.framesize as isize;
             loop {
                 if size <= 0 {
@@ -276,18 +275,13 @@ impl<'a> Mixer<'a> {
 
                 // How many samples we can write before the loop break or sample end...
                 let mut samples = 0;
-                if v.pos > v.end as f64 {
-                    usmp = 1;
-                } else {
-                    let mut s = ((v.end as f64 - v.pos) / step).ceil() as isize;
+                if v.pos < v.end as f64 {
+                    let mut s = ((v.end as f64 - v.pos) / step) as isize;
                     // ...inside the tick boundaries
                     if s > size {
                        s = size;
                     }
                     samples = s;
-                    if samples > 0 {
-                        usmp = 0;
-                    }
                 }
 
                 if samples == 0 {
@@ -320,7 +314,7 @@ impl<'a> Mixer<'a> {
                     }
                 }
                 v.pos += step * samples as f64;
-                size -= samples + usmp;
+                size -= samples;
 
                 // No more samples in this frame
                 if size <= 0 {
