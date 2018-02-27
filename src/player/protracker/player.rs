@@ -151,12 +151,12 @@ impl ModPlayer {
                 // PT2.3D fix: mask finetune
                 ch.n_finetune = instrument.finetune & 0x0f;
                 ch.n_volume = instrument.volume;
-                ch.n_replen = instrument.replen * 2;
+                ch.n_replen = instrument.replen;
 
                 if instrument.repeat != 0 {
                     ch.n_loopstart = ch.n_start + instrument.repeat as u32 * 2;
                     ch.n_wavestart = ch.n_loopstart;
-                    ch.n_length = instrument.repeat + ch.n_replen;
+                    ch.n_length = (instrument.repeat + ch.n_replen) * 2;
                     mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 } else {
                     // mt_NoLoop
