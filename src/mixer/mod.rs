@@ -190,6 +190,7 @@ impl<'a> Mixer<'a> {
         v.end = self.sample[smp - 1].size;
         v.has_loop = false;
         v.sample_end = true;
+        v.fix_loop();
     }
 
     pub fn set_sample_ptr(&mut self, voice: usize, addr: u32) {
@@ -202,6 +203,7 @@ impl<'a> Mixer<'a> {
                 v.smp = s.num - 1;
                 v.pos = (addr - s.address) as f64;
                 v.end = s.size;
+                v.fix_loop();
                 break
             }
         }
@@ -210,11 +212,13 @@ impl<'a> Mixer<'a> {
     pub fn set_loop_start(&mut self, voice: usize, val: u32) {
         try_voice!(voice, self.voices);
         self.voices[voice].loop_start = val;
+        self.voices[voice].fix_loop();
     }
 
     pub fn set_loop_end(&mut self, voice: usize, val: u32) {
         try_voice!(voice, self.voices);
         self.voices[voice].loop_end = val;
+        self.voices[voice].fix_loop();
     }
 
     pub fn enable_loop(&mut self, voice: usize, val: bool) {
@@ -228,7 +232,7 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn set_mute_all(&mut self, val: bool) {
-        for mut v in &mut self.voices {
+        for v in &mut self.voices {
             v.mute = val
         }
     }
@@ -407,13 +411,6 @@ impl Voice {
 
     pub fn loop_reposition(&mut self, sample: &Sample) {
         // sanity check
-        if self.loop_start > sample.size {
-            self.has_loop = false;
-            return
-        }
-        if self.loop_end > sample.size {
-            self.loop_end = sample.size;
-        }
         if self.pos > self.loop_end as f64 {
             self.pos = self.loop_end as f64;
         }
@@ -427,6 +424,17 @@ impl Voice {
 
         //if self.bidir_loop {
         //}
+    }
+
+    // sample loop sanity checks
+    pub fn fix_loop(&mut self) {
+        if self.loop_start > self.end {
+            self.loop_start = self.end;
+            self.has_loop = false;
+        }
+        if self.loop_end > self.end {
+            self.loop_end = self.end;
+        }
     }
 
     //pub fn anticlick(&self) {
