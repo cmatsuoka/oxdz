@@ -101,7 +101,7 @@ impl ModPlayer {
     
             let ins = (((event.note & 0xf000) >> 8) | ((event.cmd as u16 & 0xf0) >> 4)) as usize;
     
-            if ins > 0 && ins < 31 {  // sanity check added: was: ins != 0
+            if ins > 0 && ins <= 31 {  // sanity check added: was: ins != 0
                 let instrument = &module.instruments[ins as usize - 1];
                 ch.n_4_samplestart = self.mt_samplestarts[ins as usize -1];
                 ch.n_8_length = instrument.size;                            // move.w  (a3,d4.l),$8(a6)

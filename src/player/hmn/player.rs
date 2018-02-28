@@ -178,7 +178,7 @@ impl HmnPlayer {
     
             let ins = (((event.note & 0xf000) >> 8) | ((event.cmd as u16 & 0xf0) >> 4)) as usize;
     
-            if ins > 0 && ins < 31 {  // sanity check added: was: ins != 0
+            if ins > 0 && ins <= 31 {  // sanity check added: was: ins != 0
                 let prog_ins = ins as usize - 1;
                 let instrument = &module.instruments[prog_ins];
                 ch.n_4_samplestart = self.l698_samplestarts[prog_ins];         // MOVE.L  $0(A1,D2.L),$04(A6)     ;instrmemstart
