@@ -188,6 +188,10 @@ impl<'a> Player<'a> {
         self
     }
 
+    pub fn module(&self) -> &'a Module {
+        self.module
+    }
+
     pub fn set_interpolator(&mut self, name: &str) -> Result<(), Error> {
         self.mixer.set_interpolator(name)
     }

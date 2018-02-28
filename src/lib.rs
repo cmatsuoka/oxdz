@@ -8,6 +8,7 @@ pub mod mixer;
 pub mod module;
 pub mod player;
 pub use player::FrameInfo;
+pub use module::Module;
 
 use std::error;
 use std::fmt;
