@@ -104,7 +104,7 @@ impl St2Play {
             tempo           : 0x60,
             global_volume   : 64,
             //play_single_note: 0,
-            channels        : vec![St2Channel::new(); module.channels()],
+            channels        : vec![St2Channel::new(); module.channels],
         }
     }
 

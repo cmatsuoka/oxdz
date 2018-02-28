@@ -213,6 +213,7 @@ impl Loader for StLoader {
                 format_id  : "st",
                 description: "15 instrument module".to_owned(),
                 creator    : "Ultimate Soundtracker".to_owned(),
+                channels   : 4,
                 player     : "ust",
                 data       : Box::new(data),
             }
@@ -221,6 +222,7 @@ impl Loader for StLoader {
                 format_id  : "st",
                 description: "15 instrument module".to_owned(),
                 creator    : "Soundtracker".to_owned(),
+                channels   : 4,
                 player     : "dst2",
                 data       : Box::new(data),
             }

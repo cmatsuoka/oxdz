@@ -30,10 +30,6 @@ impl ModuleData for ModData {
         &self.song_name
     }
 
-    fn channels(&self) -> usize {
-        4
-    }
-
     fn patterns(&self) -> usize {
         self.patterns.num()
     }

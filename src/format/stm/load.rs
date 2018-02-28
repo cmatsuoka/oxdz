@@ -95,6 +95,7 @@ impl Loader for StmLoader {
                              "WUZAMOD!" => "WUZAMOD".to_owned(),
                              _          => "unknown".to_owned(),
                          },
+            channels   : 4,
             player     : "st2",
             data       : Box::new(data),
         };

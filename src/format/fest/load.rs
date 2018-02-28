@@ -93,6 +93,7 @@ impl Loader for FestLoader {
             format_id  : "fest",
             description: "4 channel FEST".to_owned(),
             creator    : "His Master's NoiseTracker".to_owned(),
+            channels   : 4,
             player     : "hmn",
             data       : Box::new(data),
         };

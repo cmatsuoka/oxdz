@@ -100,7 +100,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
 fn show_pattern(module: &module::Module, num: usize) {
     println!("Pattern {}:", num);
     let rows = module.rows(num);
-    let ch = module.channels();
+    let ch = module.channels;
     let mut buffer = vec![0_u8; 6 * rows * ch];
 
     module.pattern_data(0, &mut buffer);

@@ -29,10 +29,6 @@ impl ModuleData for StmData {
         &self.name
     }
 
-    fn channels(&self) -> usize {
-        4
-    }
-
     fn patterns(&self) -> usize {
         self.num_patterns as usize
     }

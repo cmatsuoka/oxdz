@@ -11,20 +11,17 @@ use util::MemOpExt;
 // Module
 
 pub struct Module {
-    pub format_id  : &'static str,       // format identifier
-    pub description: String,             // format description
-    pub creator    : String,             // tracker name
-    pub player     : &'static str,       // primary player for this format
-    pub data       : Box<ModuleData>     //
+    pub format_id  : &'static str,      // format identifier
+    pub description: String,            // format description
+    pub creator    : String,            // tracker name
+    pub channels   : usize,             // number of mixer channels
+    pub player     : &'static str,      // primary player for this format
+    pub data       : Box<ModuleData>    //
 }
 
 impl Module {
     pub fn title(&self) -> &str {
         self.data.title()
-    }
-
-    pub fn channels(&self) -> usize {
-        self.data.channels()
     }
 
     pub fn patterns(&self) -> usize {
@@ -69,7 +66,6 @@ impl Module {
 pub trait ModuleData: Send + Sync {
     fn as_any(&self) -> &Any;
     fn title(&self) -> &str;            // module title
-    fn channels(&self) -> usize;        // number of channels
     fn patterns(&self) -> usize;        // number of patterns
     fn len(&self) -> usize;             // module length
     fn pattern_in_position(&self, usize) -> Option<usize>;

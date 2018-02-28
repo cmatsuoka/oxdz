@@ -58,8 +58,6 @@ impl Loader for ModLoader {
 
         let song_name = b.read_string(0, 20)?;
 
-        let chn = 4;
-
         // Load instruments
         let mut instruments: Vec<ModInstrument> = Vec::new();
         let mut samples: Vec<Sample> = Vec::new();
@@ -73,6 +71,8 @@ impl Loader for ModLoader {
         let restart = b.read8(951)?;
         let orders = b.slice(952, 128)?;
         let magic = b.read_string(1080, 4)?;
+
+        let chn = channels_from_magic(&magic);
 
         let mut pat = 0_usize;
         orders[..song_length as usize].iter().for_each(|x| { pat = cmp::max(pat, *x as usize); } );
@@ -129,6 +129,7 @@ impl Loader for ModLoader {
             format_id  : "m.k.",
             description: "M.K.".to_owned(),
             creator    : creator.to_owned(),
+            channels   : chn,
             player     : player_id,
             data       : Box::new(data),
         };
@@ -167,3 +168,17 @@ fn load_sample(b: &[u8], ofs: usize, i: usize, ins: &ModInstrument) -> Sample {
     smp
 }
 
+fn channels_from_magic(magic: &str) -> usize {
+    if magic == "FLT8" {
+        8
+    } else {
+        let m: Vec<char> = magic.chars().collect();
+        if m[0].is_digit(10) && m[1].is_digit(10) && &magic[2..] == "CH" {
+            ((m[0] as u8 - '0' as u8) * 10 + m[1] as u8 - '0' as u8) as usize
+        } else if m[0].is_digit(10) && &magic[1..] == "CHN" {
+            (m[0] as u8 - '0' as u8) as usize
+        } else {
+            4
+        }
+    }
+}

@@ -169,7 +169,7 @@ impl<'a> Player<'a> {
 
         let format_player = list_entry.player(&module, Options::from_str(optstr));
 
-        let mixer = Mixer::new(module.data.channels(), &module.data.samples());
+        let mixer = Mixer::new(module.channels, &module.data.samples());
         Ok(Player {
             data      : PlayerData::new(),
             module,
