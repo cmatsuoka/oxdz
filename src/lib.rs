@@ -27,11 +27,12 @@ pub const MAX_SEQUENCES: usize = 16;
 
 pub struct Oxdz {
     pub module   : module::Module,
+    pub rate     : u32,
     pub player_id: String,
 }
 
 impl<'a> Oxdz {
-    pub fn new(b: &[u8], player_id: &str) -> Result<Self, Error> {
+    pub fn new(b: &[u8], rate: u32, player_id: &str) -> Result<Self, Error> {
         let mut module = format::load(&b, &player_id)?;
         let id = (if player_id.is_empty() { module.player } else { player_id }).to_owned();
 
@@ -40,6 +41,7 @@ impl<'a> Oxdz {
 
         Ok(Oxdz {
             module,
+            rate,
             player_id: id,
         })
     }
@@ -53,7 +55,7 @@ impl<'a> Oxdz {
     }
 
     pub fn player(&mut self) -> Result<player::Player, Error> {
-        let player = player::Player::find(&mut self.module, &self.player_id, "")?;
+        let player = player::Player::find(&mut self.module, self.rate, &self.player_id, "")?;
         Ok(player)
     }
 }

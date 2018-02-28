@@ -158,7 +158,7 @@ pub struct Player<'a> {
 }
 
 impl<'a> Player<'a> {
-    pub fn find(module: &'a Module, player_id: &str, optstr: &str) -> Result<Self, Error> {
+    pub fn find(module: &'a Module, rate: u32, player_id: &str, optstr: &str) -> Result<Self, Error> {
 
         let list_entry = list_by_id(player_id)?;
 
@@ -169,7 +169,7 @@ impl<'a> Player<'a> {
 
         let format_player = list_entry.player(&module, Options::from_str(optstr));
 
-        let mixer = Mixer::new(module.channels, &module.data.samples());
+        let mixer = Mixer::new(module.channels, rate, &module.data.samples());
         Ok(Player {
             data      : PlayerData::new(),
             module,

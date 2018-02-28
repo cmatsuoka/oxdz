@@ -51,9 +51,9 @@ pub struct Mixer<'a> {
 
 impl<'a> Mixer<'a> {
 
-    pub fn new(num: usize, sample: &'a Vec<Sample>) -> Self {
+    pub fn new(num: usize, rate: u32, sample: &'a Vec<Sample>) -> Self {
         let mut mixer = Mixer {
-            rate     : 44100,
+            rate,
             factor   : 1.0,
             voices   : vec![Voice::new(); num],
             framesize: 0,

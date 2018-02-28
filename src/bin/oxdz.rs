@@ -68,7 +68,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     let list_entry = player::list_by_id(module.player)?;
     module = list_entry.import(module)?;
 
-    let mut player = player::Player::find(&module, module.player, "")?;
+    let mut player = player::Player::find(&module, 44100, module.player, "")?;
 
     println!("Length: {}", module.len());
     println!("Patterns: {}", module.patterns());
