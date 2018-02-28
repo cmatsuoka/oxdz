@@ -314,6 +314,8 @@ impl ModPlayer {
         }
         // mt_vol4
         mixer.set_volume(chn, (ch.n_3_cmdlo as usize) << 4);  // move.b  $3(a6),$8(a5)
+        // oxdz fix: otherwise we're overriden by set_volume in mt_playvoice()
+        ch.n_12_volume = ch.n_3_cmdlo;
     }
 
     fn mt_setspeed(&mut self, chn: usize) {
