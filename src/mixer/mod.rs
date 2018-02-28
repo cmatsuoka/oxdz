@@ -204,7 +204,7 @@ impl<'a> Mixer<'a> {
                 v.pos = (addr - s.address) as f64;
                 v.end = s.size;
                 v.fix_loop();
-                break
+                return
             }
         }
     }
@@ -264,8 +264,10 @@ impl<'a> Mixer<'a> {
                 continue;
             }
 
-            //let lps = sample.loop_start;
-            //let lpe = sample.loop_end;
+            // sanity check
+            if v.end > sample.size {
+                v.end = sample.size;
+            }
 
             let mut size = self.framesize as isize;
             loop {
