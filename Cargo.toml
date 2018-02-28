@@ -2,7 +2,7 @@
 name = "oxdz"
 version = "0.1.0"
 authors = ["Claudio Matsuoka <cmatsuoka@gmail.com>"]
-exclude = ["doc/reference", "doc/formats"]
+exclude = ["*.png", "doc/reference", "doc/formats"]
 publish = false
 
 [[bin]]
