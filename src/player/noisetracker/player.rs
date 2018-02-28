@@ -107,7 +107,7 @@ impl ModPlayer {
                 ch.n_8_length = instrument.size;                            // move.w  (a3,d4.l),$8(a6)
                 ch.n_12_volume = instrument.volume as u8;                   // move.w  $2(a3,d4.l),$12(a6)
                 if instrument.repeat != 0 {
-                    ch.n_a_loopstart = instrument.repeat as u32;
+                    ch.n_a_loopstart = instrument.repeat as u32 * 2;
                     ch.n_8_length = instrument.size;
                     ch.n_e_replen = instrument.replen;                      // move.w  $6(a3,d4.l),$e(a6)
                     mixer.set_volume(chn, (ch.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
