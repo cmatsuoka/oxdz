@@ -22,10 +22,10 @@ impl Loader for ModLoader {
 
 
         let magic = b.read32b(1080)?;
-        if magic == magic4!('M', '.', 'K', '.') || magic == magic4!('M', '!', 'K', '!') || magic == magic4!('M', '&', 'K', '!') || magic == magic4!('N', 'S', 'M', 'S') {
+        if magic == magic4!('M','.','K','.') || magic == magic4!('M','!','K','!') || magic == magic4!('M','&','K','!') || magic == magic4!('N','S','M','S') {
             player::check_accepted(player_id, "m.k.")?;
             Ok(FormatInfo{format: Format::Mk, title: b.read_string(0, 20)?})
-        } else if magic & 0xffffff == magic4!('\0', 'C', 'H', 'N') {
+        } else if magic & 0xffffff == magic4!('\0','C','H','N') {
             let c = ((magic >> 24) + '0' as u32) as u8 as char;
             if c.is_digit(10) && c != '0' {
                 player::check_accepted(player_id, "xxch")?;
@@ -33,7 +33,7 @@ impl Loader for ModLoader {
             } else {
                 Err(Error::Format(format!("bad magic {:?}", magic)))
             }
-        } else if magic & 0xffff == magic4!('\0', '\0', 'C', 'H') {
+        } else if magic & 0xffff == magic4!('\0','\0','C','H') {
             let c1 = ((magic >> 24) + '0' as u32) as u8 as char;
             let c2 = (((magic & 0xff0000) >> 16) + '0' as u32) as u8 as char;
             if c1.is_digit(10) && c2.is_digit(10) {
@@ -42,7 +42,7 @@ impl Loader for ModLoader {
             } else {
                 Err(Error::Format(format!("bad magic {:?}", magic)))
             }
-        } else if magic == magic4!('F', 'L', 'T', '4') || magic == magic4!('F', 'L', 'T', '8') {
+        } else if magic == magic4!('F','L','T','4') || magic == magic4!('F','L','T','8') {
             player::check_accepted(player_id, "flt")?;
             Ok(FormatInfo{format: Format::Flt, title: b.read_string(0, 20)?})
         } else {
@@ -103,7 +103,16 @@ impl Loader for ModLoader {
 
         data.orders.copy_from_slice(orders);
 
-        let tracker_id = Fingerprint::id(&data);
+        let idbuffer = match b.read32b(ofs) {
+            Ok(v)  => v,
+            Err(_) => 0,
+        };
+
+        let tracker_id = if idbuffer == magic4!('F','L','E','X') {
+            TrackerID::FlexTrax
+        } else {
+            Fingerprint::id(&data)
+        };
 
         let (creator, player_id) = match tracker_id {
             TrackerID::Unknown            => ("unknown tracker",  "pt2"),
