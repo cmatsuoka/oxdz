@@ -155,7 +155,12 @@ impl ModPlayer {
         self.mt_songpos &= 0x7f;
         if self.mt_songpos >= module.song_length {     // cmp.b   mt_data+$3b6,d1
             // self.mt_songpos = 0 in Noisetracker 1.0
-            self.mt_songpos = module.restart;          // move.b  mt_data+$3b7,mt_songpos
+            // oxdz: check if value is a valid restart position
+            if module.restart < module.song_length {
+                self.mt_songpos = module.restart;      // move.b  mt_data+$3b7,mt_songpos
+            } else {
+                self.mt_songpos = 0;
+            }
         }
     }
 
