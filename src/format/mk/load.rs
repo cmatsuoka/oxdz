@@ -20,13 +20,12 @@ impl Loader for ModLoader {
             return Err(Error::Format(format!("file too short ({})", b.len())));
         }
 
-
         let magic = b.read32b(1080)?;
         if magic == magic4!('M','.','K','.') || magic == magic4!('M','!','K','!') || magic == magic4!('M','&','K','!') || magic == magic4!('N','S','M','S') {
             player::check_accepted(player_id, "m.k.")?;
             Ok(FormatInfo{format: Format::Mk, title: b.read_string(0, 20)?})
         } else if magic & 0xffffff == magic4!('\0','C','H','N') {
-            let c = ((magic >> 24) + '0' as u32) as u8 as char;
+            let c = (magic >> 24) as u8 as char;
             if c.is_digit(10) && c != '0' {
                 player::check_accepted(player_id, "xxch")?;
                 Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
@@ -34,8 +33,8 @@ impl Loader for ModLoader {
                 Err(Error::Format(format!("bad magic {:?}", magic)))
             }
         } else if magic & 0xffff == magic4!('\0','\0','C','H') {
-            let c1 = ((magic >> 24) + '0' as u32) as u8 as char;
-            let c2 = (((magic & 0xff0000) >> 16) + '0' as u32) as u8 as char;
+            let c1 = (magic >> 24) as u8 as char;
+            let c2 = ((magic & 0xff0000) >> 16) as u8 as char;
             if c1.is_digit(10) && c2.is_digit(10) {
                 player::check_accepted(player_id, "xxch")?;
                 Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
@@ -61,8 +60,10 @@ impl Loader for ModLoader {
         // Load instruments
         let mut instruments: Vec<ModInstrument> = Vec::new();
         let mut samples: Vec<Sample> = Vec::new();
+        let mut smp_size = 0;
         for i in 0..31 {
             let ins = load_instrument(b, i)?;
+            smp_size += ins.size as usize * 2;
             instruments.push(ins);
         }
 
@@ -72,11 +73,38 @@ impl Loader for ModLoader {
         let orders = b.slice(952, 128)?;
         let magic = b.read_string(1080, 4)?;
 
-        let chn = channels_from_magic(&magic);
+        let mut chn = channels_from_magic(&magic);
 
-        let mut pat = 0_usize;
+        let mut pat = 0;
         orders[..song_length as usize].iter().for_each(|x| { pat = cmp::max(pat, *x as usize); } );
         pat += 1;
+
+        let mut tracker_id = TrackerID::Unknown;
+        let data_size = 1084 + 256*pat*chn + smp_size;
+
+        // Test for Flextrax modules
+        //
+        // FlexTrax is a soundtracker for Atari Falcon030 compatible computers. FlexTrax supports the
+        // standard MOD file format (up to eight channels) for compatibility reasons but also features
+        // a new enhanced module format FLX. The FLX format is an extended version of the standard
+        // MOD file format with support for real-time sound effects like reverb and delay.
+        if data_size + 4 < b.len() {
+            if b.read32b(data_size)? == magic4!('F','L','E','X') {
+                tracker_id = TrackerID::FlexTrax;
+            }
+        }
+
+        // Test for Mod's Grave WOW modules
+        //
+        // Stefan Danes <sdanes@marvels.hacktic.nl> said:
+        // This weird format is identical to '8CHN' but still uses the 'M.K.' ID. You can only test
+        // for WOW by calculating the size of the module for 8 channels and comparing this to the
+        // actual module length. If it's equal, the module is an 8 channel WOW.
+
+        if magic == "M.K." && (data_size + 1024*pat) == b.len() {
+            chn = 8;
+            tracker_id = TrackerID::ModsGrave;
+        }
 
         // Load patterns
         let patterns = ModPatterns::from_slice(pat, b.slice(1084, 256*chn*pat)?, chn)?;
@@ -103,16 +131,9 @@ impl Loader for ModLoader {
 
         data.orders.copy_from_slice(orders);
 
-        let idbuffer = match b.read32b(ofs) {
-            Ok(v)  => v,
-            Err(_) => 0,
-        };
-
-        let tracker_id = if idbuffer == magic4!('F','L','E','X') {
-            TrackerID::FlexTrax
-        } else {
-            Fingerprint::id(&data)
-        };
+        if tracker_id == TrackerID::Unknown {
+            tracker_id = Fingerprint::id(&data)
+        }
 
         let (creator, player_id) = match tracker_id {
             TrackerID::Unknown            => ("unknown tracker",  "pt2"),

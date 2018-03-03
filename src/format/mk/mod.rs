@@ -149,7 +149,7 @@ impl ModPatterns {
         for p in 0..num {
             for r in 0..64 {
                 for c in 0..chn {
-                    let ofs = (p*256 + r*4 + c) * chn;
+                    let ofs = (p*64*chn + r*chn + c) * 4;
                     let e = ModEvent::from_slice(b.slice(ofs, 4)?);
                     pat.data.push(e);
                 }
