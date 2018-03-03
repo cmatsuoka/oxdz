@@ -135,25 +135,34 @@ impl Loader for ModLoader {
             tracker_id = Fingerprint::id(&data)
         }
 
-        let (creator, player_id) = match tracker_id {
+        let (creator, mut player_id) = match tracker_id {
             TrackerID::Unknown            => ("unknown tracker",  "pt2"),
             TrackerID::Protracker         => ("Protracker",       "pt2"),
-            TrackerID::Noisetracker       => ("Noisetracker",     "nt11"),
+            TrackerID::Noisetracker       => ("Noisetracker",     "nt"),
             TrackerID::Soundtracker       => ("Soundtracker",     "pt2"),
             TrackerID::Screamtracker3     => ("Scream Tracker 3", "st3"),
-            TrackerID::FastTracker        => ("Fast Tracker",     "pt2"),
-            TrackerID::FastTracker2       => ("Fast Tracker",     "pt2"),
-            TrackerID::TakeTracker        => ("TakeTracker",      "pt2"),
-            TrackerID::Octalyser          => ("Octalyser",        "pt2"),
+            TrackerID::FastTracker        => ("Fast Tracker",     "ft"),
+            TrackerID::FastTracker2       => ("Fast Tracker",     "ft2"),
+            TrackerID::TakeTracker        => ("TakeTracker",      "ft2"),
+            TrackerID::Octalyser          => ("Octalyser",        "ft"),
             TrackerID::DigitalTracker     => ("Digital Tracker",  "pt2"),
-            TrackerID::ModsGrave          => ("Mod's Grave",      "pt2"),
+            TrackerID::ModsGrave          => ("Mod's Grave",      "ft"),
             TrackerID::FlexTrax           => ("FlexTrax",         "pt2"),
             TrackerID::OpenMPT            => ("OpenMPT",          "pt2"),
             TrackerID::Converted          => ("Converted",        "pt2"),
-            TrackerID::ConvertedST        => ("Converted 15-ins", "nt11"),
+            TrackerID::ConvertedST        => ("Converted 15-ins", "nt"),
             TrackerID::UnknownOrConverted => ("Unknown tracker",  "pt2"),
             TrackerID::ProtrackerClone    => ("Protracker clone", "pt2"),
         };
+
+        // sanity check
+        if player_id == "pt2" || player_id == "nt" {
+            if chn > 8 {
+                player_id = "ft2"
+            } else if chn > 4 {
+                player_id = "ft"
+            }
+        }
 
         let m = Module {
             format_id  : "m.k.",
