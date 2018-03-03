@@ -162,7 +162,7 @@ impl<'a> Player<'a> {
 
         let list_entry = list_by_id(player_id)?;
 
-        println!(".. check if player {:?} supports format {:?}", player_id, module.format_id);
+        debug!("check if player {:?} supports format {:?}", player_id, module.format_id);
         if !list_entry.info().accepts.contains(&module.format_id) {
             return Err(Error::Format(format!("player {:?} does not support format {:?}", list_entry.info().id, player_id)))
         }
