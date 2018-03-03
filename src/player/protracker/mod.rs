@@ -10,7 +10,7 @@ impl PlayerListEntry for Pt21a {
    fn info(&self) -> PlayerInfo {
        PlayerInfo {
           id         : "pt2",
-          name       : "oxdz-PT2.3A playroutine + fixes",
+          name       : "oxdz-PT2.1A playroutine + fixes",
           description: "A player based on the on the Protracker V2.3A replayer + V2.3D fixes",
           author     : "Claudio Matsuoka",
           accepts    : &[ "m.k." ],

@@ -3,12 +3,12 @@ use player::{Options, PlayerData, FormatPlayer};
 use format::mk::ModData;
 use mixer::Mixer;
 
-/// PT2.3A Replayer
+/// PT2.1A Replayer
 ///
-/// An oxdz player based on the Protracker V2.1A/V2.3A replayer written by Peter
-/// "CRAYON" Hanning / Mushroom Studios in 1992. Original names are used whenever
-/// possible (converted to snake case according to Rust convention, i.e.
-/// mt_PosJumpFlag becomes mt_pos_jump_flag).
+/// An oxdz player based on the Protracker V2.1A replayer written by Peter "CRAYON"
+/// Hanning / Mushroom Studios in 1992. Original names are used whenever possible
+/// (converted to snake case according to Rust convention, i.e. mt_PosJumpFlag
+/// becomes mt_pos_jump_flag).
 ///
 /// Bug fixes backported from Protracker 2.3D:
 /// * Mask finetune when playing voice
@@ -547,16 +547,17 @@ impl ModPlayer {
     }
 
     fn mt_volume_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        if self.mt_chantemp[chn].n_cmdlo >> 4 == 0 {
+        let val = self.mt_chantemp[chn].n_cmdlo >> 4;
+        if val == 0 {
             self.mt_vol_slide_down(chn, &mut mixer);
         } else {
-            self.mt_vol_slide_up(chn, &mut mixer);
+            self.mt_vol_slide_up(chn, val, &mut mixer);
         }
     }
 
-    fn mt_vol_slide_up(&mut self, chn: usize, mixer: &mut Mixer) {
+    fn mt_vol_slide_up(&mut self, chn: usize, val: u8, mixer: &mut Mixer) {
         let ch = &mut self.mt_chantemp[chn];
-        ch.n_volume += ch.n_cmdlo >> 4;
+        ch.n_volume += val;
         if ch.n_volume > 0x40 {
             ch.n_volume = 0x40;
         }
@@ -565,9 +566,9 @@ impl ModPlayer {
 
     fn mt_vol_slide_down(&mut self, chn: usize, mixer: &mut Mixer) {
         let ch = &mut self.mt_chantemp[chn];
-        let cmdlo = ch.n_cmdlo & 0x0f;
-        if ch.n_volume > cmdlo {
-            ch.n_volume -= cmdlo;
+        let val = ch.n_cmdlo & 0x0f;
+        if ch.n_volume > val {
+            ch.n_volume -= val;
         } else {
             ch.n_volume = 0;
         }
@@ -733,7 +734,8 @@ impl ModPlayer {
         if self.mt_counter != 0 {
             return
         }
-        self.mt_vol_slide_up(chn, &mut mixer);
+        let val = self.mt_chantemp[chn].n_cmdlo & 0x0f;
+        self.mt_vol_slide_up(chn, val, &mut mixer);
     }
 
     fn mt_volume_fine_down(&mut self, chn: usize, mut mixer: &mut Mixer) {
