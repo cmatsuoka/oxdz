@@ -634,22 +634,22 @@ impl ModPlayer {
     fn mt_e_commands(&mut self, chn: usize, mut mixer: &mut Mixer) {
 
         match self.mt_chantemp[chn].n_cmdlo >> 4 {
-           0x0 => self.mt_filter_on_off(chn, &mut mixer),
-           0x1 => self.mt_fine_porta_up(chn, &mut mixer),
-           0x2 => self.mt_fine_porta_down(chn, &mut mixer),
-           0x3 => self.mt_set_gliss_control(chn),
-           0x4 => self.mt_set_vibrato_control(chn),
-           0x5 => self.mt_set_finetune(chn),
-           0x6 => self.mt_jump_loop(chn),
-           0x7 => self.mt_set_tremolo_control(chn),
-           0x9 => self.mt_retrig_note(chn, &mut mixer),
-           0xa => self.mt_volume_fine_up(chn, &mut mixer),
-           0xb => self.mt_volume_fine_down(chn, &mut mixer),
-           0xc => self.mt_note_cut(chn, &mut mixer),
-           0xd => self.mt_note_delay(chn, &mut mixer),
-           0xe => self.mt_pattern_delay(chn),
-           0xf => self.mt_funk_it(chn, &mut mixer),
-           _   => {},
+            0x0 => self.mt_filter_on_off(chn, &mut mixer),
+            0x1 => self.mt_fine_porta_up(chn, &mut mixer),
+            0x2 => self.mt_fine_porta_down(chn, &mut mixer),
+            0x3 => self.mt_set_gliss_control(chn),
+            0x4 => self.mt_set_vibrato_control(chn),
+            0x5 => self.mt_set_finetune(chn),
+            0x6 => self.mt_jump_loop(chn),
+            0x7 => self.mt_set_tremolo_control(chn),
+            0x9 => self.mt_retrig_note(chn, &mut mixer),
+            0xa => self.mt_volume_fine_up(chn, &mut mixer),
+            0xb => self.mt_volume_fine_down(chn, &mut mixer),
+            0xc => self.mt_note_cut(chn, &mut mixer),
+            0xd => self.mt_note_delay(chn, &mut mixer),
+            0xe => self.mt_pattern_delay(chn),
+            0xf => self.mt_funk_it(chn, &mut mixer),
+            _   => {},
         }
     }
 
