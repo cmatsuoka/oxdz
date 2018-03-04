@@ -586,7 +586,7 @@ impl ModPlayer {
     fn mt_volume_change(&mut self, chn: usize, mixer: &mut Mixer) {
         let ch = &mut self.mt_chantemp[chn];
         if ch.n_cmdlo > 0x40 {
-            ch.n_cmdlo = 40
+            ch.n_cmdlo = 0x40
         }
         ch.n_volume = ch.n_cmdlo;
         mixer.set_volume(chn, (ch.n_volume as usize) << 4);  // MOVE.W  D0,8(A5)
