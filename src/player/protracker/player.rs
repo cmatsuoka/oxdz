@@ -660,7 +660,7 @@ impl ModPlayer {
 
     fn mt_set_gliss_control(&mut self, chn: usize) {
         let ch = &mut self.mt_chantemp[chn];
-        ch.n_glissfunk = ch.n_cmdlo;
+        ch.n_glissfunk = (ch.n_glissfunk & 0xf0) | (ch.n_cmdlo & 0x0f);
     }
 
     fn mt_set_vibrato_control(&mut self, chn: usize) {
@@ -775,7 +775,7 @@ impl ModPlayer {
         if self.mt_patt_del_time_2 != 0 {
             return
         }
-        self.mt_patt_del_time = ch.n_cmdlo & 0x0f + 1;
+        self.mt_patt_del_time = (ch.n_cmdlo & 0x0f) + 1;
     }
 
     fn mt_funk_it(&self, _chn: usize, _mixer: &mut Mixer) {
