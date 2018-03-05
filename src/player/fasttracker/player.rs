@@ -89,6 +89,8 @@ impl FtPlayer {
                 ch.n_volume = module.instruments[ins].volume;
                 ch.output_volume = module.instruments[ins].volume;
                 ch.n_finetune = module.instruments[ins].finetune;
+
+	        mixer.set_sample(chn, ch.n_insnum as usize);
             }
     
             if cmd == 3 || cmd == 5 {   // check if tone portamento
@@ -126,10 +128,11 @@ impl FtPlayer {
                         }
                         ch.n_offset = val;
     
-                        if 16_u16 * val as u16 > length {
+			let l = (val as u16) << 8;
+                        if l > length {
                             length = 0;
                         } else {
-                            length -= (val as u16) << 8;
+                            length -= l;
                         }
                     }
                     ch.n_length = length;
@@ -296,7 +299,7 @@ impl FtPlayer {
         if cmdlo > ch.n_volume {
             cmdlo = 0
         } else {
-            cmdlo -= ch.n_volume;
+            cmdlo = ch.n_volume - cmdlo;
         }
         ch.output_volume = cmdlo;
         ch.n_volume = cmdlo;
@@ -353,7 +356,7 @@ impl FtPlayer {
             if val > ch.n_volume {
                 val = 0
             } else {
-                val -= ch.n_volume;
+                val = ch.n_volume - val;
             }
         }
         ch.output_volume = val;
@@ -785,9 +788,9 @@ impl ChannelData {
 
 
 impl FormatPlayer for FtPlayer {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
+    fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, mixer: &mut Mixer) {
 
-        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
+        //let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
 
         data.speed = 6;
         data.tempo = 125;
@@ -816,11 +819,20 @@ impl FormatPlayer for FtPlayer {
 
         self.ft_song_pos = data.pos as u8;
         self.ft_pattern_pos = data.row as u8;
-        self.ft_counter = data.frame as u8;
+        self.ft_counter = self.ft_speed - data.frame as u8;
 
         self.ft_music(&module, &mut mixer);
 
-        data.frame = self.ft_counter as usize;
+	for chn in 0..self.ft_chantemp.len() {
+            let ch = &mut self.ft_chantemp[chn];
+	    mixer.set_loop_start(chn, ch.n_loopstart as u32 * 2);
+	    mixer.set_loop_end(chn, (ch.n_loopstart + ch.n_replen) as u32 * 2);
+	    mixer.enable_loop(chn, ch.n_loopstart != 0);
+            mixer.set_period(chn, ch.output_period as f64);
+            mixer.set_volume(chn, (ch.output_volume as usize) << 4);
+        }
+
+        data.frame = (self.ft_speed - self.ft_counter) as usize;
         data.row = self.ft_pattern_pos as usize;
         data.pos = self.ft_song_pos as usize;
         data.speed = self.ft_speed as usize;

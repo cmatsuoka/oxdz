@@ -6,6 +6,7 @@ mod ust;
 mod st2;
 mod st3;
 mod hmn;
+mod fasttracker;
 
 pub use mixer::Mixer;
 
@@ -22,6 +23,7 @@ fn all() -> Vec<Box<PlayerListEntry>> {
     vec![
         Box::new(protracker::Pt21a),
         Box::new(noisetracker::Nt11),
+        Box::new(fasttracker::Ft101),
         Box::new(st2::St2),
         Box::new(st3::St3),
         Box::new(soundtracker::DocSt2),
