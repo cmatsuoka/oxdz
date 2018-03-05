@@ -24,14 +24,9 @@ impl Loader for ModLoader {
         if magic == magic4!('M','.','K','.') || magic == magic4!('M','!','K','!') || magic == magic4!('M','&','K','!') || magic == magic4!('N','S','M','S') {
             player::check_accepted(player_id, "m.k.")?;
             Ok(FormatInfo{format: Format::Mk, title: b.read_string(0, 20)?})
-        } else if magic & 0xffffff == magic4!('\0','C','H','N') {
-            let c = (magic >> 24) as u8 as char;
-            if c.is_digit(10) && c != '0' {
-                player::check_accepted(player_id, "xxch")?;
-                Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
-            } else {
-                Err(Error::Format(format!("bad magic {:?}", magic)))
-            }
+        } else if magic == magic4!('6','C','H','N') || magic == magic4!('8','C','H','N') {
+            player::check_accepted(player_id, "xchn")?;
+            Ok(FormatInfo{format: Format::Xchn, title: b.read_string(0, 20)?})
         } else if magic & 0xffff == magic4!('\0','\0','C','H') {
             let c1 = (magic >> 24) as u8 as char;
             let c2 = ((magic & 0xff0000) >> 16) as u8 as char;
@@ -51,7 +46,7 @@ impl Loader for ModLoader {
 
     fn load(self: Box<Self>, b: &[u8], info: FormatInfo) -> Result<Module, Error> {
 
-        if info.format != Format::Mk {
+        if info.format != Format::Mk && info.format != Format::Xchn && info.format != Format::Xxch {
             return Err(Error::Format("unsupported format".to_owned()));
         }
 
@@ -124,7 +119,7 @@ impl Loader for ModLoader {
             song_length,
             restart,
             orders: [0; 128],
-            magic,
+            magic : magic.clone(),
             patterns,
             samples,
         };
@@ -155,6 +150,8 @@ impl Loader for ModLoader {
             TrackerID::ProtrackerClone    => ("Protracker clone", "pt2"),
         };
 
+	debug!("Tracker: {} => player: {}", creator, player_id);
+
         // sanity check
         if player_id == "pt2" || player_id == "nt" {
             if chn > 8 {
@@ -164,9 +161,17 @@ impl Loader for ModLoader {
             }
         }
 
+	// set format ID
+	let mut format_id = "m.k.";
+        if tracker_id == TrackerID::FastTracker {
+	    if chn == 6 || chn == 8 {
+                format_id = "xchn";
+            }
+        }
+
         let m = Module {
-            format_id  : "m.k.",
-            description: "M.K.".to_owned(),
+            format_id,
+            description: format!("{} module ", magic),
             creator    : creator.to_owned(),
             channels   : chn,
             player     : player_id,

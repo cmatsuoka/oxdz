@@ -13,7 +13,7 @@ impl PlayerListEntry for Ft101 {
           name       : "FastTracker 1.01 replayer",
           description: "Based on the FastTracker 1.01 replayer",
           author     : "Claudio Matsuoka",
-          accepts    : &[ "m.k.", "6chn", "8chn" ],
+          accepts    : &[ "m.k.", "xchn" ],
        }
    }
 

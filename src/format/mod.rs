@@ -14,6 +14,7 @@ pub enum Format {
     Mk,
     St,
     Ust,
+    Xchn,
     Xxch,
     Fest,
     Flt,
