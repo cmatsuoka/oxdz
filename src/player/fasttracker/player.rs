@@ -150,8 +150,6 @@ impl FtPlayer {
             }
         }
 
-        // no note
-        
         if cmd == 0 && cmdlo == 0 {
             return
         }
@@ -827,7 +825,7 @@ impl FormatPlayer for FtPlayer {
             let ch = &mut self.ft_chantemp[chn];
 	    mixer.set_loop_start(chn, ch.n_loopstart as u32 * 2);
 	    mixer.set_loop_end(chn, (ch.n_loopstart + ch.n_replen) as u32 * 2);
-	    mixer.enable_loop(chn, ch.n_loopstart != 0);
+	    mixer.enable_loop(chn, ch.n_replen > 1);
             mixer.set_period(chn, ch.output_period as f64);
             mixer.set_volume(chn, (ch.output_volume as usize) << 4);
         }
