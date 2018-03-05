@@ -809,6 +809,8 @@ impl FormatPlayer for FtPlayer {
         mixer.set_pan(6, panr);
         mixer.set_pan(7, panl);
 
+	self.ft_counter = 1;
+
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
@@ -817,7 +819,7 @@ impl FormatPlayer for FtPlayer {
 
         self.ft_song_pos = data.pos as u8;
         self.ft_pattern_pos = data.row as u8;
-        self.ft_counter = self.ft_speed - data.frame as u8;
+        //self.ft_counter = self.ft_speed - data.frame as u8;
 
         self.ft_music(&module, &mut mixer);
 
