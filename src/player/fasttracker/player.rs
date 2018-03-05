@@ -100,6 +100,8 @@ impl FtPlayer {
                         ch.n_toneportdirec = 1;
                     } else if note < ch.n_period {
                         ch.n_toneportdirec = 2;
+                    } else {
+                        ch.n_toneportdirec = 0;
                     }
                 }
                 if cmd != 5 {
@@ -421,14 +423,16 @@ impl FtPlayer {
         let mut val = ch.n_period;
 
         if ch.n_toneportdirec > 1 {
+            // porta up
             val -= ch.n_toneportspeed;
             if val < ch.n_wantedperiod {
                 val = ch.n_wantedperiod;
                 ch.n_toneportdirec = 1;
             }
-        } else if ch.n_toneportdirec != 1 {
+        } else if ch.n_toneportdirec == 1 {
             return
         } else {
+            // porta down
             val += ch.n_toneportspeed;
             if val > ch.n_wantedperiod {
                 val = ch.n_wantedperiod;
