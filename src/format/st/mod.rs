@@ -64,7 +64,7 @@ impl ModuleData for StData {
     }
 
     fn pattern_data(&self, pat: usize, num: usize, mut buffer: &mut [u8]) -> usize {
-        format::mk::get_mod_pattern(&self.patterns.data(), pat, num, &mut buffer)
+        format::mk::get_mod_pattern(&self.patterns.data(), pat, 4, num, &mut buffer)
     }
 
     fn samples(&self) -> &Vec<Sample> {

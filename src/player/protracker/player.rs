@@ -73,7 +73,7 @@ impl ModPlayer {
         }
 
         // mt_dskip
-        self.mt_pattern_pos +=1;
+        self.mt_pattern_pos += 1;
         if self.mt_patt_del_time != 0 {
             self.mt_patt_del_time_2 = self.mt_patt_del_time;
             self.mt_patt_del_time = 0;
