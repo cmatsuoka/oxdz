@@ -329,7 +329,7 @@ impl FtPlayer {
         }
 
         match cmd {
-            0xe => self.ft_check_more_efx(chn, &module, cmdlo),
+            0xe => self.ft_more_e_commands(chn, &module, cmdlo),
             0x0 => self.ft_arpeggio(chn, cmdlo),
             0x1 => self.ft_porta_up(chn, cmdlo),
             0x2 => self.ft_porta_down(chn, cmdlo),
@@ -347,23 +347,23 @@ impl FtPlayer {
         let ch = &mut self.ft_chantemp[chn];
         let mut val = cmdlo >> 4;
         if val == 0 {
-            val += ch.n_volume;
-            if val > 64 {
-                val = 64
-            }
-        } else {
             val = cmdlo;
             if val > ch.n_volume {
                 val = 0
             } else {
                 val = ch.n_volume - val;
             }
+        } else {
+            val += ch.n_volume;
+            if val > 64 {
+                val = 64
+            }
         }
         ch.output_volume = val;
         ch.n_volume = val;
     }
 
-    fn ft_check_more_efx(&mut self, chn: usize, module: &ModData, cmdlo: u8) {
+    fn ft_more_e_commands(&mut self, chn: usize, module: &ModData, cmdlo: u8) {
         match cmdlo >> 4 {
             0x09 => self.ft_retrig_note_2(chn, &module, cmdlo),
             0x0c => self.ft_note_cut_2(chn, cmdlo),
