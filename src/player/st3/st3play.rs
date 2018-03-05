@@ -596,7 +596,7 @@ impl St3Play {
 
                 // shutdown channel
                 //self.voice_set_source(ch, NULL, 0, 0, 0, 0, 0, 0);
-                mixer.set_volume(ch, 0);
+                mixer.reset_voice(ch);
                 mixer.set_voicepos(ch, 0.0);
             } else {
                 self.chn[ch].lastnote = note;

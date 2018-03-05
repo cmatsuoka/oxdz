@@ -108,7 +108,8 @@ impl<'a> Mixer<'a> {
         self.framesize = ((self.rate as f64 * PAL_RATE) / (self.factor * tempo as f64 * 100.0)) as usize;
     }
 
-    pub fn reset_voice(&self, voice: usize) {
+    pub fn reset_voice(&mut self, voice: usize) {
+        self.voices[voice].active = false
     }
 
     pub fn voicepos(&self, voice: usize) -> f64 {
@@ -185,6 +186,7 @@ impl<'a> Mixer<'a> {
         }
 
         let v = &mut self.voices[voice];
+        v.active = true;
         v.smp = smp - 1;
         v.pos = 0_f64;
         v.end = self.sample[smp - 1].size;
@@ -200,6 +202,7 @@ impl<'a> Mixer<'a> {
 
         for s in self.sample {
             if addr >= s.address && addr < s.address + s.size {
+                v.active = true;
                 v.smp = s.num - 1;
                 v.pos = (addr - s.address) as f64;
                 v.end = s.size;
@@ -207,6 +210,7 @@ impl<'a> Mixer<'a> {
                 return
             }
         }
+        v.active = false;
     }
 
     pub fn set_loop_start(&mut self, voice: usize, val: u32) {
@@ -249,7 +253,7 @@ impl<'a> Mixer<'a> {
         self.buf32[..].fill(0, self.framesize);
 
         for v in &mut self.voices {
-            if v.mute || v.period < 1.0 {
+            if v.mute || v.period < 1.0 || !v.active {
                 continue
             }
 
@@ -397,6 +401,7 @@ struct Voice {
     has_loop  : bool,
     sample_end: bool,
     mute      : bool,
+    active    : bool,
 
     i_buffer  : [i32; 4],
 
