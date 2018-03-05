@@ -37,8 +37,7 @@ pub fn from_mod(module: Module) -> Result<Module, Error> {
 
     let ch = match module.format_id {
         "m.k." => 4,
-        "6CHN" => 6,
-        "8CHN" => 8,
+        "xchn" => module.channels,
         _      => return Err(Error::Format(format!("can't import {} module", module.format_id))),
     };
 

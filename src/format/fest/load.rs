@@ -91,7 +91,7 @@ impl Loader for FestLoader {
 
         let m = Module {
             format_id  : "fest",
-            description: "4 channel FEST".to_owned(),
+            description: "FEST module".to_owned(),
             creator    : "His Master's NoiseTracker".to_owned(),
             channels   : 4,
             player     : "hmn",
