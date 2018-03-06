@@ -97,11 +97,11 @@ impl FtPlayer {
                 if note != 0 {
                     ch.n_wantedperiod = note;
                     if note == ch.n_period {
-                        ch.n_toneportdirec = 1;
+                        ch.n_toneportdirec = 0;
                     } else if note < ch.n_period {
                         ch.n_toneportdirec = 2;
                     } else {
-                        ch.n_toneportdirec = 0;
+                        ch.n_toneportdirec = 1;
                     }
                 }
                 if cmd != 5 {
@@ -429,7 +429,7 @@ impl FtPlayer {
                 val = ch.n_wantedperiod;
                 ch.n_toneportdirec = 1;
             }
-        } else if ch.n_toneportdirec == 1 {
+        } else if ch.n_toneportdirec != 1 {
             return
         } else {
             // porta down
