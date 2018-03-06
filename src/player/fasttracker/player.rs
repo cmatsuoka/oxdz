@@ -89,8 +89,7 @@ impl FtPlayer {
                 ch.n_volume = module.instruments[ins].volume;
                 ch.output_volume = module.instruments[ins].volume;
                 ch.n_finetune = module.instruments[ins].finetune;
-
-	        mixer.set_sample(chn, ch.n_insnum as usize);
+	            mixer.set_sample(chn, ch.n_insnum as usize);
             }
     
             if cmd == 3 || cmd == 5 {   // check if tone portamento
@@ -424,7 +423,11 @@ impl FtPlayer {
 
         if ch.n_toneportdirec > 1 {
             // porta up
-            val -= ch.n_toneportspeed;
+            if ch.n_toneportspeed > val {
+                val = 0;
+            } else {
+                val -= ch.n_toneportspeed;
+            }
             if val < ch.n_wantedperiod {
                 val = ch.n_wantedperiod;
                 ch.n_toneportdirec = 1;
@@ -813,7 +816,7 @@ impl FormatPlayer for FtPlayer {
         mixer.set_pan(6, panr);
         mixer.set_pan(7, panl);
 
-	self.ft_counter = 1;
+        self.ft_counter = 1;
 
     }
 
@@ -827,11 +830,11 @@ impl FormatPlayer for FtPlayer {
 
         self.ft_music(&module, &mut mixer);
 
-	for chn in 0..self.ft_chantemp.len() {
+        for chn in 0..self.ft_chantemp.len() {
             let ch = &mut self.ft_chantemp[chn];
-	    mixer.set_loop_start(chn, ch.n_loopstart as u32 * 2);
-	    mixer.set_loop_end(chn, (ch.n_loopstart + ch.n_replen) as u32 * 2);
-	    mixer.enable_loop(chn, ch.n_replen > 1);
+            mixer.set_loop_start(chn, ch.n_loopstart as u32 * 2);
+            mixer.set_loop_end(chn, (ch.n_loopstart + ch.n_replen) as u32 * 2);
+            mixer.enable_loop(chn, ch.n_replen > 1);
             mixer.set_period(chn, ch.output_period as f64);
             mixer.set_volume(chn, (ch.output_volume as usize) << 4);
         }
