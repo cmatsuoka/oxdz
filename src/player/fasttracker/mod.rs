@@ -10,7 +10,7 @@ impl PlayerListEntry for Ft101 {
    fn info(&self) -> PlayerInfo {
        PlayerInfo {
           id         : "ft",
-          name       : "FastTracker 1.01 replayer",
+          name       : "FastTracker 1.01",
           description: "Based on the FastTracker 1.01 replayer",
           author     : "Claudio Matsuoka",
           accepts    : &[ "m.k.", "xchn" ],

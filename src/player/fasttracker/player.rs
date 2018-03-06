@@ -89,7 +89,7 @@ impl FtPlayer {
                 ch.n_volume = module.instruments[ins].volume;
                 ch.output_volume = module.instruments[ins].volume;
                 ch.n_finetune = module.instruments[ins].finetune;
-	            mixer.set_sample(chn, ch.n_insnum as usize);
+                mixer.set_sample(chn, ch.n_insnum as usize);
             }
     
             if cmd == 3 || cmd == 5 {   // check if tone portamento
@@ -129,7 +129,7 @@ impl FtPlayer {
                         }
                         ch.n_offset = val;
     
-			let l = (val as u16) << 8;
+                        let l = (val as u16) << 8;
                         if l > length {
                             length = 0;
                         } else {
@@ -364,9 +364,9 @@ impl FtPlayer {
 
     fn ft_more_e_commands(&mut self, chn: usize, module: &ModData, cmdlo: u8) {
         match cmdlo >> 4 {
-            0x09 => self.ft_retrig_note_2(chn, &module, cmdlo),
-            0x0c => self.ft_note_cut_2(chn, cmdlo),
-            0x0d => self.ft_note_delay_2(chn, &module, cmdlo),
+            0x9 => self.ft_retrig_note_2(chn, &module, cmdlo),
+            0xc => self.ft_note_cut_2(chn, cmdlo),
+            0xd => self.ft_note_delay_2(chn, &module, cmdlo),
             _   => {},
         }
     }
