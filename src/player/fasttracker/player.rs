@@ -840,6 +840,11 @@ impl FormatPlayer for FtPlayer {
         self.ft_pattern_pos = data.row as u8;
         //self.ft_counter = self.ft_speed - data.frame as u8;
 
+        // sanity check
+        if self.ft_song_pos >= module.song_length {
+            self.ft_song_pos = 0;
+        }
+
         self.ft_music(&module, &mut mixer);
 
         for chn in 0..self.ft_chantemp.len() {
