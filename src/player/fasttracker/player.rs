@@ -32,8 +32,9 @@ fn note_to_period(note: u8, fine: u8) -> u16 {
 }
 
 fn period_to_note(period: u16, fine: u8) -> u8 {
+    let ofs = fine as usize * 36;
     for i in 0..36 {
-        if period >= FT_PERIOD_TABLE[fine as usize + i] {
+        if period >= FT_PERIOD_TABLE[ofs + i] {
             return i as u8
         } 
     }
@@ -96,7 +97,8 @@ impl FtPlayer {
     
             if cmd == 3 || cmd == 5 {   // check if tone portamento
                 if note != 0 {
-                    ch.n_wantedperiod = note;
+                    // See period conversion comment below.
+                    ch.n_wantedperiod = note_to_period(period_to_note(note, 0), ch.n_finetune);
                     if note == ch.n_period {
                         ch.n_toneportdirec = 0;
                     } else if note < ch.n_period {
@@ -115,7 +117,11 @@ impl FtPlayer {
                     if cmd == 0x0e && cmdlo & 0xf0 == 0x50 {    // check if set finetune
                         ch.n_finetune = cmdlo & 0x0f;
                     }
-                    ch.n_period = note;
+
+                    // FT uses pre-converted periods to note numbers. We'll convert to note
+                    // numbers here and back to periods to set finetune. Note: "note" is
+                    // the event note which is actually a period value, not a note number.
+                    ch.n_period = note_to_period(period_to_note(note, 0), ch.n_finetune);
                     if cmd == 0x0e && cmdlo & 0xf0 == 0xd0 {    // check if note delay
                         if cmdlo & 0x0f != 0 {
                             return
@@ -864,3 +870,18 @@ impl FormatPlayer for FtPlayer {
         self.ft_pattern_pos     = 0;
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_period_to_note() {
+        for (n, p) in FT_PERIOD_TABLE.iter().enumerate() {
+            let note = period_to_note(*p, (n/36) as u8) as usize;
+            assert_eq!(n % 36, note)
+	}
+    }
+}
+
