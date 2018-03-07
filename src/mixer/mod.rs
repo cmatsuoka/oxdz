@@ -2,7 +2,6 @@ use module::sample::{Sample, SampleType};
 use mixer::interpolator::Interpolator;
 use mixer::paula::Paula;
 use util::MemOpExt;
-use util;
 use ::*;
 
 mod interpolator;
@@ -148,19 +147,6 @@ impl<'a> Mixer<'a> {
         //if ac {
         //    v.anticlick();
         //}
-    }
-
-    pub fn set_note(&mut self, voice: usize, mut note: usize) {
-        try_voice!(voice, self.voices);
-
-        // FIXME: Workaround for crash on notes that are too high
-        //        see 6nations.it (+114 transposition on instrument 16)
-        //
-        if note > 149 {
-            note = 149;
-        }
-        self.voices[voice].note = note;
-        self.voices[voice].period = util::note_to_period_mix(note, 0);
     }
 
     pub fn set_volume(&mut self, voice: usize, vol: usize) {
@@ -333,7 +319,7 @@ impl<'a> Mixer<'a> {
                     if v.has_loop {
                         if v.pos + step >= v.end as f64 {
                             v.pos += step;
-                            v.loop_reposition(&sample);
+                            v.loop_reposition();
                         }
                     }
                     continue;
@@ -347,7 +333,7 @@ impl<'a> Mixer<'a> {
                 }
 
                 // reached end of loop
-                v.loop_reposition(&sample);
+                v.loop_reposition();
             }
         }
 
@@ -414,7 +400,7 @@ impl Voice {
         v
     }
 
-    pub fn loop_reposition(&mut self, sample: &Sample) {
+    pub fn loop_reposition(&mut self) {
         // sanity check
         if self.pos > self.loop_end as f64 {
             self.pos = self.loop_end as f64;
@@ -556,4 +542,3 @@ impl SamplerOperations<i8> for Sampler {
         (*i as i32) << 8
     }
 }
-

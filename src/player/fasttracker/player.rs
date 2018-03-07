@@ -588,7 +588,7 @@ impl FtPlayer {
         }
     }
 
-    fn ft_new_row(&mut self, module: &ModData, mixer: &mut Mixer) {
+    fn ft_new_row(&mut self, module: &ModData) {
 
         if self.ft_counter != 1 {
             return
@@ -651,8 +651,8 @@ impl FtPlayer {
     fn ft_music(&mut self, module: &ModData, mut mixer: &mut Mixer) {
         self.ft_counter -= 1;
         if self.ft_counter != 0 {
-            self.ft_no_new_all_channels(&module, &mut mixer);
-            self.ft_new_row(&module, &mut mixer);
+            self.ft_no_new_all_channels(&module);
+            self.ft_new_row(&module);
             return
         }
 
@@ -661,12 +661,12 @@ impl FtPlayer {
         if self.ft_patt_del_time_2 == 0 {
             self.ft_get_new_note(&module, &mut mixer)
         } else {
-            self.ft_no_new_all_channels(&module, &mut mixer);
-            self.ft_new_row(&module, &mut mixer);
+            self.ft_no_new_all_channels(&module);
+            self.ft_new_row(&module);
         }
     }
 
-    fn ft_no_new_all_channels(&mut self, module: &ModData, mixer: &mut Mixer) {
+    fn ft_no_new_all_channels(&mut self, module: &ModData) {
         for chn in 0..self.ft_chantemp.len() {
             self.ft_check_efx(chn, &module);
         }
