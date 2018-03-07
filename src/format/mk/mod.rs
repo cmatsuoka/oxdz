@@ -14,7 +14,7 @@ pub struct ModData {
     pub song_name  : String,
     pub instruments: Vec<ModInstrument>,
     pub song_length: u8,
-    pub restart    : u8,  // Noisetracker restart
+    pub restart    : u8,         // Only for certain trackers
     pub orders     : [u8; 128],
     pub magic      : String,
     pub patterns   : ModPatterns,

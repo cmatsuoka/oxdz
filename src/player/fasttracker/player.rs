@@ -21,6 +21,7 @@ pub struct FtPlayer {
     ft_patt_del_time  : u8,
     ft_patt_del_time_2: u8,
     ft_pattern_pos    : u8,
+    //ft_current_pattern: u16,
     cia_tempo         : u8,
 
     ft_chantemp       : Vec<ChannelData>,
@@ -54,6 +55,7 @@ impl FtPlayer {
             ft_patt_del_time  : 0,
             ft_patt_del_time_2: 0,
             ft_pattern_pos    : 0,
+            //ft_current_pattern: 0,
             cia_tempo         : 125,
 
             ft_chantemp       : vec![ChannelData::new(); module.channels],
@@ -586,14 +588,14 @@ impl FtPlayer {
             return
         }
 
-        // mt_dskip
+        // ft_dskip
         self.ft_pattern_pos += 1;
         if self.ft_patt_del_time != 0 {
             self.ft_patt_del_time_2 = self.ft_patt_del_time;
             self.ft_patt_del_time = 0;
         }
 
-        // mt_dskc
+        // ft_dskc
         if self.ft_patt_del_time_2 != 0 {
             self.ft_patt_del_time_2 -= 1;
             if self.ft_patt_del_time_2 != 0 {
@@ -601,38 +603,42 @@ impl FtPlayer {
             }
         }
 
-        // mt_dska
+        // ft_dska
         if self.ft_pbreak_flag {
             self.ft_pbreak_flag = false;
             self.ft_pattern_pos = self.ft_pbreak_pos;
-            self.ft_pbreak_pos = 0;
+            //self.ft_pbreak_pos = 0;
         }
 
-        // mt_nnpysk
+        // ft_nnpysk
         if self.ft_pattern_pos >= 64 {
             self.ft_next_position(&module);
         } else {
             self.ft_no_new_pos_yet(&module);
         }
-
-        
     }
 
     fn ft_next_position(&mut self, module: &ModData) {
-        self.ft_pattern_pos = self.ft_pbreak_pos;
-        self.ft_pbreak_pos = 0;
-        self.ft_pos_jump_flag = false;
-        self.ft_song_pos = self.ft_song_pos.wrapping_add(1);
-        self.ft_song_pos &= 0x7f;
-        if self.ft_song_pos >= module.song_length {
-            self.ft_song_pos = 0;
+        loop {
+            self.ft_pattern_pos = self.ft_pbreak_pos;
+            self.ft_pbreak_pos = 0;
+            self.ft_pos_jump_flag = false;
+            let mut pos = self.ft_song_pos;
+            pos = pos.wrapping_add(1);
+            if pos >= module.song_length {
+                pos = module.restart;
+            }
+            self.ft_song_pos = pos;
+            //self.ft_current_pattern = module.pattern_in_position(pos as usize);
+            if !self.ft_pos_jump_flag {
+                return
+            }
         }
     }
 
     fn ft_no_new_pos_yet(&mut self, module: &ModData) {
         if self.ft_pos_jump_flag {
             self.ft_next_position(&module);
-            self.ft_no_new_pos_yet(&module);
         }
     }
 
