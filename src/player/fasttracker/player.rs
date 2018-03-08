@@ -804,8 +804,6 @@ impl ChannelData {
 impl FormatPlayer for FtPlayer {
     fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, mixer: &mut Mixer) {
 
-        //let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
-
         data.speed = 6;
         data.tempo = 125;
 
@@ -835,7 +833,6 @@ impl FormatPlayer for FtPlayer {
 
         self.ft_song_pos = data.pos as u8;
         self.ft_pattern_pos = data.row as u8;
-        //self.ft_counter = self.ft_speed - data.frame as u8;
 
         // sanity check
         if self.ft_song_pos >= module.song_length {
@@ -883,7 +880,7 @@ mod tests {
         for (n, p) in FT_PERIOD_TABLE.iter().enumerate() {
             let note = period_to_note(*p, (n/36) as u8) as usize;
             assert_eq!(n % 36, note)
-	}
+        }
     }
 }
 
