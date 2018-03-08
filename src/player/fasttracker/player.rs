@@ -650,19 +650,17 @@ impl FtPlayer {
 
     fn ft_music(&mut self, module: &ModData, mut mixer: &mut Mixer) {
         self.ft_counter -= 1;
-        if self.ft_counter != 0 {
-            self.ft_no_new_all_channels(&module);
-            self.ft_new_row(&module);
-            return
-        }
-
-        self.ft_counter = self.ft_speed;
-        if self.ft_patt_del_time_2 == 0 {
-            self.ft_get_new_note(&module, &mut mixer)
+        if self.ft_counter == 0 {
+            self.ft_counter = self.ft_speed;
+            if self.ft_patt_del_time_2 == 0 {
+                self.ft_get_new_note(&module, &mut mixer)
+            } else {
+                self.ft_no_new_all_channels(&module);
+            }
         } else {
             self.ft_no_new_all_channels(&module);
-            self.ft_new_row(&module);
         }
+        self.ft_new_row(&module);
     }
 
     fn ft_no_new_all_channels(&mut self, module: &ModData) {
@@ -680,8 +678,6 @@ impl FtPlayer {
         for chn in 0..self.ft_chantemp.len() {
             self.ft_play_voice(pat, chn, &module, &mut mixer);
         }
-
-        self.ft_new_row(&module);
     }
 
 }
