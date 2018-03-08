@@ -680,6 +680,8 @@ impl FtPlayer {
         for chn in 0..self.ft_chantemp.len() {
             self.ft_play_voice(pat, chn, &module, &mut mixer);
         }
+
+        self.ft_new_row(&module);
     }
 
 }
