@@ -27,8 +27,8 @@ correctly implemented. Sound quality will be improved over time.
 * Formats and players
   * Standard M.K. loader               :heavy_check_mark:
   * M.K. fingerprinting                :heavy_check_mark:
-  * Multichannel module loader
-  * xCHN/xxCH fingerprinting
+  * Multichannel module loader         :heavy_check_mark:
+  * xCHN/xxCH fingerprinting           :heavy_check_mark:
   * Protracker M.K. mod player         :heavy_check_mark:
   * Noisetracker player                :heavy_check_mark:
   * 15-instrument (Soundtracker)       :heavy_check_mark:
@@ -62,6 +62,7 @@ correctly implemented. Sound quality will be improved over time.
 * Format support
   * Digitrakker player based on original sources
   * Imago Orpheus player based on original sources
+  * Multitracker
   * SoundFX
 * Other language bindings
   * Something else (Go, Python, Java, etc)
