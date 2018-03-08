@@ -657,7 +657,6 @@ impl FtPlayer {
         }
 
         self.ft_counter = self.ft_speed;
-        self.ft_patt_del_time_2 = 0;
         if self.ft_patt_del_time_2 == 0 {
             self.ft_get_new_note(&module, &mut mixer)
         } else {
