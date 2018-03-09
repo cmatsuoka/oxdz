@@ -87,7 +87,7 @@ pub struct St2Play {
 }
 
 impl St2Play {
-    pub fn new(module: &Module, _options: Options) -> Self {
+    pub fn new(_module: &Module, _options: Options) -> Self {
         St2Play {
             //sample_rate     : 15909,
             pattern_current : 0,
@@ -408,15 +408,15 @@ impl FormatPlayer for St2Play {
 #[derive(Default,Copy,Clone)]
 struct St2Channel {
     //on               : bool,
-    empty            : bool,
+    //empty            : bool,
     row              : u16,
-    pattern_data_offs: usize,
+    //pattern_data_offs: usize,
     event_note       : u16,
     event_volume     : u8,
     event_smp        : u16,
     event_cmd        : u16,
     event_infobyte   : u16,
-    last_note        : u16,
+    //last_note        : u16,
     period_current   : i16,
     period_target    : i16,
     vibrato_current  : u16,
