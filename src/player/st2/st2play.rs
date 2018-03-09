@@ -83,7 +83,7 @@ pub struct St2Play {
     //st2_channel_t channels[4];
     //st2_sample_t samples[32];
 
-    channels: Vec<St2Channel>,
+    channels: [St2Channel; 4],
 }
 
 impl St2Play {
@@ -104,7 +104,7 @@ impl St2Play {
             tempo           : 0x60,
             global_volume   : 64,
             //play_single_note: 0,
-            channels        : vec![St2Channel::new(); module.channels],
+            channels        : [St2Channel::new(); 4],
         }
     }
 
@@ -405,7 +405,7 @@ impl FormatPlayer for St2Play {
     }
 }
 
-#[derive(Default,Clone)]
+#[derive(Default,Copy,Clone)]
 struct St2Channel {
     //on               : bool,
     empty            : bool,

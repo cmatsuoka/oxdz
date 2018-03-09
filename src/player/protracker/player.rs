@@ -30,7 +30,7 @@ pub struct ModPlayer {
     mt_pattern_pos    : u8,
     cia_tempo         : u8,
 
-    mt_chantemp       : Vec<ChannelData>,
+    mt_chantemp       : [ChannelData; 4],
     mt_samplestarts   : [u32; 31],
 }
 
@@ -51,7 +51,7 @@ impl ModPlayer {
             mt_pattern_pos    : 0,
             cia_tempo         : 125,
 
-            mt_chantemp       : vec![ChannelData::new(); 4],
+            mt_chantemp       : [ChannelData::new(); 4],
             mt_samplestarts   : [0; 31],
         }
     }
@@ -866,7 +866,7 @@ static MT_PERIOD_TABLE: [u16; 16*37] = [
 ];
 
 
-#[derive(Clone,Default)]
+#[derive(Clone,Copy,Default)]
 struct ChannelData {
     n_note         : u16,
     n_cmd          : u8,
@@ -890,7 +890,7 @@ struct ChannelData {
     n_sampleoffset : u8,
     n_pattpos      : u8,
     n_loopcount    : u8,
-    n_funkoffset   : u8,
+    //n_funkoffset   : u8,
     n_wavestart    : u32,
 
     inside_loop    : bool,

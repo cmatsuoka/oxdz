@@ -17,7 +17,7 @@ pub struct ModPlayer {
     mt_counter     : u8,
     mt_break       : bool,
     mt_samplestarts: [u32; 31],
-    mt_voice       : Vec<ChannelData>,
+    mt_voice       : [ChannelData; 4],
 }
 
 impl ModPlayer {
@@ -31,7 +31,7 @@ impl ModPlayer {
             mt_counter     : 0,
             mt_break       : false,
             mt_samplestarts: [0; 31],
-            mt_voice       : vec![ChannelData::new(); 4],
+            mt_voice       : [ChannelData::new(); 4],
         }
     }
 
@@ -390,7 +390,7 @@ impl FormatPlayer for ModPlayer {
 }
 
 
-#[derive(Clone,Default)]
+#[derive(Clone,Copy,Default)]
 struct ChannelData {
     n_0_note        : u16,
     n_2_cmd         : u8,

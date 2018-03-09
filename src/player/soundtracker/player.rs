@@ -18,7 +18,7 @@ pub struct StPlayer {
     mt_maxpart   : u16,
     mt_status    : bool,
     mt_sample1   : [u32; 31],
-    mt_audtemp   : Vec<AudTemp>,
+    mt_audtemp   : [AudTemp; 4],
 }
 
 impl StPlayer {
@@ -36,7 +36,7 @@ impl StPlayer {
             mt_maxpart   : module.song_length as u16,
             mt_status    : false,
             mt_sample1   : [0; 31],
-            mt_audtemp   : vec![AudTemp::new(); 4],
+            mt_audtemp   : [AudTemp::new(); 4],
         }
     }
 
@@ -280,7 +280,7 @@ impl FormatPlayer for StPlayer {
 }
 
 
-#[derive(Clone,Default)]
+#[derive(Clone,Copy,Default)]
 struct AudTemp {
     n_0_note        : u16,
     n_2_cmd         : u8,
