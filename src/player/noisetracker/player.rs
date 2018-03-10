@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
+use player::scan::SaveRestore;
 use format::mk::ModData;
 use mixer::Mixer;
 
@@ -8,6 +9,7 @@ use mixer::Mixer;
 /// An oxdz player based on the Noisetracker V1.1 play routine by Pex Tufvesson
 /// and Anders Berkeman (Mahoney & Kaktus - HALLONSOFT 1989).
 
+#[derive(SaveRestore)]
 pub struct ModPlayer {
     options: Options,
 

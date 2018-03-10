@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
+use player::scan::SaveRestore;
 use format::mk::ModData;
 use mixer::Mixer;
 
@@ -9,6 +10,7 @@ use mixer::Mixer;
 /// Huss (Mr.H / Triton) in 1992-1993. Function and variable names from the
 /// corresponding parts in the Protracker 2.1A playroutine.
 
+#[derive(SaveRestore)]
 pub struct FtPlayer {
     options: Options, 
 
@@ -24,7 +26,7 @@ pub struct FtPlayer {
     //ft_current_pattern: u16,
     cia_tempo         : u8,
 
-    ft_chantemp       : Vec<ChannelData>,
+    ft_chantemp       : [ChannelData; 8],
 }
 
 fn note_to_period(note: u8, fine: u8) -> u16 {
@@ -42,7 +44,7 @@ fn period_to_note(period: u16, fine: u8) -> u8 {
 }
 
 impl FtPlayer {
-    pub fn new(module: &Module, options: Options) -> Self {
+    pub fn new(_module: &Module, options: Options) -> Self {
 
         FtPlayer {
             options,
@@ -59,7 +61,7 @@ impl FtPlayer {
             //ft_current_pattern: 0,
             cia_tempo         : 125,
 
-            ft_chantemp       : vec![ChannelData::new(); module.channels],
+            ft_chantemp       : [ChannelData::new(); 8],
         }
     }
 
@@ -765,9 +767,8 @@ static FT_PERIOD_TABLE: [u16; 16*36] = [
 ];
 
 
-#[derive(Clone,Default)]
+#[derive(Clone,Copy,Default)]
 struct ChannelData {
-    n_note         : u16,
     n_length       : u16,
     n_loopstart    : u16,
     n_replen       : u16,

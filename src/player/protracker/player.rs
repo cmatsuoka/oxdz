@@ -1,6 +1,6 @@
-use std;
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
+use player::scan::SaveRestore;
 use format::mk::ModData;
 use mixer::Mixer;
 
@@ -16,6 +16,7 @@ use mixer::Mixer;
 /// * Mask note value in note delay command processing
 /// * Fix period table lookup by adding trailing zero values
 
+#[derive(SaveRestore)]
 pub struct ModPlayer {
     options: Options, 
 
@@ -57,36 +58,12 @@ impl ModPlayer {
         }
     }
 
-    // Save/restore state proof of concept
-    pub fn save_state(&self) -> Vec<u8> {
-        let size = std::mem::size_of::<Self>();
-        let mut dst: Vec<u8> = Vec::with_capacity(size);
-        unsafe {
-            dst.set_len(size);
-            std::ptr::copy(self, std::mem::transmute(dst.as_mut_ptr()), 1);
-        }
-        dst
-    }
-
-    pub fn restore_state(&mut self, buffer: Vec<u8>) {
-        let size = buffer.len();
-        unsafe {
-            std::ptr::copy(buffer.as_ptr(), std::mem::transmute(self), size)
-        }
-    }
-
     fn mt_music(&mut self, module: &ModData, mut mixer: &mut Mixer) {
         self.mt_counter += 1;
         if self.mt_speed > self.mt_counter {
             // mt_NoNewNote
             self.mt_no_new_all_channels(&mut mixer);
             self.mt_no_new_pos_yet(&module);
-
-            // save/restore test
-            let k = self.save_state();
-            self.cia_tempo = 100;
-            self.mt_song_pos = 0;
-            self.restore_state(k);
             return
         }
 

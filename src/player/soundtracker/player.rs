@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
+use player::scan::SaveRestore;
 use format::st::StData;
 use mixer::Mixer;
 
@@ -8,6 +9,7 @@ use mixer::Mixer;
 /// An oxdz player based on the D.O.C SoundTracker V2.0 playroutine - Improved
 /// and "omptimized" by Unknown of D.O.C, Based on the playroutine from TJC.
 
+#[derive(SaveRestore)]
 pub struct StPlayer {
     options: Options,
 

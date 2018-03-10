@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
+use player::scan::SaveRestore;
 use format::s3m::S3mData;
 use mixer::Mixer;
 
@@ -105,7 +106,7 @@ struct Chn {
     apancnt       : i16,
 }
 
-#[derive(Default)]
+#[derive(Default,SaveRestore)]
 pub struct St3Play {
     // STATIC DATA
     tickdelay         : i8,  // NON-ST3

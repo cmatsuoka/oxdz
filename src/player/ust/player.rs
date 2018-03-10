@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
+use player::scan::SaveRestore;
 use format::st::StData;
 use mixer::Mixer;
 
@@ -11,6 +12,7 @@ use mixer::Mixer;
 /// > "Just look at it -- so small, innocent and cute. :)"
 /// > -- Olav "8bitbubsy" Sørensen
 
+#[derive(SaveRestore)]
 pub struct USTPlayer {
     options   : Options,
 

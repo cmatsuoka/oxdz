@@ -15,6 +15,7 @@ byteorder = "1.2"
 getopts = "0.2"
 memmap = "0.6"
 riff-wave = "0.1"
+save-restore-derive = { path = "save-restore-derive" }
 
 [profile.release]
 lto = true

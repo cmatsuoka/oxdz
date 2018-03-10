@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
+use player::scan::SaveRestore;
 use format::mk::ModData;
 use mixer::Mixer;
 
@@ -58,7 +59,7 @@ use mixer::Mixer;
 /// the index table, and the instrument would be stored in one of the
 /// "patterns" of the song.
 
-
+#[derive(SaveRestore)]
 pub struct HmnPlayer {
     options: Options,
 

@@ -1,6 +1,9 @@
 extern crate byteorder;
 
 #[macro_use]
+extern crate save_restore_derive;
+
+#[macro_use]
 mod util;
 
 pub mod format;

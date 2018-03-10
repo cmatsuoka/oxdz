@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
+use player::scan::SaveRestore;
 use format::stm::StmData;
 use mixer::Mixer;
 
@@ -62,6 +63,7 @@ static LFO_TABLE: [i16; 65] = [
 ];
 
 
+#[derive(SaveRestore)]
 pub struct St2Play {
     //sample_rate     : u16,
     pattern_current : u16,
