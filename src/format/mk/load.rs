@@ -150,7 +150,7 @@ impl Loader for ModLoader {
             TrackerID::ProtrackerClone    => ("Protracker clone", "pt2"),
         };
 
-	debug!("Tracker: {} => player: {}", creator, player_id);
+        debug!("Tracker: {} => player: {}", creator, player_id);
 
         // sanity check
         if player_id == "pt2" || player_id == "nt" {
@@ -161,10 +161,10 @@ impl Loader for ModLoader {
             }
         }
 
-	// set format ID
-	let mut format_id = "m.k.";
+        // set format ID
+        let mut format_id = "m.k.";
         if tracker_id == TrackerID::FastTracker {
-	    if chn == 6 || chn == 8 {
+            if chn == 6 || chn == 8 {
                 format_id = "xchn";
             }
         }

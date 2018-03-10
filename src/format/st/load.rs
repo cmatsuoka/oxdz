@@ -149,7 +149,7 @@ impl Loader for StLoader {
             ust = false
         }
 
-	let title = b.read_string(0,20)?;
+        let title = b.read_string(0,20)?;
 
         if ust {
             Ok(FormatInfo{format: Format::Ust, title})
