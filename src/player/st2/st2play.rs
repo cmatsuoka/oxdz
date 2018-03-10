@@ -1,5 +1,5 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
 use player::scan::SaveRestore;
 use format::stm::StmData;
 use mixer::Mixer;
@@ -359,6 +359,44 @@ impl St2Play {
 }
 
 
+#[derive(Default,Copy,Clone)]
+struct St2Channel {
+    //on               : bool,
+    //empty            : bool,
+    row              : u16,
+    //pattern_data_offs: usize,
+    event_note       : u16,
+    event_volume     : u8,
+    event_smp        : u16,
+    event_cmd        : u16,
+    event_infobyte   : u16,
+    //last_note        : u16,
+    period_current   : i16,
+    period_target    : i16,
+    vibrato_current  : u16,
+    tremor_counter   : u16,
+    tremor_state     : u16,
+    //uint8_t *smp_name;
+    //uint8_t *smp_data_ptr;
+    //uint16_t smp_loop_end;
+    //uint16_t smp_loop_start;
+    //uint16_t smp_c2spd;
+    //uint32_t smp_position;
+    //smp_step         : u32,
+    volume_initial   : i16,
+    volume_current   : i16,
+    //uint16_t volume_meter;
+    volume_mix       : u16,
+}
+
+impl St2Channel {
+
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+
 impl FormatPlayer for St2Play {
     fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
 
@@ -405,42 +443,12 @@ impl FormatPlayer for St2Play {
 
     fn reset(&mut self) {
     }
-}
 
-#[derive(Default,Copy,Clone)]
-struct St2Channel {
-    //on               : bool,
-    //empty            : bool,
-    row              : u16,
-    //pattern_data_offs: usize,
-    event_note       : u16,
-    event_volume     : u8,
-    event_smp        : u16,
-    event_cmd        : u16,
-    event_infobyte   : u16,
-    //last_note        : u16,
-    period_current   : i16,
-    period_target    : i16,
-    vibrato_current  : u16,
-    tremor_counter   : u16,
-    tremor_state     : u16,
-    //uint8_t *smp_name;
-    //uint8_t *smp_data_ptr;
-    //uint16_t smp_loop_end;
-    //uint16_t smp_loop_start;
-    //uint16_t smp_c2spd;
-    //uint32_t smp_position;
-    //smp_step         : u32,
-    volume_initial   : i16,
-    volume_current   : i16,
-    //uint16_t volume_meter;
-    volume_mix       : u16,
-}
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
 
-impl St2Channel {
-
-    pub fn new() -> Self {
-        Default::default()
+    unsafe fn restore_state(&mut self, state: State) {
+        self.restore(state)
     }
 }
-

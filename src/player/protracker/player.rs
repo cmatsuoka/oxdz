@@ -1,5 +1,5 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
 use player::scan::SaveRestore;
 use format::mk::ModData;
 use mixer::Mixer;
@@ -960,5 +960,13 @@ impl FormatPlayer for ModPlayer {
         self.mt_patt_del_time   = 0;
         self.mt_patt_del_time_2 = 0;
         self.mt_pattern_pos     = 0;
+    }
+
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
+
+    unsafe fn restore_state(&mut self, state: State) {
+        self.restore(state)
     }
 }

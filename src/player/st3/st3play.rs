@@ -1,5 +1,5 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
 use player::scan::SaveRestore;
 use format::s3m::S3mData;
 use mixer::Mixer;
@@ -2141,6 +2141,14 @@ impl FormatPlayer for St3Play {
     }
 
     fn reset(&mut self) {
+    }
+
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
+
+    unsafe fn restore_state(&mut self, state: State) {
+        self.restore(state)
     }
 }
 

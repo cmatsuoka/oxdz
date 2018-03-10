@@ -1,5 +1,5 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
 use player::scan::SaveRestore;
 use format::mk::ModData;
 use mixer::Mixer;
@@ -526,6 +526,75 @@ impl HmnPlayer {
     }
 }
 
+
+#[derive(Clone,Copy,Default)]
+struct ChannelData {
+    n_0_note         : u16,
+    n_2_cmd          : u8,
+    n_3_cmdlo        : u8,
+    n_4_samplestart  : u32,
+    n_8_length       : u16,
+    n_a_loopstart    : u32,
+    n_e_replen       : u16,
+    n_10_period      : i16,
+    n_12_volume      : u8,
+    //n_14_dma_control: u16,
+    n_16_portdir     : bool,
+    n_17_toneportspd : u8,
+    n_18_wantperiod  : i16,
+    n_1a_vibrato     : u8,
+    n_1b_vibpos      : u8,
+    n_1c_prog_on     : bool,
+
+    // progdata
+    n_8_dataloopstart: u8,
+    n_9_dataloopend  : u8,
+    n_13_volume      : u8,
+    n_1d_prog_datacou: u8,
+    n_1e_finetune    : u8,
+
+    prog_ins: usize,
+}
+
+impl ChannelData {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+static SIN: [u8; 32] = [
+    0x00, 0x18, 0x31, 0x4a, 0x61, 0x78, 0x8d, 0xa1, 0xb4, 0xc5, 0xd4, 0xe0, 0xeb, 0xf4, 0xfa, 0xfd,
+    0xff, 0xfd, 0xfa, 0xf4, 0xeb, 0xe0, 0xd4, 0xc5, 0xb4, 0xa1, 0x8d, 0x78, 0x61, 0x4a, 0x31, 0x18
+];
+
+static MEGA_ARPS: [u8; 256] = [
+         0,  3,  7, 12, 15, 12,  7,  3,  0,  3,  7, 12, 15, 12,  7,  3,
+         0,  4,  7, 12, 16, 12,  7,  4,  0,  4,  7, 12, 16, 12,  7,  4,
+         0,  3,  8, 12, 15, 12,  8,  3,  0,  3,  8, 12, 15, 12,  8,  3,
+         0,  4,  8, 12, 16, 12,  8,  4,  0,  4,  8, 12, 16, 12,  8,  4,
+         0,  5,  8, 12, 17, 12,  8,  5,  0,  5,  8, 12, 17, 12,  8,  5,
+         0,  5,  9, 12, 17, 12,  9,  5,  0,  5,  9, 12, 17, 12,  9,  5,
+        12,  0,  7,  0,  3,  0,  7,  0, 12,  0,  7,  0,  3,  0,  7,  0,
+        12,  0,  7,  0,  4,  0,  7,  0, 12,  0,  7,  0,  4,  0,  7,  0,
+
+         0,  3,  7,  3,  7, 12,  7, 12, 15, 12,  7, 12,  7,  3,  7,  3,
+         0,  4,  7,  4,  7, 12,  7, 12, 16, 12,  7, 12,  7,  4,  7,  4,
+        31, 27, 24, 19, 15, 12,  7,  3,  0,  3,  7, 12, 15, 19, 24, 27,
+        31, 28, 24, 19, 16, 12,  7,  4,  0,  4,  7, 12, 16, 19, 24, 28,
+         0, 12,  0, 12,  0, 12,  0, 12,  0, 12,  0, 12,  0, 12,  0, 12,
+         0, 12, 24, 12,  0, 12, 24, 12,  0, 12, 24, 12,  0, 12, 24, 12,
+         0,  3,  0,  3,  0,  3,  0,  3,  0,  3,  0,  3,  0,  3,  0,  3,
+         0,  4,  0,  4,  0,  4,  0,  4,  0,  4,  0,  4,  0,  4,  0,  4
+];
+
+static PERIODS: [i16; 38] = [
+    0x0358, 0x0328, 0x02fa, 0x02d0, 0x02a6, 0x0280, 0x025c, 0x023a, 0x021a, 0x01fc, 0x01e0,
+    0x01c5, 0x01ac, 0x0194, 0x017d, 0x0168, 0x0153, 0x0140, 0x012e, 0x011d, 0x010d, 0x00fe,
+    0x00f0, 0x00e2, 0x00d6, 0x00ca, 0x00be, 0x00b4, 0x00aa, 0x00a0, 0x0097, 0x008f, 0x0087,
+    0x007f, 0x0078, 0x0071, 0x0000, 0x0000
+];
+
+
 impl FormatPlayer for HmnPlayer {
     fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
 
@@ -577,77 +646,15 @@ impl FormatPlayer for HmnPlayer {
         self.l681_break   = false;
         self.l692_pattpos = 0;
     }
-}
 
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
 
-#[derive(Clone,Copy,Default)]
-struct ChannelData {
-    n_0_note         : u16,
-    n_2_cmd          : u8,
-    n_3_cmdlo        : u8,
-    n_4_samplestart  : u32,
-    n_8_length       : u16,
-    n_a_loopstart    : u32,
-    n_e_replen       : u16,
-    n_10_period      : i16,
-    n_12_volume      : u8,
-    //n_14_dma_control: u16,
-    n_16_portdir     : bool,
-    n_17_toneportspd : u8,
-    n_18_wantperiod  : i16,
-    n_1a_vibrato     : u8,
-    n_1b_vibpos      : u8,
-    n_1c_prog_on     : bool,
-
-    // progdata
-    n_8_dataloopstart: u8,
-    n_9_dataloopend  : u8,
-    n_13_volume      : u8,
-    n_1d_prog_datacou: u8,
-    n_1e_finetune    : u8,
-
-    prog_ins: usize,
-}
-
-impl ChannelData {
-    pub fn new() -> Self {
-        Default::default()
+    unsafe fn restore_state(&mut self, state: State) {
+        self.restore(state)
     }
 }
-
-
-static SIN: [u8; 32] = [
-    0x00, 0x18, 0x31, 0x4a, 0x61, 0x78, 0x8d, 0xa1, 0xb4, 0xc5, 0xd4, 0xe0, 0xeb, 0xf4, 0xfa, 0xfd,
-    0xff, 0xfd, 0xfa, 0xf4, 0xeb, 0xe0, 0xd4, 0xc5, 0xb4, 0xa1, 0x8d, 0x78, 0x61, 0x4a, 0x31, 0x18
-];
-
-static MEGA_ARPS: [u8; 256] = [
-         0,  3,  7, 12, 15, 12,  7,  3,  0,  3,  7, 12, 15, 12,  7,  3,
-         0,  4,  7, 12, 16, 12,  7,  4,  0,  4,  7, 12, 16, 12,  7,  4,
-         0,  3,  8, 12, 15, 12,  8,  3,  0,  3,  8, 12, 15, 12,  8,  3,
-         0,  4,  8, 12, 16, 12,  8,  4,  0,  4,  8, 12, 16, 12,  8,  4,
-         0,  5,  8, 12, 17, 12,  8,  5,  0,  5,  8, 12, 17, 12,  8,  5,
-         0,  5,  9, 12, 17, 12,  9,  5,  0,  5,  9, 12, 17, 12,  9,  5,
-        12,  0,  7,  0,  3,  0,  7,  0, 12,  0,  7,  0,  3,  0,  7,  0,
-        12,  0,  7,  0,  4,  0,  7,  0, 12,  0,  7,  0,  4,  0,  7,  0,
-
-         0,  3,  7,  3,  7, 12,  7, 12, 15, 12,  7, 12,  7,  3,  7,  3,
-         0,  4,  7,  4,  7, 12,  7, 12, 16, 12,  7, 12,  7,  4,  7,  4,
-        31, 27, 24, 19, 15, 12,  7,  3,  0,  3,  7, 12, 15, 19, 24, 27,
-        31, 28, 24, 19, 16, 12,  7,  4,  0,  4,  7, 12, 16, 19, 24, 28,
-         0, 12,  0, 12,  0, 12,  0, 12,  0, 12,  0, 12,  0, 12,  0, 12,
-         0, 12, 24, 12,  0, 12, 24, 12,  0, 12, 24, 12,  0, 12, 24, 12,
-         0,  3,  0,  3,  0,  3,  0,  3,  0,  3,  0,  3,  0,  3,  0,  3,
-         0,  4,  0,  4,  0,  4,  0,  4,  0,  4,  0,  4,  0,  4,  0,  4
-];
-
-static PERIODS: [i16; 38] = [
-    0x0358, 0x0328, 0x02fa, 0x02d0, 0x02a6, 0x0280, 0x025c, 0x023a, 0x021a, 0x01fc, 0x01e0,
-    0x01c5, 0x01ac, 0x0194, 0x017d, 0x0168, 0x0153, 0x0140, 0x012e, 0x011d, 0x010d, 0x00fe,
-    0x00f0, 0x00e2, 0x00d6, 0x00ca, 0x00be, 0x00b4, 0x00aa, 0x00a0, 0x0097, 0x008f, 0x0087,
-    0x007f, 0x0078, 0x0071, 0x0000, 0x0000
-];
-
 
 // Everything is under control,
 // but what is that good for?

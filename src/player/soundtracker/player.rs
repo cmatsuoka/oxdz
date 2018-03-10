@@ -1,5 +1,5 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
 use player::scan::SaveRestore;
 use format::st::StData;
 use mixer::Mixer;
@@ -228,6 +228,36 @@ impl StPlayer {
     }
 }
 
+
+#[derive(Clone,Copy,Default)]
+struct AudTemp {
+    n_0_note        : u16,
+    n_2_cmd         : u8,
+    n_3_cmdlo       : u8,
+    n_4_samplestart : u32,
+    n_8_length      : u16,
+    n_10_loopstart  : u32,
+    n_14_replen     : u16,
+    n_16_period     : i16,
+    n_18_volume     : u8,
+    n_22_last_note  : i16,
+}
+
+impl AudTemp {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+static MT_ARPEGGIO: [i16; 39] = [
+    0x0358, 0x0328, 0x02fa, 0x02d0, 0x02a6, 0x0280, 0x025c,
+    0x023a, 0x021a, 0x01fc, 0x01e0, 0x01c5, 0x01ac, 0x0194, 0x017d,
+    0x0168, 0x0153, 0x0140, 0x012e, 0x011d, 0x010d, 0x00fe, 0x00f0,
+    0x00e2, 0x00d6, 0x00ca, 0x00be, 0x00b4, 0x00aa, 0x00a0, 0x0097,
+    0x008f, 0x0087, 0x007f, 0x0078, 0x0071, 0x0000, 0x0000, 0x0000
+];
+
+
 impl FormatPlayer for StPlayer {
     fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
 
@@ -279,34 +309,12 @@ impl FormatPlayer for StPlayer {
         self.mt_status   = false;
         self.mt_partnote = 0;
     }
-}
 
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
 
-#[derive(Clone,Copy,Default)]
-struct AudTemp {
-    n_0_note        : u16,
-    n_2_cmd         : u8,
-    n_3_cmdlo       : u8,
-    n_4_samplestart : u32,
-    n_8_length      : u16,
-    n_10_loopstart  : u32,
-    n_14_replen     : u16,
-    n_16_period     : i16,
-    n_18_volume     : u8,
-    n_22_last_note  : i16,
-}
-
-impl AudTemp {
-    pub fn new() -> Self {
-        Default::default()
+    unsafe fn restore_state(&mut self, state: State) {
+        self.restore(state)
     }
 }
-
-
-static MT_ARPEGGIO: [i16; 39] = [
-    0x0358, 0x0328, 0x02fa, 0x02d0, 0x02a6, 0x0280, 0x025c,
-    0x023a, 0x021a, 0x01fc, 0x01e0, 0x01c5, 0x01ac, 0x0194, 0x017d,
-    0x0168, 0x0153, 0x0140, 0x012e, 0x011d, 0x010d, 0x00fe, 0x00f0,
-    0x00e2, 0x00d6, 0x00ca, 0x00be, 0x00b4, 0x00aa, 0x00a0, 0x0097,
-    0x008f, 0x0087, 0x007f, 0x0078, 0x0071, 0x0000, 0x0000, 0x0000
-];

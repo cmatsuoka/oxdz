@@ -93,10 +93,14 @@ pub trait PlayerListEntry {
 
 // Trait for format-specific players
 
+pub type State = Vec<u8>;
+
 pub trait FormatPlayer: Send + Sync {
     fn start(&mut self, &mut PlayerData, &ModuleData, &mut Mixer);
     fn play(&mut self, &mut PlayerData, &ModuleData, &mut Mixer);
     fn reset(&mut self);
+    unsafe fn save_state(&self) -> State;
+    unsafe fn restore_state(&mut self, State);
 }
 
 #[derive(Default)]
@@ -216,6 +220,13 @@ impl<'a> Player<'a> {
     }
 
     pub fn play_frame(&mut self) -> &mut Self {
+
+        // FIXME: test, remove this later
+        unsafe {
+            let state = self.format_player.save_state();
+            self.format_player.restore_state(state);
+        }
+
         self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
         self.mixer.set_tempo(self.data.tempo);
         self.mixer.mix();
