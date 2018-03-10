@@ -71,7 +71,7 @@ pub struct HmnPlayer {
     //l49_2_vol      : [u16; 4],
     l698_samplestarts: [u32; 31],
     l681_break     : bool,
-    voice          : Vec<ChannelData>,
+    voice          : [ChannelData; 4],
 }
 
 impl HmnPlayer {
@@ -85,7 +85,7 @@ impl HmnPlayer {
             l695_counter     : 0,
             l681_break       : false,
             l698_samplestarts: [0; 31],
-            voice            : vec![ChannelData::new(); 4],
+            voice            : [ChannelData::new(); 4],
         }
     }
 
@@ -579,7 +579,7 @@ impl FormatPlayer for HmnPlayer {
 }
 
 
-#[derive(Clone,Default)]
+#[derive(Clone,Copy,Default)]
 struct ChannelData {
     n_0_note         : u16,
     n_2_cmd          : u8,

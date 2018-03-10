@@ -83,11 +83,11 @@ pub struct St2Play {
     //st2_channel_t channels[4];
     //st2_sample_t samples[32];
 
-    channels: Vec<St2Channel>,
+    channels: [St2Channel; 4],
 }
 
 impl St2Play {
-    pub fn new(module: &Module, _options: Options) -> Self {
+    pub fn new(_module: &Module, _options: Options) -> Self {
         St2Play {
             //sample_rate     : 15909,
             pattern_current : 0,
@@ -104,7 +104,7 @@ impl St2Play {
             tempo           : 0x60,
             global_volume   : 64,
             //play_single_note: 0,
-            channels        : vec![St2Channel::new(); module.channels],
+            channels        : [St2Channel::new(); 4],
         }
     }
 
@@ -405,18 +405,18 @@ impl FormatPlayer for St2Play {
     }
 }
 
-#[derive(Default,Clone)]
+#[derive(Default,Copy,Clone)]
 struct St2Channel {
     //on               : bool,
-    empty            : bool,
+    //empty            : bool,
     row              : u16,
-    pattern_data_offs: usize,
+    //pattern_data_offs: usize,
     event_note       : u16,
     event_volume     : u8,
     event_smp        : u16,
     event_cmd        : u16,
     event_infobyte   : u16,
-    last_note        : u16,
+    //last_note        : u16,
     period_current   : i16,
     period_target    : i16,
     vibrato_current  : u16,

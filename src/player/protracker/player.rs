@@ -1,3 +1,4 @@
+use std;
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer};
 use format::mk::ModData;
@@ -30,7 +31,7 @@ pub struct ModPlayer {
     mt_pattern_pos    : u8,
     cia_tempo         : u8,
 
-    mt_chantemp       : Vec<ChannelData>,
+    mt_chantemp       : [ChannelData; 4],
     mt_samplestarts   : [u32; 31],
 }
 
@@ -51,8 +52,26 @@ impl ModPlayer {
             mt_pattern_pos    : 0,
             cia_tempo         : 125,
 
-            mt_chantemp       : vec![ChannelData::new(); 4],
+            mt_chantemp       : [ChannelData::new(); 4],
             mt_samplestarts   : [0; 31],
+        }
+    }
+
+    // Save/restore state proof of concept
+    pub fn save_state(&self) -> Vec<u8> {
+        let size = std::mem::size_of::<Self>();
+        let mut dst: Vec<u8> = Vec::with_capacity(size);
+        unsafe {
+            dst.set_len(size);
+            std::ptr::copy(self, std::mem::transmute(dst.as_mut_ptr()), 1);
+        }
+        dst
+    }
+
+    pub fn restore_state(&mut self, buffer: Vec<u8>) {
+        let size = buffer.len();
+        unsafe {
+            std::ptr::copy(buffer.as_ptr(), std::mem::transmute(self), size)
         }
     }
 
@@ -62,6 +81,12 @@ impl ModPlayer {
             // mt_NoNewNote
             self.mt_no_new_all_channels(&mut mixer);
             self.mt_no_new_pos_yet(&module);
+
+            // save/restore test
+            let k = self.save_state();
+            self.cia_tempo = 100;
+            self.mt_song_pos = 0;
+            self.restore_state(k);
             return
         }
 
@@ -866,7 +891,7 @@ static MT_PERIOD_TABLE: [u16; 16*37] = [
 ];
 
 
-#[derive(Clone,Default)]
+#[derive(Clone,Copy,Default)]
 struct ChannelData {
     n_note         : u16,
     n_cmd          : u8,
@@ -890,7 +915,7 @@ struct ChannelData {
     n_sampleoffset : u8,
     n_pattpos      : u8,
     n_loopcount    : u8,
-    n_funkoffset   : u8,
+    //n_funkoffset   : u8,
     n_wavestart    : u32,
 
     inside_loop    : bool,
