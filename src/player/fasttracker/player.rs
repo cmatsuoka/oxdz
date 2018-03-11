@@ -115,7 +115,7 @@ impl FtPlayer {
                     }
                 }
             } else {
-                if note != 0 {
+                if note != 0 && ch.n_insnum > 0 {  // oxdz: add insnum sanity check
                     if cmd == 0x0e && cmdlo & 0xf0 == 0x50 {    // check if set finetune
                         ch.n_finetune = cmdlo & 0x0f;
                     }
@@ -497,7 +497,11 @@ impl FtPlayer {
         if ch.n_vibratopos & 0x80 == 0 {
             period += amt as u16
         } else {
-            period -= amt as u16
+            if period > amt as u16 {
+                period -= amt as u16
+            } else {
+                period = 0
+            }
         };
 
         ch.output_period = period;
