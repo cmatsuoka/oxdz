@@ -14,7 +14,7 @@ use std::cmp;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use module::{Module, ModuleData};
-use player::scan::ScanData;
+use player::scan::{ScanData, OrdData};
 use util::MemOpExt;
 use ::*;
 
@@ -117,6 +117,7 @@ pub struct PlayerData {
 
     loop_count: usize,
     end_point : usize,
+
     scan_data : [ScanData; MAX_SEQUENCES],
 }
 
@@ -161,6 +162,8 @@ pub struct Player<'a> {
     in_pos       : usize,
     in_size      : usize,
     
+    ord_data     : Vec<OrdData>,
+    scan_cnt     : Vec<Vec<u32>>,
 }
 
 impl<'a> Player<'a> {
@@ -175,6 +178,11 @@ impl<'a> Player<'a> {
 
         let format_player = list_entry.player(&module, Options::from_str(optstr));
 
+        let mut scan_cnt: Vec<Vec<u32>> = Vec::new();
+        for p in 0..module.patterns() {
+            scan_cnt.push(vec![0; module.rows(p)]);
+        }
+
         let mixer = Mixer::new(module.channels, rate, &module.data.samples());
         Ok(Player {
             data      : PlayerData::new(),
@@ -186,10 +194,43 @@ impl<'a> Player<'a> {
             consumed  : 0,
             in_pos    : 0,
             in_size   : 0,
+            ord_data  : vec![OrdData::new(); module.len()],
+            scan_cnt,
         })
     }
 
     pub fn scan(&mut self) -> &Self {
+        let mut prev_pos = 9999;
+        let mut prev_row = 9999;
+        let mut prev_loop_count = 9999;
+        self.format_player.start(&mut self.data, &*self.module.data, &mut self.mixer);
+        loop {
+            let pos = self.data.pos;
+            let row = self.data.row;
+            let loop_count = self.data.loop_count;
+
+            if prev_row != row || prev_pos != pos || prev_loop_count != loop_count {
+
+                // FIXME
+                if self.scan_cnt[pos][row] > 0 {
+                    break;
+                }
+
+
+                self.scan_cnt[pos][row] += 1;
+                prev_loop_count = loop_count;
+                prev_row = row;
+
+                if prev_pos != pos && !self.ord_data[pos].used {
+                    unsafe{ self.ord_data[pos].state = self.format_player.save_state(); }
+                    self.ord_data[pos].time = 0;
+                    prev_pos = pos;
+                    self.ord_data[pos].used = true;
+                }
+            }
+            self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
+
+        }
         self.data.reset();
         self
     }
@@ -220,13 +261,6 @@ impl<'a> Player<'a> {
     }
 
     pub fn play_frame(&mut self) -> &mut Self {
-
-        // FIXME: test, remove this later
-        unsafe {
-            let state = self.format_player.save_state();
-            self.format_player.restore_state(&state);
-        }
-
         self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
         self.mixer.set_tempo(self.data.tempo);
         self.mixer.mix();
