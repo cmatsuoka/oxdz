@@ -37,7 +37,7 @@ fn impl_save_restore(ast: &syn::DeriveInput) -> quote::Tokens {
                 dst
             }
 
-            unsafe fn restore(&mut self, buffer: Vec<u8>) {
+            unsafe fn restore(&mut self, buffer: &Vec<u8>) {
                 let size = buffer.len();
                 ptr::copy(buffer.as_ptr(), mem::transmute(self), size)
             }

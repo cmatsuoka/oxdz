@@ -314,7 +314,7 @@ impl FormatPlayer for StPlayer {
         self.save()
     }
 
-    unsafe fn restore_state(&mut self, state: State) {
-        self.restore(state)
+    unsafe fn restore_state(&mut self, state: &State) {
+        self.restore(&state)
     }
 }

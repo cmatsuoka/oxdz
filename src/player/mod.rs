@@ -100,7 +100,7 @@ pub trait FormatPlayer: Send + Sync {
     fn play(&mut self, &mut PlayerData, &ModuleData, &mut Mixer);
     fn reset(&mut self);
     unsafe fn save_state(&self) -> State;
-    unsafe fn restore_state(&mut self, State);
+    unsafe fn restore_state(&mut self, &State);
 }
 
 #[derive(Default)]
@@ -224,7 +224,7 @@ impl<'a> Player<'a> {
         // FIXME: test, remove this later
         unsafe {
             let state = self.format_player.save_state();
-            self.format_player.restore_state(state);
+            self.format_player.restore_state(&state);
         }
 
         self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
