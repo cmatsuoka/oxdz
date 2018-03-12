@@ -249,6 +249,7 @@ impl<'a> Player<'a> {
         self.data.scan_data[song].ord = self.data.pos;
 
         self.reset();
+        self.mixer.reset();
 
         self
     }

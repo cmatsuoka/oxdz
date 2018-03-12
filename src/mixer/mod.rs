@@ -108,7 +108,28 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn reset_voice(&mut self, voice: usize) {
-        self.voices[voice].active = false
+        let v = &mut self.voices[voice];
+        v.pos = 0.0;
+        v.period = 0.0;
+        v.note = 0;
+        v.pan = 0;
+        v.vol = 0;
+        v.smp = 0;
+        v.end = 0;
+        v.loop_start = 0;
+        v.loop_end = 0;
+        v.has_loop = false;
+        v.mute = false;
+        v.active = false;
+        v.i_buffer = [0; 4];
+    }
+
+    pub fn reset(&mut self) {
+        self.buf32 = [0; MAX_FRAMESIZE];
+        self.buffer = [0; MAX_FRAMESIZE];
+        for voice in 0..self.voices.len() {
+            self.reset_voice(voice)
+        }
     }
 
     pub fn voicepos(&self, voice: usize) -> f64 {
