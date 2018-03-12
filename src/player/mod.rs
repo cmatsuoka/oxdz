@@ -178,9 +178,14 @@ impl<'a> Player<'a> {
 
         let format_player = list_entry.player(&module, Options::from_str(optstr));
 
+        debug!("scan counts: len={}", module.len());
         let mut scan_cnt: Vec<Vec<u32>> = Vec::new();
-        for p in 0..module.patterns() {
-            scan_cnt.push(vec![0; module.rows(p)]);
+        for pos in 0..module.len() {
+            let pat = match module.pattern_in_position(pos) {
+                Some(val) => val,
+                None      => break,
+            };
+            scan_cnt.push(vec![0; module.rows(pat as usize)]);
         }
 
         let mixer = Mixer::new(module.channels, rate, &module.data.samples());
@@ -203,7 +208,9 @@ impl<'a> Player<'a> {
         let mut prev_pos = 9999;
         let mut prev_row = 9999;
         let mut prev_loop_count = 9999;
+
         self.format_player.start(&mut self.data, &*self.module.data, &mut self.mixer);
+
         loop {
             let pos = self.data.pos;
             let row = self.data.row;
@@ -212,7 +219,9 @@ impl<'a> Player<'a> {
             if prev_row != row || prev_pos != pos || prev_loop_count != loop_count {
 
                 // FIXME
+                debug!("scan: check {}/{}", pos, row);
                 if self.scan_cnt[pos][row] > 0 {
+                    debug!("scan: already visited");
                     break;
                 }
 
@@ -223,16 +232,31 @@ impl<'a> Player<'a> {
 
                 if prev_pos != pos && !self.ord_data[pos].used {
                     unsafe{ self.ord_data[pos].state = self.format_player.save_state(); }
-                    self.ord_data[pos].time = 0;
+                    self.ord_data[pos].time += 20;
                     prev_pos = pos;
                     self.ord_data[pos].used = true;
+                    debug!("scan: pos {}: time {}", pos, self.ord_data[pos].time);
                 }
             }
-            self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
 
+            self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
         }
-        self.data.reset();
+
+        debug!("end position is {}/{}", self.data.pos, self.data.row);
+        let song = self.data.song;
+        self.data.scan_data[song].num = self.scan_cnt[self.data.pos][self.data.row] as usize;
+        self.data.scan_data[song].row = self.data.row;
+        self.data.scan_data[song].ord = self.data.pos;
+
+        self.reset();
+
         self
+    }
+
+    pub fn reset(&mut self) {
+        unsafe {
+            self.format_player.restore_state(&self.ord_data[0].state);
+        }
     }
 
     pub fn module(&self) -> &'a Module {
@@ -257,13 +281,21 @@ impl<'a> Player<'a> {
 
     pub fn start(&mut self) -> &mut Self {
         self.format_player.start(&mut self.data, &*self.module.data, &mut self.mixer);
+
+        self.data.end_point = self.data.scan_data[0].num;
+
         self
     }
 
     pub fn play_frame(&mut self) -> &mut Self {
+        if self.data.frame == 0 {
+            self.data.check_end_of_module();
+        }
+
         self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
         self.mixer.set_tempo(self.data.tempo);
         self.mixer.mix();
+
         self
     }
 
@@ -316,6 +348,7 @@ impl<'a> Player<'a> {
         info.frame = self.data.frame;
         info.speed = self.data.speed;
         info.tempo = self.data.tempo;
+        info.loop_count = self.data.loop_count;
         self
     }
 
@@ -378,6 +411,7 @@ pub struct FrameInfo {
     pub song : usize,
     pub tempo: usize,
     pub speed: usize,
+    pub loop_count: usize,
 }
 
 impl FrameInfo {

@@ -58,7 +58,8 @@ impl<'a> Oxdz {
     }
 
     pub fn player(&mut self) -> Result<player::Player, Error> {
-        let player = player::Player::find(&mut self.module, self.rate, &self.player_id, "")?;
+        let mut player = player::Player::find(&mut self.module, self.rate, &self.player_id, "")?;
+        player.scan();
         Ok(player)
     }
 }
