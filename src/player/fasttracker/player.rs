@@ -26,6 +26,7 @@ pub struct FtPlayer {
     //ft_current_pattern: u16,
     cia_tempo         : u8,
 
+    channels          : usize,
     ft_chantemp       : [ChannelData; 8],
 }
 
@@ -44,7 +45,7 @@ fn period_to_note(period: u16, fine: u8) -> u8 {
 }
 
 impl FtPlayer {
-    pub fn new(_module: &Module, options: Options) -> Self {
+    pub fn new(module: &Module, options: Options) -> Self {
 
         FtPlayer {
             options,
@@ -61,6 +62,7 @@ impl FtPlayer {
             //ft_current_pattern: 0,
             cia_tempo         : 125,
 
+            channels          : module.channels,
             ft_chantemp       : [ChannelData::new(); 8],
         }
     }
@@ -670,7 +672,7 @@ impl FtPlayer {
     }
 
     fn ft_no_new_all_channels(&mut self, module: &ModData) {
-        for chn in 0..self.ft_chantemp.len() {
+        for chn in 0..self.channels {
             self.ft_check_efx(chn, &module);
         }
     }
@@ -681,7 +683,7 @@ impl FtPlayer {
             None      => return,
         };
 
-        for chn in 0..self.ft_chantemp.len() {
+        for chn in 0..self.channels {
             self.ft_play_voice(pat, chn, &module, &mut mixer);
         }
     }
@@ -846,7 +848,7 @@ impl FormatPlayer for FtPlayer {
 
         self.ft_music(&module, &mut mixer);
 
-        for chn in 0..self.ft_chantemp.len() {
+        for chn in 0..self.channels {
             let ch = &mut self.ft_chantemp[chn];
             mixer.set_loop_start(chn, ch.n_loopstart as u32 * 2);
             mixer.set_loop_end(chn, (ch.n_loopstart + ch.n_replen) as u32 * 2);
