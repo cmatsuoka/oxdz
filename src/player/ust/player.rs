@@ -36,7 +36,7 @@ impl USTPlayer {
 
             datachn : [DataChnx::new(); 4],
             pointers: [0; 15],
-            trkpos  : 6,
+            trkpos  : 0,
             patpos  : 0,
             numpat  : module.song_length as u16,
             timpos  : 0,
