@@ -418,13 +418,6 @@ impl FormatPlayer for St2Play {
 
         let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
 
-        self.order_next = data.pos as u16;
-        self.channels[0].row = data.row as u16;
-        self.channels[1].row = data.row as u16;
-        self.channels[2].row = data.row as u16;
-        self.channels[3].row = data.row as u16;
-        self.current_tick = (self.ticks_per_row - data.frame as u16) % self.ticks_per_row;
-
         self.process_tick(&module, &mut mixer);
         for chn in 0..4 {
             let ch = &mut self.channels[chn];

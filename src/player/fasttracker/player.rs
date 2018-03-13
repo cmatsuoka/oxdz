@@ -838,9 +838,6 @@ impl FormatPlayer for FtPlayer {
 
         let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
 
-        self.ft_song_pos = data.pos as u8;
-        self.ft_pattern_pos = data.row as u8;
-
         // sanity check
         if self.ft_song_pos >= module.song_length {
             self.ft_song_pos = 0;

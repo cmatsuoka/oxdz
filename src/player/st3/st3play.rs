@@ -2135,7 +2135,6 @@ impl FormatPlayer for St3Play {
         data.frame = self.musiccount as usize;
         data.row = self.np_row as usize;
         data.pos = self.np_ord as usize - 1;
-
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as usize;
     }

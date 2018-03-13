@@ -270,10 +270,6 @@ impl FormatPlayer for USTPlayer {
 
         let module = mdata.as_any().downcast_ref::<StData>().unwrap();
 
-        self.trkpos = data.pos as u16;
-        self.patpos = data.row as u8;
-        self.timpos = data.frame as u16;
-
         self.replay_muzak(&module, &mut mixer);
 
         data.frame = self.timpos as usize;

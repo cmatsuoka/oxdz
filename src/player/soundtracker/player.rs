@@ -289,10 +289,6 @@ impl FormatPlayer for StPlayer {
 
         let module = mdata.as_any().downcast_ref::<StData>().unwrap();
 
-        self.mt_partnrplay = data.pos as u8;
-        self.mt_partnote = data.row as u8;
-        self.mt_counter = data.frame as u8;
-
         self.mt_music(&module, &mut mixer);
 
         data.frame = self.mt_counter as usize;

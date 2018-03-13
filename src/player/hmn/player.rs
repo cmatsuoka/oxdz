@@ -626,10 +626,6 @@ impl FormatPlayer for HmnPlayer {
 
         let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
 
-        self.l693_songpos = data.pos as u8;
-        self.l692_pattpos = data.row as u8;
-        self.l695_counter = data.frame as u8;
-
         self.l505_2_music(&module, &mut mixer);
 
         data.frame = self.l695_counter as usize;
