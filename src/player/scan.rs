@@ -9,6 +9,7 @@ pub trait SaveRestore {
 pub struct ScanData {
     pub ord  : usize,
     pub row  : usize,
+    pub frame: usize,
     pub num  : usize,
 }
 

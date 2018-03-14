@@ -137,10 +137,11 @@ impl PlayerData {
 
     pub fn check_end_of_module(&mut self) {
         let song = self.song;
-        if self.pos == self.scan_data[song].ord && self.row == self.scan_data[song].row {
+        let data = &self.scan_data[song];
+        if self.pos == data.ord && self.row == data.row && self.frame == data.frame {
             if self.end_point == 0 {
                 self.loop_count += 1;
-                self.end_point = self.scan_data[song].num;
+                self.end_point = data.num;
             }
             self.end_point -= 1;
         }
@@ -247,6 +248,7 @@ impl<'a> Player<'a> {
         self.data.scan_data[song].num = self.scan_cnt[self.data.pos][self.data.row] as usize;
         self.data.scan_data[song].row = self.data.row;
         self.data.scan_data[song].ord = self.data.pos;
+        self.data.scan_data[song].frame = self.data.frame;
 
         self.reset();
 	self.data.reset();
@@ -290,10 +292,7 @@ impl<'a> Player<'a> {
     }
 
     pub fn play_frame(&mut self) -> &mut Self {
-        if self.data.frame == 0 {
-            self.data.check_end_of_module();
-        }
-
+        self.data.check_end_of_module();
         self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
         self.mixer.set_tempo(self.data.tempo);
         self.mixer.mix();
