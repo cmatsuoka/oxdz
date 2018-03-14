@@ -943,6 +943,11 @@ impl FormatPlayer for ModPlayer {
         data.pos = self.mt_song_pos as usize;
         data.speed = self.mt_speed as usize;
         data.tempo = self.cia_tempo as usize;
+
+        data.inside_loop = false;
+        for chn in 0..4 {
+            data.inside_loop |= self.mt_chantemp[chn].inside_loop;
+        }
     }
 
     fn reset(&mut self) {

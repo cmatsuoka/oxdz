@@ -118,7 +118,8 @@ pub struct PlayerData {
     loop_count: usize,
     end_point : usize,
 
-    scan_data : [ScanData; MAX_SEQUENCES],
+    scan_data  : [ScanData; MAX_SEQUENCES],
+    inside_loop: bool,
 }
 
 impl PlayerData {
@@ -222,8 +223,12 @@ impl<'a> Player<'a> {
                 // FIXME
                 debug!("scan: check {}/{}", pos, row);
                 if self.scan_cnt[pos][row] > 0 {
-                    debug!("scan: already visited");
-                    break;
+                    if self.data.inside_loop {
+                        debug!("inside loop");
+                    } else {
+                        debug!("scan: already visited");
+                        break;
+                    }
                 }
 
 
