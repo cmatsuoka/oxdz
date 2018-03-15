@@ -432,6 +432,7 @@ impl FormatPlayer for St2Play {
         data.pos = self.order_next as usize;
         data.speed = self.ticks_per_row as usize;
         data.tempo = self.tempo_factor as usize;
+        data.frame_time = 20.0 * 2.5 * 125.0 / data.tempo as f32;
     }
 
     fn reset(&mut self) {

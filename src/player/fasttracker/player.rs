@@ -859,6 +859,7 @@ impl FormatPlayer for FtPlayer {
         data.pos = self.ft_song_pos as usize;
         data.speed = self.ft_speed as usize;
         data.tempo = self.cia_tempo as usize;
+        data.frame_time = 20.0 * 125.0 / data.tempo as f32;
     }
 
     fn reset(&mut self) {

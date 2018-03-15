@@ -632,7 +632,7 @@ impl FormatPlayer for HmnPlayer {
         data.row = self.l692_pattpos as usize;
         data.pos = self.l693_songpos as usize;
         data.speed = self.l642_speed as usize;
-        data.tempo = 125;
+        data.frame_time = 20.0;
     }
 
     fn reset(&mut self) {

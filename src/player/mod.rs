@@ -112,6 +112,8 @@ pub struct PlayerData {
     pub speed: usize,
     pub tempo: usize,
 
+    pub frame_time: f32,
+
     initial_speed: usize,
     initial_tempo: usize,
 
@@ -159,7 +161,6 @@ pub struct Player<'a> {
     mixer         : Mixer<'a>,
     loop_count    : usize,
     end           : bool,
-
 
     // for buffer fill
     consumed      : usize,
@@ -222,8 +223,6 @@ impl<'a> Player<'a> {
             let row = self.data.row;
             let loop_count = self.data.loop_count;
 
-            ms += 20.0 * 125.0 / self.data.tempo as f32;
-
             if prev_row != row || prev_pos != pos || prev_loop_count != loop_count {
 
                 // FIXME
@@ -252,6 +251,8 @@ impl<'a> Player<'a> {
             }
 
             self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
+            ms += self.data.frame_time;
+
         }
         self.total_time = ms as u32;
 

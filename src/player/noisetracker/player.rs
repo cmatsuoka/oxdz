@@ -414,7 +414,7 @@ impl FormatPlayer for ModPlayer {
         data.row = self.mt_pattpos as usize;
         data.pos = self.mt_songpos as usize;
         data.speed = self.mt_speed as usize;
-        data.tempo = 125;
+        data.frame_time = 20.0;
     }
 
     fn reset(&mut self) {
