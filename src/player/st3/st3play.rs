@@ -142,6 +142,8 @@ pub struct St3Play {
     //stereomode        : bool,
     //mastervol         : u8,
     //mseg_len          : u32,
+
+    inside_loop       : bool,  // for oxdz scan control
 } 
 
 
@@ -1124,9 +1126,11 @@ impl St3Play {
 
             self.jumptorow = self.patloopstart;
             self.np_patoff = -1;  // force reseek
+            self.inside_loop = true;
         } else {
             self.patloopcount = 0;
             self.patloopstart = self.np_row + 1;
+            self.inside_loop = false;
         }
     }
 
@@ -2138,6 +2142,7 @@ impl FormatPlayer for St3Play {
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as usize;
         data.frame_time = 20.0 * 125.0 / data.tempo as f32;
+        data.inside_loop = self.inside_loop;
     }
 
     fn reset(&mut self) {
