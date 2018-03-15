@@ -152,20 +152,22 @@ impl PlayerData {
 
 
 pub struct Player<'a> {
-    pub data     : PlayerData,
-    module       : &'a Module,
-    format_player: Box<FormatPlayer>,
-    mixer        : Mixer<'a>,
-    loop_count   : usize,
-    end          : bool,
+    pub data      : PlayerData,
+    pub total_time: u32,
+    module        : &'a Module,
+    format_player : Box<FormatPlayer>,
+    mixer         : Mixer<'a>,
+    loop_count    : usize,
+    end           : bool,
+
 
     // for buffer fill
-    consumed     : usize,
-    in_pos       : usize,
-    in_size      : usize,
+    consumed      : usize,
+    in_pos        : usize,
+    in_size       : usize,
     
-    ord_data     : Vec<OrdData>,
-    scan_cnt     : Vec<Vec<u32>>,
+    ord_data      : Vec<OrdData>,
+    scan_cnt      : Vec<Vec<u32>>,
 }
 
 impl<'a> Player<'a> {
@@ -196,6 +198,7 @@ impl<'a> Player<'a> {
             module,
             format_player,
             mixer,
+            total_time: 0,
             loop_count: 0,
             end       : false,
             consumed  : 0,
@@ -250,6 +253,7 @@ impl<'a> Player<'a> {
 
             self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
         }
+        self.total_time = ms as u32;
 
         debug!("end position is {}/{}", self.data.pos, self.data.row);
         let song = self.data.song;
@@ -259,7 +263,7 @@ impl<'a> Player<'a> {
         self.data.scan_data[song].frame = self.data.frame;
 
         self.reset();
-	self.data.reset();
+        self.data.reset();
         self.mixer.reset();
 
         self
