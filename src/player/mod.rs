@@ -136,6 +136,7 @@ impl PlayerData {
         self.song  = 0;
         self.speed = self.initial_speed;
         self.tempo = self.initial_tempo;
+        self.frame_time = 0.0;
     }
 
     pub fn check_end_of_module(&mut self) {

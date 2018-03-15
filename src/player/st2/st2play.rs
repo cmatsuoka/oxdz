@@ -65,6 +65,8 @@ static LFO_TABLE: [i16; 65] = [
 
 #[derive(SaveRestore)]
 pub struct St2Play {
+    options         : Options,
+
     //sample_rate     : u16,
     pattern_current : u16,
     change_pattern  : bool,
@@ -89,8 +91,9 @@ pub struct St2Play {
 }
 
 impl St2Play {
-    pub fn new(_module: &Module, _options: Options) -> Self {
+    pub fn new(_module: &Module, options: Options) -> Self {
         St2Play {
+            options,
             //sample_rate     : 15909,
             pattern_current : 0,
             change_pattern  : false,
@@ -403,6 +406,8 @@ impl FormatPlayer for St2Play {
         let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
 
         self.tempo = 0x60;
+        self.order_next = 0;
+
         // sr/x = (sr*250)/(T*100) => T = 25*x/10
         mixer.factor = 2.5;  // 2.5x multiplier
         data.tempo = self.tempo_factor as usize;
@@ -412,6 +417,19 @@ impl FormatPlayer for St2Play {
         self.set_tempo(t);
         //self.current_frame = self.frames_per_tick;
         self.change_pattern(&module);
+
+        let pan = match self.options.option_int("pan") {
+            Some(val) => val,
+            None      => 70,
+        };
+        let panl = -128 * pan / 100;
+        let panr = 127 * pan / 100;
+
+        mixer.set_pan(0, panl);
+        mixer.set_pan(1, panr);
+        mixer.set_pan(2, panr);
+        mixer.set_pan(3, panl);
+
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
