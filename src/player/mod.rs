@@ -364,6 +364,7 @@ impl<'a> Player<'a> {
         info.speed = self.data.speed;
         info.tempo = self.data.tempo;
         info.loop_count = self.data.loop_count;
+        info.frame_time = self.data.frame_time;
         self
     }
 
@@ -427,6 +428,7 @@ pub struct FrameInfo {
     pub tempo: usize,
     pub speed: usize,
     pub loop_count: usize,
+    pub frame_time: f32,
 }
 
 impl FrameInfo {
