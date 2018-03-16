@@ -250,6 +250,7 @@ impl FormatPlayer for USTPlayer {
 
         data.speed = 6;
         data.tempo = module.tempo as usize;
+        data.time  = 0.0;
 
         let pan = match self.options.option_int("pan") {
             Some(val) => val,
@@ -275,7 +276,7 @@ impl FormatPlayer for USTPlayer {
         data.frame = self.timpos as usize;
         data.row = self.patpos as usize;
         data.pos = self.trkpos as usize;
-        data.frame_time = 20.0 * 125.0 / data.tempo as f32;
+        data.time += 20.0 * 125.0 / data.tempo as f32;
     }
 
     fn reset(&mut self) {

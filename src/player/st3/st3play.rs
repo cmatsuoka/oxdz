@@ -2128,6 +2128,7 @@ impl FormatPlayer for St3Play {
 
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as usize;
+        data.time  = 0.0;
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
@@ -2141,7 +2142,7 @@ impl FormatPlayer for St3Play {
         data.pos = self.np_ord as usize - 1;
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as usize;
-        data.frame_time = 20.0 * 125.0 / data.tempo as f32;
+        data.time += 20.0 * 125.0 / data.tempo as f32;
         data.inside_loop = self.inside_loop;
     }
 

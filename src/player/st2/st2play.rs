@@ -412,6 +412,7 @@ impl FormatPlayer for St2Play {
         mixer.factor = 2.5;  // 2.5x multiplier
         data.tempo = self.tempo_factor as usize;
         data.speed = module.speed as usize;
+        data.time  = 0.0;
 
         let t = self.tempo as u16;
         self.set_tempo(t);
@@ -450,7 +451,7 @@ impl FormatPlayer for St2Play {
         data.pos = self.order_next as usize % mdata.len();
         data.speed = self.ticks_per_row as usize;
         data.tempo = self.tempo_factor as usize;
-        data.frame_time = 20.0 * 125.0 / (2.5 * data.tempo as f32);
+        data.time += 20.0 * 125.0 / (2.5 * data.tempo as f32);
     }
 
     fn reset(&mut self) {

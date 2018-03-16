@@ -912,6 +912,7 @@ impl FormatPlayer for ModPlayer {
 
         data.speed = 6;
         data.tempo = 125;
+        data.time  = 0.0;
 
         for i in 0..31 {
             self.mt_samplestarts[i] = module.samples[i].address;
@@ -943,7 +944,7 @@ impl FormatPlayer for ModPlayer {
         data.pos = self.mt_song_pos as usize;
         data.speed = self.mt_speed as usize;
         data.tempo = self.cia_tempo as usize;
-        data.frame_time = 20.0 * 125.0 / data.tempo as f32;
+        data.time += 20.0 * 125.0 / data.tempo as f32;
 
         data.inside_loop = false;
         for chn in 0..4 {

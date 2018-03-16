@@ -388,6 +388,7 @@ impl FormatPlayer for ModPlayer {
 
         data.speed = 6;
         data.tempo = 125;
+        data.time  = 0.0;
 
         let pan = match self.options.option_int("pan") {
             Some(val) => val,
@@ -414,7 +415,7 @@ impl FormatPlayer for ModPlayer {
         data.row = self.mt_pattpos as usize;
         data.pos = self.mt_songpos as usize;
         data.speed = self.mt_speed as usize;
-        data.frame_time = 20.0;
+        data.time += 20.0;
     }
 
     fn reset(&mut self) {

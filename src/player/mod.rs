@@ -112,7 +112,7 @@ pub struct PlayerData {
     pub speed: usize,
     pub tempo: usize,
 
-    pub frame_time: f32,
+    pub time : f32,
 
     initial_speed: usize,
     initial_tempo: usize,
@@ -136,7 +136,7 @@ impl PlayerData {
         self.song  = 0;
         self.speed = self.initial_speed;
         self.tempo = self.initial_tempo;
-        self.frame_time = 0.0;
+        self.time  = 0.0;
     }
 
     pub fn check_end_of_module(&mut self) {
@@ -252,10 +252,9 @@ impl<'a> Player<'a> {
             }
 
             self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
-            ms += self.data.frame_time;
 
         }
-        self.total_time = ms as u32;
+        self.total_time = self.data.time as u32;
 
         debug!("end position is {}/{}", self.data.pos, self.data.row);
         let song = self.data.song;
@@ -364,7 +363,7 @@ impl<'a> Player<'a> {
         info.speed = self.data.speed;
         info.tempo = self.data.tempo;
         info.loop_count = self.data.loop_count;
-        info.frame_time = self.data.frame_time;
+        info.time = self.data.time;
         self
     }
 
@@ -428,7 +427,7 @@ pub struct FrameInfo {
     pub tempo: usize,
     pub speed: usize,
     pub loop_count: usize,
-    pub frame_time: f32,
+    pub time : f32,
 }
 
 impl FrameInfo {
