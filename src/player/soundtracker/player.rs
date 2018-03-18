@@ -268,7 +268,7 @@ impl FormatPlayer for StPlayer {
         }
 
         data.speed = 6;
-        data.tempo = module.tempo as usize;
+        data.tempo = module.tempo as f32;
         data.time  = 0.0;
 
         let pan = match self.options.option_int("pan") {

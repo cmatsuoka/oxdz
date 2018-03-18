@@ -409,8 +409,7 @@ impl FormatPlayer for St2Play {
         self.order_next = 0;
 
         // sr/x = (sr*250)/(T*100) => T = 25*x/10
-        mixer.factor = 2.5;  // 2.5x multiplier
-        data.tempo = self.tempo_factor as usize;
+        data.tempo = self.tempo_factor as f32;
         data.speed = module.speed as usize;
         data.time  = 0.0;
 
@@ -457,8 +456,8 @@ impl FormatPlayer for St2Play {
         data.pos %= mdata.len();
 
         data.speed = self.ticks_per_row as usize;
-        data.tempo = self.tempo_factor as usize;
-        data.time += 20.0 * 125.0 / (2.5 * self.tempo_factor as f32);
+        data.tempo = 2.5 * self.tempo_factor as f32;
+        data.time += 20.0 * 125.0 / data.tempo;
     }
 
     fn reset(&mut self) {

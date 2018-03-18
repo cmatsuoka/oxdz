@@ -605,7 +605,7 @@ impl FormatPlayer for HmnPlayer {
         }
 
         data.speed = 6;
-        data.tempo = 125;
+        data.tempo = 125.0;
         data.time  = 0.0;
 
         let pan = match self.options.option_int("pan") {

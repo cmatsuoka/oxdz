@@ -812,7 +812,7 @@ impl FormatPlayer for FtPlayer {
     fn start(&mut self, data: &mut PlayerData, _mdata: &ModuleData, mixer: &mut Mixer) {
 
         data.speed = 6;
-        data.tempo = 125;
+        data.tempo = 125.0;
         data.time  = 0.0;
 
         let pan = match self.options.option_int("pan") {
@@ -859,7 +859,7 @@ impl FormatPlayer for FtPlayer {
         data.row = self.ft_pattern_pos as usize;
         data.pos = self.ft_song_pos as usize;
         data.speed = self.ft_speed as usize;
-        data.tempo = self.cia_tempo as usize;
+        data.tempo = self.cia_tempo as f32;
         data.time += 20.0 * 125.0 / data.tempo as f32;
     }
 

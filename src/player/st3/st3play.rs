@@ -2127,7 +2127,7 @@ impl FormatPlayer for St3Play {
         }
 
         data.speed = self.musicmax as usize;
-        data.tempo = self.tempo as usize;
+        data.tempo = self.tempo as f32;
         data.time  = 0.0;
     }
 
@@ -2141,7 +2141,7 @@ impl FormatPlayer for St3Play {
         data.row = self.np_row as usize;
         data.pos = self.np_ord as usize - 1;
         data.speed = self.musicmax as usize;
-        data.tempo = self.tempo as usize;
+        data.tempo = self.tempo as f32;
         data.time += 20.0 * 125.0 / data.tempo as f32;
         data.inside_loop = self.inside_loop;
     }

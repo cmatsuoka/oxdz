@@ -110,8 +110,7 @@ pub struct PlayerData {
     pub frame: usize,
     pub song : usize,
     pub speed: usize,
-    pub tempo: usize,
-
+    pub tempo: f32,
     pub time : f32,
 
     initial_speed: usize,
@@ -135,7 +134,7 @@ impl PlayerData {
         self.frame = 0;
         self.song  = 0;
         self.speed = self.initial_speed;
-        self.tempo = self.initial_tempo;
+        self.tempo = self.initial_tempo as f32;
         self.time  = 0.0;
     }
 
@@ -306,7 +305,7 @@ impl<'a> Player<'a> {
     pub fn play_frame(&mut self) -> &mut Self {
         self.data.check_end_of_module();
         self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
-        self.mixer.set_tempo(self.data.tempo);
+        self.mixer.set_tempo(self.data.tempo as f64);
         self.mixer.mix();
 
         self
@@ -360,7 +359,7 @@ impl<'a> Player<'a> {
         info.song = self.data.song;
         info.frame = self.data.frame;
         info.speed = self.data.speed;
-        info.tempo = self.data.tempo;
+        info.tempo = self.data.tempo as usize;
         info.loop_count = self.data.loop_count;
         info.time = self.data.time;
         self

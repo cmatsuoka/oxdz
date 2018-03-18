@@ -911,7 +911,7 @@ impl FormatPlayer for ModPlayer {
         let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
 
         data.speed = 6;
-        data.tempo = 125;
+        data.tempo = 125.0;
         data.time  = 0.0;
 
         for i in 0..31 {
@@ -943,8 +943,8 @@ impl FormatPlayer for ModPlayer {
         data.row = self.mt_pattern_pos as usize;
         data.pos = self.mt_song_pos as usize;
         data.speed = self.mt_speed as usize;
-        data.tempo = self.cia_tempo as usize;
-        data.time += 20.0 * 125.0 / data.tempo as f32;
+        data.tempo = self.cia_tempo as f32;
+        data.time += 20.0 * 125.0 / data.tempo;
 
         data.inside_loop = false;
         for chn in 0..4 {

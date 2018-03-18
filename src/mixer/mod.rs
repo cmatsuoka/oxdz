@@ -103,8 +103,8 @@ impl<'a> Mixer<'a> {
         }
     }
 
-    pub fn set_tempo(&mut self, tempo: usize) {
-        self.framesize = ((self.rate as f64 * PAL_RATE) / (self.factor * tempo as f64 * 100.0)) as usize;
+    pub fn set_tempo(&mut self, tempo: f64) {
+        self.framesize = ((self.rate as f64 * PAL_RATE) / (self.factor * tempo * 100.0)) as usize;
     }
 
     pub fn reset_voice(&mut self, voice: usize) {
