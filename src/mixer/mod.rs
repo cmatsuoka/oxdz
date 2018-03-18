@@ -38,7 +38,7 @@ macro_rules! try_voice {
 
 pub struct Mixer<'a> {
     pub rate  : u32,
-    pub factor: f64,  // tempo factor multiplier
+    factor    : f64,  // tempo factor multiplier
     voices    : Vec<Voice>,
     framesize : usize,
     buf32     : [i32; MAX_FRAMESIZE],
