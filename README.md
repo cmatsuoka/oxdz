@@ -45,7 +45,7 @@ correctly implemented. Sound quality will be improved over time.
   * Better interpolation               :heavy_check_mark:
   * Amiga sound emulation              :heavy_check_mark:
   * Bidirectional loop
-* Module pre-scan
+* Module pre-scan                      :heavy_check_mark:
 * Skip patterns forward/backwards
 * Other language bindings
   * C
@@ -53,8 +53,7 @@ correctly implemented. Sound quality will be improved over time.
   * Documentation and examples
   * Public crate
 * Player application
-  * Proof of concept                   :heavy_check_mark:
-  * CLI-based
+  * CLI-based                          :heavy_check_mark:
 
 
 ### Nice to have, wishlist, etc
