@@ -218,7 +218,6 @@ impl<'a> Player<'a> {
 
         self.format_player.start(&mut self.data, &*self.module.data, &mut self.mixer);
 
-        let mut ms = 0.0_f32;
         loop {
             let pos = self.data.pos;
             let row = self.data.row;
@@ -244,7 +243,7 @@ impl<'a> Player<'a> {
 
                 if prev_pos != pos && !self.ord_data[pos].used {
                     unsafe{ self.ord_data[pos].state = self.format_player.save_state(); }
-                    self.ord_data[pos].time = ms as u32;
+                    self.ord_data[pos].time = self.data.time as u32;
                     prev_pos = pos;
                     self.ord_data[pos].used = true;
                     debug!("scan: pos {}: time {}", pos, self.ord_data[pos].time);
