@@ -1,4 +1,4 @@
-//mod scan;
+mod scan;
 mod protracker;
 mod noisetracker;
 mod soundtracker;
@@ -7,6 +7,7 @@ mod st2;
 mod st3;
 mod ft2;
 mod hmn;
+mod fasttracker;
 
 pub use mixer::Mixer;
 
@@ -14,6 +15,7 @@ use std::cmp;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use module::{Module, ModuleData};
+use player::scan::{ScanData, OrdData};
 use util::MemOpExt;
 use ::*;
 
@@ -22,6 +24,9 @@ fn all() -> Vec<Box<PlayerListEntry>> {
     vec![
         Box::new(protracker::Pt21a),
         Box::new(noisetracker::Nt11),
+        Box::new(fasttracker::Ft101),
+        Box::new(st2::St2),
+        Box::new(st3::St3),
         Box::new(soundtracker::DocSt2),
         Box::new(ust::Ust27),
         Box::new(st2::St2),
@@ -92,10 +97,14 @@ pub trait PlayerListEntry {
 
 // Trait for format-specific players
 
+pub type State = Vec<u8>;
+
 pub trait FormatPlayer: Send + Sync {
     fn start(&mut self, &mut PlayerData, &ModuleData, &mut Mixer);
     fn play(&mut self, &mut PlayerData, &ModuleData, &mut Mixer);
     fn reset(&mut self);
+    unsafe fn save_state(&self) -> State;
+    unsafe fn restore_state(&mut self, &State);
 }
 
 #[derive(Default)]
@@ -105,10 +114,17 @@ pub struct PlayerData {
     pub frame: usize,
     pub song : usize,
     pub speed: usize,
-    pub tempo: usize,
+    pub tempo: f32,
+    pub time : f32,
 
     initial_speed: usize,
     initial_tempo: usize,
+
+    loop_count: usize,
+    end_point : usize,
+
+    scan_data  : [ScanData; MAX_SEQUENCES],
+    inside_loop: bool,
 }
 
 impl PlayerData {
@@ -122,55 +138,148 @@ impl PlayerData {
         self.frame = 0;
         self.song  = 0;
         self.speed = self.initial_speed;
-        self.tempo = self.initial_tempo;
+        self.tempo = self.initial_tempo as f32;
+        self.time  = 0.0;
     }
+
+    pub fn check_end_of_module(&mut self) {
+        let song = self.song;
+        let data = &self.scan_data[song];
+        if self.pos == data.ord && self.row == data.row && self.frame == data.frame {
+            if self.end_point == 0 {
+                self.loop_count += 1;
+                self.end_point = data.num;
+            }
+            self.end_point -= 1;
+        }
+    }
+
 }
 
 
 pub struct Player<'a> {
-    pub data     : PlayerData,
-    module       : &'a Module,
-    format_player: Box<FormatPlayer>,
-    mixer        : Mixer<'a>,
-    loop_count   : usize,
-    end          : bool,
+    pub data      : PlayerData,
+    pub total_time: u32,
+    module        : &'a Module,
+    format_player : Box<FormatPlayer>,
+    mixer         : Mixer<'a>,
+    loop_count    : usize,
+    end           : bool,
 
     // for buffer fill
-    consumed     : usize,
-    in_pos       : usize,
-    in_size      : usize,
+    consumed      : usize,
+    in_pos        : usize,
+    in_size       : usize,
     
+    ord_data      : Vec<OrdData>,
+    scan_cnt      : Vec<Vec<u32>>,
 }
 
 impl<'a> Player<'a> {
-    pub fn find(module: &'a Module, player_id: &str, optstr: &str) -> Result<Self, Error> {
+    pub fn find(module: &'a Module, rate: u32, player_id: &str, optstr: &str) -> Result<Self, Error> {
 
         let list_entry = list_by_id(player_id)?;
 
-        println!(".. check if player {:?} supports format {:?}", player_id, module.format_id);
+        debug!("check if player {:?} supports format {:?}", player_id, module.format_id);
         if !list_entry.info().accepts.contains(&module.format_id) {
             return Err(Error::Format(format!("player {:?} does not support format {:?}", list_entry.info().id, player_id)))
         }
 
         let format_player = list_entry.player(&module, Options::from_str(optstr));
 
-        let mixer = Mixer::new(module.data.channels(), &module.data.samples());
+        debug!("scan counts: len={}", module.len());
+        let mut scan_cnt: Vec<Vec<u32>> = Vec::new();
+        for pos in 0..module.len() {
+            let pat = match module.pattern_in_position(pos) {
+                Some(val) => val,
+                None      => break,
+            };
+            scan_cnt.push(vec![0; module.rows(pat as usize)]);
+        }
+
+        let mixer = Mixer::new(module.channels, rate, &module.data.samples());
         Ok(Player {
             data      : PlayerData::new(),
             module,
             format_player,
             mixer,
+            total_time: 0,
             loop_count: 0,
             end       : false,
             consumed  : 0,
             in_pos    : 0,
             in_size   : 0,
+            ord_data  : vec![OrdData::new(); module.len()],
+            scan_cnt,
         })
     }
 
     pub fn scan(&mut self) -> &Self {
+        let mut prev_pos = 9999;
+        let mut prev_row = 9999;
+        let mut prev_loop_count = 9999;
+
+        self.format_player.start(&mut self.data, &*self.module.data, &mut self.mixer);
+
+        loop {
+            let pos = self.data.pos;
+            let row = self.data.row;
+            let loop_count = self.data.loop_count;
+
+            if prev_row != row || prev_pos != pos || prev_loop_count != loop_count {
+
+                // FIXME
+                debug!("scan: check {}/{}", pos, row);
+                if self.scan_cnt[pos][row] > 0 {
+                    if self.data.inside_loop {
+                        debug!("inside loop");
+                    } else {
+                        debug!("scan: already visited");
+                        break;
+                    }
+                }
+
+
+                self.scan_cnt[pos][row] += 1;
+                prev_loop_count = loop_count;
+                prev_row = row;
+
+                if prev_pos != pos && !self.ord_data[pos].used {
+                    unsafe{ self.ord_data[pos].state = self.format_player.save_state(); }
+                    self.ord_data[pos].time = self.data.time as u32;
+                    prev_pos = pos;
+                    self.ord_data[pos].used = true;
+                    debug!("scan: pos {}: time {}", pos, self.ord_data[pos].time);
+                }
+            }
+
+            self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
+
+        }
+        self.total_time = self.data.time as u32;
+
+        debug!("end position is {}/{}", self.data.pos, self.data.row);
+        let song = self.data.song;
+        self.data.scan_data[song].num = self.scan_cnt[self.data.pos][self.data.row] as usize;
+        self.data.scan_data[song].row = self.data.row;
+        self.data.scan_data[song].ord = self.data.pos;
+        self.data.scan_data[song].frame = self.data.frame;
+
+        self.reset();
         self.data.reset();
+        self.mixer.reset();
+
         self
+    }
+
+    pub fn reset(&mut self) {
+        unsafe {
+            self.format_player.restore_state(&self.ord_data[0].state);
+        }
+    }
+
+    pub fn module(&self) -> &'a Module {
+        self.module
     }
 
     pub fn set_interpolator(&mut self, name: &str) -> Result<(), Error> {
@@ -191,13 +300,18 @@ impl<'a> Player<'a> {
 
     pub fn start(&mut self) -> &mut Self {
         self.format_player.start(&mut self.data, &*self.module.data, &mut self.mixer);
+
+        self.data.end_point = self.data.scan_data[0].num;
+
         self
     }
 
     pub fn play_frame(&mut self) -> &mut Self {
+        self.data.check_end_of_module();
         self.format_player.play(&mut self.data, &*self.module.data, &mut self.mixer);
-        self.mixer.set_tempo(self.data.tempo);
+        self.mixer.set_tempo(self.data.tempo as f64);
         self.mixer.mix();
+
         self
     }
 
@@ -249,7 +363,9 @@ impl<'a> Player<'a> {
         info.song = self.data.song;
         info.frame = self.data.frame;
         info.speed = self.data.speed;
-        info.tempo = self.data.tempo;
+        info.tempo = self.data.tempo as usize;
+        info.loop_count = self.data.loop_count;
+        info.time = self.data.time;
         self
     }
 
@@ -312,6 +428,8 @@ pub struct FrameInfo {
     pub song : usize,
     pub tempo: usize,
     pub speed: usize,
+    pub loop_count: usize,
+    pub time : f32,
 }
 
 impl FrameInfo {

@@ -94,10 +94,6 @@ impl ModuleData for XmData {
         &self.header.name
     }
 
-    fn channels(&self) -> usize {
-        self.header.ant_chn as usize
-    }
-
     fn patterns(&self) -> usize {
         self.header.ant_ptn as usize
     }

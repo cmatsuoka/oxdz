@@ -50,6 +50,8 @@ pub struct S3mData {
     pub instruments: Vec<S3mInstrument>,
     pub patterns   : Vec<S3mPattern>,
     pub samples    : Vec<Sample>,
+
+    pub channels   : usize,
 }
 
 impl ModuleData for S3mData {
@@ -59,17 +61,6 @@ impl ModuleData for S3mData {
 
     fn title(&self) -> &str {
         &self.song_name
-    }
-
-    fn channels(&self) -> usize {
-        let mut chn = 0;
-        for i in 0..32 {
-            if self.ch_settings[i] == 0xff {
-                continue
-            }
-            chn = i
-        }
-        chn + 1
     }
 
     fn patterns(&self) -> usize {
@@ -120,7 +111,7 @@ impl ModuleData for S3mData {
             if b == 0 { row += 1; continue }
             ch = (b & 0x1f) as usize;
 
-            let index = row * self.channels() + ch;
+            let index = row * self.channels + ch;
             if index >= num { break }
             let ofs = 6 * index;
 

@@ -14,7 +14,7 @@ impl PlayerListEntry for St3 {
            name       : "st3play(ox) 0.78",
            description: "A port of the Scream Tracker 3.21 replayer",
            author     : r#"Olav "8bitbubsy" Sørensen, Claudio Matsuoka"#,
-           accepts    : &[ "s3m", "m.k.", "xxch" ],
+           accepts    : &[ "s3m", "m.k.", "xchn" ],
         }
     }
 
@@ -25,6 +25,7 @@ impl PlayerListEntry for St3 {
     fn import(&self, module: Module) -> Result<Module, Error> {
         match module.format_id {
             "m.k." => import::from_mod(module),
+            "xchn" => import::from_mod(module),
             _      => Ok(module),
         }
     }

@@ -68,7 +68,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
     let list_entry = player::list_by_id(module.player)?;
     module = list_entry.import(module)?;
 
-    let mut player = player::Player::find(&module, module.player, "")?;
+    let mut player = player::Player::find(&module, 44100, module.player, "")?;
 
     println!("Length: {}", module.len());
     println!("Patterns: {}", module.patterns());
@@ -100,7 +100,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
 fn show_pattern(module: &module::Module, num: usize) {
     println!("Pattern {}:", num);
     let rows = module.rows(num);
-    let ch = module.channels();
+    let ch = module.channels;
     let mut buffer = vec![0_u8; 6 * rows * ch];
 
     module.pattern_data(0, &mut buffer);

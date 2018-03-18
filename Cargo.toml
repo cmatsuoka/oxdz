@@ -2,7 +2,7 @@
 name = "oxdz"
 version = "0.1.0"
 authors = ["Claudio Matsuoka <cmatsuoka@gmail.com>"]
-exclude = ["doc/reference", "doc/formats"]
+exclude = ["*.png", "doc/reference", "doc/formats"]
 publish = false
 
 [[bin]]
@@ -15,6 +15,7 @@ byteorder = "1.2"
 getopts = "0.2"
 memmap = "0.6"
 riff-wave = "0.1"
+save-restore-derive = { path = "save-restore-derive" }
 
 [profile.release]
 lto = true

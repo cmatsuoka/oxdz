@@ -95,6 +95,17 @@ impl Loader for S3mLoader {
             patterns.push(S3mPattern{ size: plen, data: b.slice(ofs, plen + 2)?.to_vec() });
         }
 
+        let num_chn = {
+            let mut chn = 0;
+            for i in 0..32 {
+                if ch_settings[i] == 0xff {
+                    continue
+                }
+                chn = i
+            }
+            chn + 1
+        };
+
         let mut data = S3mData{
             song_name,
             ord_num,
@@ -116,6 +127,8 @@ impl Loader for S3mLoader {
             instruments,
             patterns,
             samples,
+
+            channels: num_chn,
         };
 
         data.ch_settings.copy_from_slice(ch_settings);
@@ -144,6 +157,7 @@ impl Loader for S3mLoader {
                              6 => format!("BeRoTracker {}.{:02x}", ver_major, ver_minor),
                              _ => format!("unknown ({}.{:02x}", ver_major, ver_minor),
                          },
+            channels   : num_chn,
             player     : "st3",
             data       : Box::new(data),
         };

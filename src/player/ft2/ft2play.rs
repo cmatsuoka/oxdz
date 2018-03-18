@@ -1,6 +1,7 @@
 use std::cmp;
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
+use player::scan::SaveRestore;
 use format::xm::XmData;
 use mixer::Mixer;
 
@@ -209,8 +210,8 @@ static VIB_TAB: [u8; 32] = [
 
 
 
-#[derive(Default)]
-pub struct Ft2Play<'a> {
+#[derive(Default, SaveRestore)]
+pub struct Ft2Play {
     linear_frq_tab      : bool,
     speed_val           : u32,
     real_replay_rate    : u32,
@@ -219,14 +220,14 @@ pub struct Ft2Play<'a> {
     tick_vol_ramp_mul_f : f32,
     song                : SongTyp,
     stm                 : [StmTyp; MAX_VOICES],
-    instr               : Vec<&'a InstrTyp>,
+    instr               : Vec<InstrTyp>,
 
     vib_sine_tab        : Vec<i8>,
     note2period         : Vec<i16>,
     log_tab             : Vec<u32>,
 }
 
-impl<'a> Ft2Play<'a> {
+impl Ft2Play {
     pub fn new(_module: &Module, _options: Options) -> Self {
         Default::default()
     }
@@ -251,11 +252,11 @@ impl<'a> Ft2Play<'a> {
         let ch = &mut self.stm[chn];
 
         if ch.wave_ctrl & 0x04 == 0 {
-		ch.vib_pos  = 0;
-	}
+            ch.vib_pos  = 0;
+        }
         if ch.wave_ctrl & 0x40 == 0 {
-		ch.trem_pos = 0;
-	}
+            ch.trem_pos = 0;
+        }
 
         ch.retrig_cnt = 0;
         ch.tremor_pos = 0;
@@ -358,7 +359,7 @@ impl<'a> Ft2Play<'a> {
 
         ch.ton_nr = ton;
 
-        let ins = self.instr[ch.instr_nr as usize];
+        let ins = &self.instr[ch.instr_nr as usize];
 
         //ch.instr_ptr = ins;
         ch.instr_ptr = ch.instr_nr as usize;
@@ -1101,7 +1102,7 @@ impl<'a> Ft2Play<'a> {
 */
 
         let ch = &mut self.stm[chn];
-        let ins = self.instr[ch.instr_ptr];
+        let ins = &self.instr[ch.instr_ptr];
 
         // *** FADEOUT ***
         if !ch.env_sustain_active {
@@ -1891,7 +1892,7 @@ impl<'a> Ft2Play<'a> {
 }
 
 
-impl<'a> FormatPlayer for Ft2Play<'a> {
+impl FormatPlayer for Ft2Play {
     fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
@@ -1916,6 +1917,14 @@ impl<'a> FormatPlayer for Ft2Play<'a> {
     }
 
     fn reset(&mut self) {
+    }
+
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
+
+    unsafe fn restore_state(&mut self, state: &State) {
+        self.restore(&state)
     }
 }
 

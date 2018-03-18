@@ -91,8 +91,9 @@ impl Loader for FestLoader {
 
         let m = Module {
             format_id  : "fest",
-            description: "4 channel FEST".to_owned(),
+            description: "FEST module".to_owned(),
             creator    : "His Master's NoiseTracker".to_owned(),
+            channels   : 4,
             player     : "hmn",
             data       : Box::new(data),
         };
@@ -108,6 +109,7 @@ fn load_instrument(b: &[u8], i: usize) -> Result<ModInstrument, Error> {
     let ofs = 20 + i * 30;
     ins.name = b.read_string(ofs, 22)?;
     ins.size = b.read16b(ofs + 22)?;
+    ins.finetune = b.read8(ofs + 24)?;
     ins.volume = b.read8(ofs + 25)?;
     ins.repeat = b.read16b(ofs + 26)?;
     ins.replen = b.read16b(ofs + 28)?;

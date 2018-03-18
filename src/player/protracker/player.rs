@@ -1,20 +1,22 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
+use player::scan::SaveRestore;
 use format::mk::ModData;
 use mixer::Mixer;
 
-/// PT2.3A Replayer
+/// PT2.1A Replayer
 ///
-/// An oxdz player based on the Protracker V2.1A/V2.3A replayer written by Peter
-/// "CRAYON" Hanning / Mushroom Studios in 1992. Original names are used whenever
-/// possible (converted to snake case according to Rust convention, i.e.
-/// mt_PosJumpFlag becomes mt_pos_jump_flag).
+/// An oxdz player based on the Protracker V2.1A replayer written by Peter "CRAYON"
+/// Hanning / Mushroom Studios in 1992. Original names are used whenever possible
+/// (converted to snake case according to Rust convention, i.e. mt_PosJumpFlag
+/// becomes mt_pos_jump_flag).
 ///
 /// Bug fixes backported from Protracker 2.3D:
 /// * Mask finetune when playing voice
 /// * Mask note value in note delay command processing
 /// * Fix period table lookup by adding trailing zero values
 
+#[derive(SaveRestore)]
 pub struct ModPlayer {
     options: Options, 
 
@@ -30,7 +32,7 @@ pub struct ModPlayer {
     mt_pattern_pos    : u8,
     cia_tempo         : u8,
 
-    mt_chantemp       : Vec<ChannelData>,
+    mt_chantemp       : [ChannelData; 4],
     mt_samplestarts   : [u32; 31],
 }
 
@@ -51,7 +53,7 @@ impl ModPlayer {
             mt_pattern_pos    : 0,
             cia_tempo         : 125,
 
-            mt_chantemp       : vec![ChannelData::new(); 4],
+            mt_chantemp       : [ChannelData::new(); 4],
             mt_samplestarts   : [0; 31],
         }
     }
@@ -73,7 +75,7 @@ impl ModPlayer {
         }
 
         // mt_dskip
-        self.mt_pattern_pos +=1;
+        self.mt_pattern_pos += 1;
         if self.mt_patt_del_time != 0 {
             self.mt_patt_del_time_2 = self.mt_patt_del_time;
             self.mt_patt_del_time = 0;
@@ -151,12 +153,12 @@ impl ModPlayer {
                 // PT2.3D fix: mask finetune
                 ch.n_finetune = instrument.finetune & 0x0f;
                 ch.n_volume = instrument.volume;
-                ch.n_replen = instrument.replen * 2;
+                ch.n_replen = instrument.replen;
 
                 if instrument.repeat != 0 {
                     ch.n_loopstart = ch.n_start + instrument.repeat as u32 * 2;
                     ch.n_wavestart = ch.n_loopstart;
-                    ch.n_length = instrument.repeat + ch.n_replen;
+                    ch.n_length = (instrument.repeat + ch.n_replen) * 2;
                     mixer.set_volume(chn, (instrument.volume as usize) << 4);  // MOVE.W  D0,8(A5)        ; Set volume
                 } else {
                     // mt_NoLoop
@@ -547,16 +549,17 @@ impl ModPlayer {
     }
 
     fn mt_volume_slide(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        if self.mt_chantemp[chn].n_cmdlo >> 4 == 0 {
+        let val = self.mt_chantemp[chn].n_cmdlo >> 4;
+        if val == 0 {
             self.mt_vol_slide_down(chn, &mut mixer);
         } else {
-            self.mt_vol_slide_up(chn, &mut mixer);
+            self.mt_vol_slide_up(chn, val, &mut mixer);
         }
     }
 
-    fn mt_vol_slide_up(&mut self, chn: usize, mixer: &mut Mixer) {
+    fn mt_vol_slide_up(&mut self, chn: usize, val: u8, mixer: &mut Mixer) {
         let ch = &mut self.mt_chantemp[chn];
-        ch.n_volume += ch.n_cmdlo >> 4;
+        ch.n_volume += val;
         if ch.n_volume > 0x40 {
             ch.n_volume = 0x40;
         }
@@ -565,9 +568,9 @@ impl ModPlayer {
 
     fn mt_vol_slide_down(&mut self, chn: usize, mixer: &mut Mixer) {
         let ch = &mut self.mt_chantemp[chn];
-        let cmdlo = ch.n_cmdlo & 0x0f;
-        if ch.n_volume > cmdlo {
-            ch.n_volume -= cmdlo;
+        let val = ch.n_cmdlo & 0x0f;
+        if ch.n_volume > val {
+            ch.n_volume -= val;
         } else {
             ch.n_volume = 0;
         }
@@ -585,7 +588,7 @@ impl ModPlayer {
     fn mt_volume_change(&mut self, chn: usize, mixer: &mut Mixer) {
         let ch = &mut self.mt_chantemp[chn];
         if ch.n_cmdlo > 0x40 {
-            ch.n_cmdlo = 40
+            ch.n_cmdlo = 0x40
         }
         ch.n_volume = ch.n_cmdlo;
         mixer.set_volume(chn, (ch.n_volume as usize) << 4);  // MOVE.W  D0,8(A5)
@@ -633,22 +636,22 @@ impl ModPlayer {
     fn mt_e_commands(&mut self, chn: usize, mut mixer: &mut Mixer) {
 
         match self.mt_chantemp[chn].n_cmdlo >> 4 {
-           0x0 => self.mt_filter_on_off(chn, &mut mixer),
-           0x1 => self.mt_fine_porta_up(chn, &mut mixer),
-           0x2 => self.mt_fine_porta_down(chn, &mut mixer),
-           0x3 => self.mt_set_gliss_control(chn),
-           0x4 => self.mt_set_vibrato_control(chn),
-           0x5 => self.mt_set_finetune(chn),
-           0x6 => self.mt_jump_loop(chn),
-           0x7 => self.mt_set_tremolo_control(chn),
-           0x9 => self.mt_retrig_note(chn, &mut mixer),
-           0xa => self.mt_volume_fine_up(chn, &mut mixer),
-           0xb => self.mt_volume_fine_down(chn, &mut mixer),
-           0xc => self.mt_note_cut(chn, &mut mixer),
-           0xd => self.mt_note_delay(chn, &mut mixer),
-           0xe => self.mt_pattern_delay(chn),
-           0xf => self.mt_funk_it(chn, &mut mixer),
-           _   => {},
+            0x0 => self.mt_filter_on_off(chn, &mut mixer),
+            0x1 => self.mt_fine_porta_up(chn, &mut mixer),
+            0x2 => self.mt_fine_porta_down(chn, &mut mixer),
+            0x3 => self.mt_set_gliss_control(chn),
+            0x4 => self.mt_set_vibrato_control(chn),
+            0x5 => self.mt_set_finetune(chn),
+            0x6 => self.mt_jump_loop(chn),
+            0x7 => self.mt_set_tremolo_control(chn),
+            0x9 => self.mt_retrig_note(chn, &mut mixer),
+            0xa => self.mt_volume_fine_up(chn, &mut mixer),
+            0xb => self.mt_volume_fine_down(chn, &mut mixer),
+            0xc => self.mt_note_cut(chn, &mut mixer),
+            0xd => self.mt_note_delay(chn, &mut mixer),
+            0xe => self.mt_pattern_delay(chn),
+            0xf => self.mt_funk_it(chn, &mut mixer),
+            _   => {},
         }
     }
 
@@ -659,7 +662,7 @@ impl ModPlayer {
 
     fn mt_set_gliss_control(&mut self, chn: usize) {
         let ch = &mut self.mt_chantemp[chn];
-        ch.n_glissfunk = ch.n_cmdlo;
+        ch.n_glissfunk = (ch.n_glissfunk & 0xf0) | (ch.n_cmdlo & 0x0f);
     }
 
     fn mt_set_vibrato_control(&mut self, chn: usize) {
@@ -685,6 +688,7 @@ impl ModPlayer {
         if cmdlo == 0 {
             // mt_SetLoop
             ch.n_pattpos = self.mt_pattern_pos as u8;
+            ch.inside_loop = true;
         } else {
             if ch.n_loopcount == 0 {
                 // mt_jmpcnt
@@ -692,6 +696,7 @@ impl ModPlayer {
             } else {
                 ch.n_loopcount -= 1;
                 if ch.n_loopcount == 0 {
+                    ch.inside_loop = false;
                     return
                 }
             }
@@ -731,7 +736,8 @@ impl ModPlayer {
         if self.mt_counter != 0 {
             return
         }
-        self.mt_vol_slide_up(chn, &mut mixer);
+        let val = self.mt_chantemp[chn].n_cmdlo & 0x0f;
+        self.mt_vol_slide_up(chn, val, &mut mixer);
     }
 
     fn mt_volume_fine_down(&mut self, chn: usize, mut mixer: &mut Mixer) {
@@ -771,7 +777,7 @@ impl ModPlayer {
         if self.mt_patt_del_time_2 != 0 {
             return
         }
-        self.mt_patt_del_time = ch.n_cmdlo & 0x0f + 1;
+        self.mt_patt_del_time = (ch.n_cmdlo & 0x0f) + 1;
     }
 
     fn mt_funk_it(&self, _chn: usize, _mixer: &mut Mixer) {
@@ -862,7 +868,7 @@ static MT_PERIOD_TABLE: [u16; 16*37] = [
 ];
 
 
-#[derive(Clone,Default)]
+#[derive(Clone,Copy,Default)]
 struct ChannelData {
     n_note         : u16,
     n_cmd          : u8,
@@ -886,8 +892,10 @@ struct ChannelData {
     n_sampleoffset : u8,
     n_pattpos      : u8,
     n_loopcount    : u8,
-    n_funkoffset   : u8,
+    //n_funkoffset   : u8,
     n_wavestart    : u32,
+
+    inside_loop    : bool,
 }
 
 impl ChannelData {
@@ -903,7 +911,8 @@ impl FormatPlayer for ModPlayer {
         let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
 
         data.speed = 6;
-        data.tempo = 125;
+        data.tempo = 125.0;
+        data.time  = 0.0;
 
         for i in 0..31 {
             self.mt_samplestarts[i] = module.samples[i].address;
@@ -928,17 +937,19 @@ impl FormatPlayer for ModPlayer {
 
         let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
 
-        self.mt_song_pos = data.pos as u8;
-        self.mt_pattern_pos = data.row as u8;
-        self.mt_counter = data.frame as u8;
-
         self.mt_music(&module, &mut mixer);
 
         data.frame = self.mt_counter as usize;
         data.row = self.mt_pattern_pos as usize;
         data.pos = self.mt_song_pos as usize;
         data.speed = self.mt_speed as usize;
-        data.tempo = self.cia_tempo as usize;
+        data.tempo = self.cia_tempo as f32;
+        data.time += 20.0 * 125.0 / data.tempo;
+
+        data.inside_loop = false;
+        for chn in 0..4 {
+            data.inside_loop |= self.mt_chantemp[chn].inside_loop;
+        }
     }
 
     fn reset(&mut self) {
@@ -952,5 +963,13 @@ impl FormatPlayer for ModPlayer {
         self.mt_patt_del_time   = 0;
         self.mt_patt_del_time_2 = 0;
         self.mt_pattern_pos     = 0;
+    }
+
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
+
+    unsafe fn restore_state(&mut self, state: &State) {
+        self.restore(&state)
     }
 }

@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
+use player::scan::SaveRestore;
 use format::stm::StmData;
 use mixer::Mixer;
 
@@ -62,7 +63,10 @@ static LFO_TABLE: [i16; 65] = [
 ];
 
 
+#[derive(SaveRestore)]
 pub struct St2Play {
+    options         : Options,
+
     //sample_rate     : u16,
     pattern_current : u16,
     change_pattern  : bool,
@@ -83,12 +87,13 @@ pub struct St2Play {
     //st2_channel_t channels[4];
     //st2_sample_t samples[32];
 
-    channels: Vec<St2Channel>,
+    channels: [St2Channel; 4],
 }
 
 impl St2Play {
-    pub fn new(module: &Module, _options: Options) -> Self {
+    pub fn new(_module: &Module, options: Options) -> Self {
         St2Play {
+            options,
             //sample_rate     : 15909,
             pattern_current : 0,
             change_pattern  : false,
@@ -104,7 +109,7 @@ impl St2Play {
             tempo           : 0x60,
             global_volume   : 64,
             //play_single_note: 0,
-            channels        : vec![St2Channel::new(); module.channels()],
+            channels        : [St2Channel::new(); 4],
         }
     }
 
@@ -357,66 +362,18 @@ impl St2Play {
 }
 
 
-impl FormatPlayer for St2Play {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
-
-        let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
-
-        self.tempo = 0x60;
-        // sr/x = (sr*250)/(T*100) => T = 25*x/10
-        mixer.factor = 2.5;  // 2.5x multiplier
-        data.tempo = self.tempo_factor as usize;
-        data.speed = module.speed as usize;
-
-        let t = self.tempo as u16;
-        self.set_tempo(t);
-        //self.current_frame = self.frames_per_tick;
-        self.change_pattern(&module);
-    }
-
-    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
-
-        let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
-
-        self.order_next = data.pos as u16;
-        self.channels[0].row = data.row as u16;
-        self.channels[1].row = data.row as u16;
-        self.channels[2].row = data.row as u16;
-        self.channels[3].row = data.row as u16;
-        self.current_tick = (self.ticks_per_row - data.frame as u16) % self.ticks_per_row;
-
-        self.process_tick(&module, &mut mixer);
-        for chn in 0..4 {
-            let ch = &mut self.channels[chn];
-            mixer.set_period(chn, (ch.period_current / FXMULT as i16) as f64);
-            if ch.volume_current != 65 {
-                mixer.set_volume(chn, ch.volume_mix as usize * 16);
-            }
-        }
-
-        data.frame = ((self.ticks_per_row - self.current_tick) % self.ticks_per_row) as usize;
-        data.row = self.channels[0].row as usize;
-        data.pos = self.order_next as usize;
-        data.speed = self.ticks_per_row as usize;
-        data.tempo = self.tempo_factor as usize;
-    }
-
-    fn reset(&mut self) {
-    }
-}
-
-#[derive(Default,Clone)]
+#[derive(Default,Copy,Clone)]
 struct St2Channel {
     //on               : bool,
-    empty            : bool,
+    //empty            : bool,
     row              : u16,
-    pattern_data_offs: usize,
+    //pattern_data_offs: usize,
     event_note       : u16,
     event_volume     : u8,
     event_smp        : u16,
     event_cmd        : u16,
     event_infobyte   : u16,
-    last_note        : u16,
+    //last_note        : u16,
     period_current   : i16,
     period_target    : i16,
     vibrato_current  : u16,
@@ -442,3 +399,75 @@ impl St2Channel {
     }
 }
 
+
+impl FormatPlayer for St2Play {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
+
+        self.tempo = 0x60;
+        self.order_next = 0;
+
+        // sr/x = (sr*250)/(T*100) => T = 25*x/10
+        data.tempo = self.tempo_factor as f32;
+        data.speed = module.speed as usize;
+        data.time  = 0.0;
+
+        let t = self.tempo as u16;
+        self.set_tempo(t);
+        //self.current_frame = self.frames_per_tick;
+        self.change_pattern(&module);
+
+        let pan = match self.options.option_int("pan") {
+            Some(val) => val,
+            None      => 70,
+        };
+        let panl = -128 * pan / 100;
+        let panr = 127 * pan / 100;
+
+        mixer.set_pan(0, panl);
+        mixer.set_pan(1, panr);
+        mixer.set_pan(2, panr);
+        mixer.set_pan(3, panl);
+
+    }
+
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<StmData>().unwrap();
+
+        self.process_tick(&module, &mut mixer);
+        for chn in 0..4 {
+            let ch = &mut self.channels[chn];
+            mixer.set_period(chn, (ch.period_current / FXMULT as i16) as f64);
+            if ch.volume_current != 65 {
+                mixer.set_volume(chn, ch.volume_mix as usize * 16);
+            }
+        }
+
+        data.frame = ((self.ticks_per_row - self.current_tick) % self.ticks_per_row) as usize;
+
+        data.row = self.channels[0].row as usize;
+        if data.frame > 0 { data.row -= 1 }
+        data.row %= 64;
+
+        data.pos = self.order_next as usize;
+        if data.row > 0 || data.frame > 0 { data.pos -= 1 }
+        data.pos %= mdata.len();
+
+        data.speed = self.ticks_per_row as usize;
+        data.tempo = 2.5 * self.tempo_factor as f32;
+        data.time += 20.0 * 125.0 / data.tempo;
+    }
+
+    fn reset(&mut self) {
+    }
+
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
+
+    unsafe fn restore_state(&mut self, state: &State) {
+        self.restore(&state)
+    }
+}

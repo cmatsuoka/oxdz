@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
+use player::scan::SaveRestore;
 use format::mk::ModData;
 use mixer::Mixer;
 
@@ -58,7 +59,7 @@ use mixer::Mixer;
 /// the index table, and the instrument would be stored in one of the
 /// "patterns" of the song.
 
-
+#[derive(SaveRestore)]
 pub struct HmnPlayer {
     options: Options,
 
@@ -71,7 +72,7 @@ pub struct HmnPlayer {
     //l49_2_vol      : [u16; 4],
     l698_samplestarts: [u32; 31],
     l681_break     : bool,
-    voice          : Vec<ChannelData>,
+    voice          : [ChannelData; 4],
 }
 
 impl HmnPlayer {
@@ -85,7 +86,7 @@ impl HmnPlayer {
             l695_counter     : 0,
             l681_break       : false,
             l698_samplestarts: [0; 31],
-            voice            : vec![ChannelData::new(); 4],
+            voice            : [ChannelData::new(); 4],
         }
     }
 
@@ -178,7 +179,7 @@ impl HmnPlayer {
     
             let ins = (((event.note & 0xf000) >> 8) | ((event.cmd as u16 & 0xf0) >> 4)) as usize;
     
-            if ins > 0 && ins < 31 {  // sanity check added: was: ins != 0
+            if ins > 0 && ins <= 31 {  // sanity check added: was: ins != 0
                 let prog_ins = ins as usize - 1;
                 let instrument = &module.instruments[prog_ins];
                 ch.n_4_samplestart = self.l698_samplestarts[prog_ins];         // MOVE.L  $0(A1,D2.L),$04(A6)     ;instrmemstart
@@ -365,7 +366,7 @@ impl HmnPlayer {
     }
 
     fn megaarp(&mut self, chn: usize, mut mixer: &mut Mixer) {
-        let mut val = {
+        let val = {
             let ch = &mut self.voice[chn];
             let pos = ch.n_1b_vibpos;
             ch.n_1b_vibpos = ch.n_1b_vibpos.wrapping_add(1);
@@ -376,11 +377,12 @@ impl HmnPlayer {
         // MegaAlo
         for i in 0..36 {
             if self.voice[chn].n_10_period&0xfff >= PERIODS[i] {
-                if i+val <= PERIODS.len() {
-                    val -= 12;
+                let mut index = i + val;
+                while index >= PERIODS.len() {
+                    index -= 12;
                 }
                 // MegaOk
-                self.percalc(chn, PERIODS[i+val], &mut mixer);
+                self.percalc(chn, PERIODS[index], &mut mixer);
                 return
             }
         }
@@ -524,61 +526,8 @@ impl HmnPlayer {
     }
 }
 
-impl FormatPlayer for HmnPlayer {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
 
-        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
-
-        for i in 0..31 {
-            self.l698_samplestarts[i] = module.samples[i].address;
-        }
-
-        data.speed = 6;
-        data.tempo = 125;
-
-        let pan = match self.options.option_int("pan") {
-            Some(val) => val,
-            None      => 70,
-        };
-        let panl = -128 * pan / 100;
-        let panr = 127 * pan / 100;
-
-        mixer.set_pan(0, panl);
-        mixer.set_pan(1, panr);
-        mixer.set_pan(2, panr);
-        mixer.set_pan(3, panl);
-
-        mixer.enable_paula(true);
-    }
-
-    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
-
-        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
-
-        self.l693_songpos = data.pos as u8;
-        self.l692_pattpos = data.row as u8;
-        self.l695_counter = data.frame as u8;
-
-        self.l505_2_music(&module, &mut mixer);
-
-        data.frame = self.l695_counter as usize;
-        data.row = self.l692_pattpos as usize;
-        data.pos = self.l693_songpos as usize;
-        data.speed = self.l642_speed as usize;
-        data.tempo = 125;
-    }
-
-    fn reset(&mut self) {
-        self.l642_speed   = 6;
-        self.l695_counter = 0;
-        self.l693_songpos = 0;
-        self.l681_break   = false;
-        self.l692_pattpos = 0;
-    }
-}
-
-
-#[derive(Clone,Default)]
+#[derive(Clone,Copy,Default)]
 struct ChannelData {
     n_0_note         : u16,
     n_2_cmd          : u8,
@@ -613,7 +562,6 @@ impl ChannelData {
     }
 }
 
-
 static SIN: [u8; 32] = [
     0x00, 0x18, 0x31, 0x4a, 0x61, 0x78, 0x8d, 0xa1, 0xb4, 0xc5, 0xd4, 0xe0, 0xeb, 0xf4, 0xfa, 0xfd,
     0xff, 0xfd, 0xfa, 0xf4, 0xeb, 0xe0, 0xd4, 0xc5, 0xb4, 0xa1, 0x8d, 0x78, 0x61, 0x4a, 0x31, 0x18
@@ -645,3 +593,66 @@ static PERIODS: [i16; 38] = [
     0x00f0, 0x00e2, 0x00d6, 0x00ca, 0x00be, 0x00b4, 0x00aa, 0x00a0, 0x0097, 0x008f, 0x0087,
     0x007f, 0x0078, 0x0071, 0x0000, 0x0000
 ];
+
+
+impl FormatPlayer for HmnPlayer {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
+
+        for i in 0..31 {
+            self.l698_samplestarts[i] = module.samples[i].address;
+        }
+
+        data.speed = 6;
+        data.tempo = 125.0;
+        data.time  = 0.0;
+
+        let pan = match self.options.option_int("pan") {
+            Some(val) => val,
+            None      => 70,
+        };
+        let panl = -128 * pan / 100;
+        let panr = 127 * pan / 100;
+
+        mixer.set_pan(0, panl);
+        mixer.set_pan(1, panr);
+        mixer.set_pan(2, panr);
+        mixer.set_pan(3, panl);
+
+        mixer.enable_paula(true);
+    }
+
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
+
+        self.l505_2_music(&module, &mut mixer);
+
+        data.frame = self.l695_counter as usize;
+        data.row = self.l692_pattpos as usize;
+        data.pos = self.l693_songpos as usize;
+        data.speed = self.l642_speed as usize;
+        data.time += 20.0;
+    }
+
+    fn reset(&mut self) {
+        self.l642_speed   = 6;
+        self.l695_counter = 0;
+        self.l693_songpos = 0;
+        self.l681_break   = false;
+        self.l692_pattpos = 0;
+    }
+
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
+
+    unsafe fn restore_state(&mut self, state: &State) {
+        self.restore(&state)
+    }
+}
+
+// Everything is under control,
+// but what is that good for?
+

@@ -216,9 +216,9 @@ impl Fingerprint {
             }
             if has_st_instruments {
                 return TrackerID::UnknownOrConverted;
-            } else {
+            } /*else {
                 return TrackerID::FastTracker;
-            }
+            } */
         }
     
         tracker_id 

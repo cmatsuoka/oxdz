@@ -4,21 +4,21 @@ use module::Module;
 use player::{Options, PlayerListEntry, PlayerInfo, FormatPlayer};
 use ::*;
 
-pub struct Pt21a;
+pub struct Ft101;
 
-impl PlayerListEntry for Pt21a {
+impl PlayerListEntry for Ft101 {
    fn info(&self) -> PlayerInfo {
        PlayerInfo {
-          id         : "pt2",
-          name       : "Protracker V2.1A playroutine + fixes",
-          description: "A player based on the Protracker V2.1A replayer + V2.3D fixes",
+          id         : "ft",
+          name       : "FastTracker 1.01",
+          description: "Based on the FastTracker 1.01 replayer",
           author     : "Claudio Matsuoka",
-          accepts    : &[ "m.k." ],
+          accepts    : &[ "m.k.", "xchn" ],
        }
    }
 
    fn player(&self, module: &Module, options: Options) -> Box<FormatPlayer> {
-       Box::new(self::player::ModPlayer::new(module, options))
+       Box::new(self::player::FtPlayer::new(module, options))
    }
 
    fn import(&self, module: Module) -> Result<Module, Error> {

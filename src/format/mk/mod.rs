@@ -14,7 +14,7 @@ pub struct ModData {
     pub song_name  : String,
     pub instruments: Vec<ModInstrument>,
     pub song_length: u8,
-    pub restart    : u8,  // Noisetracker restart
+    pub restart    : u8,         // Only for certain trackers
     pub orders     : [u8; 128],
     pub magic      : String,
     pub patterns   : ModPatterns,
@@ -28,10 +28,6 @@ impl ModuleData for ModData {
 
     fn title(&self) -> &str {
         &self.song_name
-    }
-
-    fn channels(&self) -> usize {
-        4
     }
 
     fn patterns(&self) -> usize {
@@ -71,7 +67,7 @@ impl ModuleData for ModData {
     }
 
     fn pattern_data(&self, pat: usize, num: usize, mut buffer: &mut [u8]) -> usize {
-        get_mod_pattern(&self.patterns.data, pat, num, &mut buffer)
+        get_mod_pattern(&self.patterns.data, pat, 4, num, &mut buffer)
     }
 
     fn samples(&self) -> &Vec<Sample> {
@@ -79,12 +75,12 @@ impl ModuleData for ModData {
     }
 }
 
-pub fn get_mod_pattern(data: &Vec<ModEvent>, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
+pub fn get_mod_pattern(data: &Vec<ModEvent>, pat: usize, chn: usize, num: usize, buffer: &mut [u8]) -> usize {
     let mut i = 0;
     for _ in 0..num {
-        let (row, ch) = (i / 4, i % 4);
+        let (row, ch) = (i / chn, i % chn);
         let ofs = i * 6;
-        let e = &data[pat*256 + row*4 + ch];
+        let e = &data[pat*64*chn + row*chn + ch];
 
         let mut flags = 0;
         let note = e.note & 0xfff;
@@ -153,7 +149,7 @@ impl ModPatterns {
         for p in 0..num {
             for r in 0..64 {
                 for c in 0..chn {
-                    let ofs = (p*256 + r*4 + c) * chn;
+                    let ofs = (p*64*chn + r*chn + c) * 4;
                     let e = ModEvent::from_slice(b.slice(ofs, 4)?);
                     pat.data.push(e);
                 }

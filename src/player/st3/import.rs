@@ -37,8 +37,7 @@ pub fn from_mod(module: Module) -> Result<Module, Error> {
 
     let ch = match module.format_id {
         "m.k." => 4,
-        "6CHN" => 6,
-        "8CHN" => 8,
+        "xchn" => module.channels,
         _      => return Err(Error::Format(format!("can't import {} module", module.format_id))),
     };
 
@@ -72,12 +71,15 @@ pub fn from_mod(module: Module) -> Result<Module, Error> {
         instruments,
         patterns,
         samples    : data.samples.clone(),
+
+        channels   : ch,
     };
 
     Ok(Module{
         format_id  : "m.k.",
         description: "Imported M.K. module".to_owned(),
         creator    : "Scream Tracker 3".to_owned(),
+        channels   : ch,
         player     : "st3",
         data       : Box::new(new_data),
     })

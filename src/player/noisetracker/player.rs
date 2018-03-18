@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
+use player::scan::SaveRestore;
 use format::mk::ModData;
 use mixer::Mixer;
 
@@ -8,6 +9,7 @@ use mixer::Mixer;
 /// An oxdz player based on the Noisetracker V1.1 play routine by Pex Tufvesson
 /// and Anders Berkeman (Mahoney & Kaktus - HALLONSOFT 1989).
 
+#[derive(SaveRestore)]
 pub struct ModPlayer {
     options: Options,
 
@@ -17,7 +19,7 @@ pub struct ModPlayer {
     mt_counter     : u8,
     mt_break       : bool,
     mt_samplestarts: [u32; 31],
-    mt_voice       : Vec<ChannelData>,
+    mt_voice       : [ChannelData; 4],
 }
 
 impl ModPlayer {
@@ -31,7 +33,7 @@ impl ModPlayer {
             mt_counter     : 0,
             mt_break       : false,
             mt_samplestarts: [0; 31],
-            mt_voice       : vec![ChannelData::new(); 4],
+            mt_voice       : [ChannelData::new(); 4],
         }
     }
 
@@ -101,13 +103,13 @@ impl ModPlayer {
     
             let ins = (((event.note & 0xf000) >> 8) | ((event.cmd as u16 & 0xf0) >> 4)) as usize;
     
-            if ins > 0 && ins < 31 {  // sanity check added: was: ins != 0
+            if ins > 0 && ins <= 31 {  // sanity check added: was: ins != 0
                 let instrument = &module.instruments[ins as usize - 1];
                 ch.n_4_samplestart = self.mt_samplestarts[ins as usize -1];
                 ch.n_8_length = instrument.size;                            // move.w  (a3,d4.l),$8(a6)
                 ch.n_12_volume = instrument.volume as u8;                   // move.w  $2(a3,d4.l),$12(a6)
                 if instrument.repeat != 0 {
-                    ch.n_a_loopstart = instrument.repeat as u32;
+                    ch.n_a_loopstart = instrument.repeat as u32 * 2;
                     ch.n_8_length = instrument.size;
                     ch.n_e_replen = instrument.replen;                      // move.w  $6(a3,d4.l),$e(a6)
                     mixer.set_volume(chn, (ch.n_12_volume as usize) << 4);  // move.w  $12(a6),$8(a5)
@@ -155,7 +157,12 @@ impl ModPlayer {
         self.mt_songpos &= 0x7f;
         if self.mt_songpos >= module.song_length {     // cmp.b   mt_data+$3b6,d1
             // self.mt_songpos = 0 in Noisetracker 1.0
-            self.mt_songpos = module.restart;          // move.b  mt_data+$3b7,mt_songpos
+            // oxdz: check if value is a valid restart position
+            if module.restart < module.song_length {
+                self.mt_songpos = module.restart;      // move.b  mt_data+$3b7,mt_songpos
+            } else {
+                self.mt_songpos = 0;
+            }
         }
     }
 
@@ -314,6 +321,8 @@ impl ModPlayer {
         }
         // mt_vol4
         mixer.set_volume(chn, (ch.n_3_cmdlo as usize) << 4);  // move.b  $3(a6),$8(a5)
+        // oxdz fix: otherwise we're overriden by set_volume in mt_playvoice()
+        ch.n_12_volume = ch.n_3_cmdlo;
     }
 
     fn mt_setspeed(&mut self, chn: usize) {
@@ -329,61 +338,8 @@ impl ModPlayer {
     }
 }
 
-impl FormatPlayer for ModPlayer {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
 
-        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
-
-        for i in 0..31 {
-            self.mt_samplestarts[i] = module.samples[i].address;
-        }
-
-        data.speed = 6;
-        data.tempo = 125;
-
-        let pan = match self.options.option_int("pan") {
-            Some(val) => val,
-            None      => 70,
-        };
-        let panl = -128 * pan / 100;
-        let panr = 127 * pan / 100;
-
-        mixer.set_pan(0, panl);
-        mixer.set_pan(1, panr);
-        mixer.set_pan(2, panr);
-        mixer.set_pan(3, panl);
-
-        mixer.enable_paula(true);
-    }
-
-    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
-
-        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
-
-        self.mt_songpos = data.pos as u8;
-        self.mt_pattpos = data.row as u8;
-        self.mt_counter = data.frame as u8;
-
-        self.mt_music(&module, &mut mixer);
-
-        data.frame = self.mt_counter as usize;
-        data.row = self.mt_pattpos as usize;
-        data.pos = self.mt_songpos as usize;
-        data.speed = self.mt_speed as usize;
-        data.tempo = 125;
-    }
-
-    fn reset(&mut self) {
-        self.mt_speed   = 6;
-        self.mt_counter = 0;
-        self.mt_songpos = 0;
-        self.mt_break   = false;
-        self.mt_pattpos = 0;
-    }
-}
-
-
-#[derive(Clone,Default)]
+#[derive(Clone,Copy,Default)]
 struct ChannelData {
     n_0_note        : u16,
     n_2_cmd         : u8,
@@ -408,7 +364,6 @@ impl ChannelData {
     }
 }
 
-
 static MT_SIN: [u8; 32] = [
     0x00, 0x18, 0x31, 0x4a, 0x61, 0x78, 0x8d, 0xa1, 0xb4, 0xc5, 0xd4, 0xe0, 0xeb, 0xf4, 0xfa, 0xfd,
     0xff, 0xfd, 0xfa, 0xf4, 0xeb, 0xe0, 0xd4, 0xc5, 0xb4, 0xa1, 0x8d, 0x78, 0x61, 0x4a, 0x31, 0x18
@@ -421,3 +376,61 @@ static MT_PERIODS: [i16; 38] = [
     0x007f, 0x0078, 0x0071, 0x0000, 0x0000
 ];
 
+
+impl FormatPlayer for ModPlayer {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
+
+        for i in 0..31 {
+            self.mt_samplestarts[i] = module.samples[i].address;
+        }
+
+        data.speed = 6;
+        data.tempo = 125.0;
+        data.time  = 0.0;
+
+        let pan = match self.options.option_int("pan") {
+            Some(val) => val,
+            None      => 70,
+        };
+        let panl = -128 * pan / 100;
+        let panr = 127 * pan / 100;
+
+        mixer.set_pan(0, panl);
+        mixer.set_pan(1, panr);
+        mixer.set_pan(2, panr);
+        mixer.set_pan(3, panl);
+
+        mixer.enable_paula(true);
+    }
+
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<ModData>().unwrap();
+
+        self.mt_music(&module, &mut mixer);
+
+        data.frame = self.mt_counter as usize;
+        data.row = self.mt_pattpos as usize;
+        data.pos = self.mt_songpos as usize;
+        data.speed = self.mt_speed as usize;
+        data.time += 20.0;
+    }
+
+    fn reset(&mut self) {
+        self.mt_speed   = 6;
+        self.mt_counter = 0;
+        self.mt_songpos = 0;
+        self.mt_break   = false;
+        self.mt_pattpos = 0;
+    }
+
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
+
+    unsafe fn restore_state(&mut self, state: &State) {
+        self.restore(&state)
+    }
+}

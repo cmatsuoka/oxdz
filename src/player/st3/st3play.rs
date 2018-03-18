@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
+use player::scan::SaveRestore;
 use format::s3m::S3mData;
 use mixer::Mixer;
 
@@ -105,7 +106,7 @@ struct Chn {
     apancnt       : i16,
 }
 
-#[derive(Default)]
+#[derive(Default,SaveRestore)]
 pub struct St3Play {
     // STATIC DATA
     tickdelay         : i8,  // NON-ST3
@@ -141,6 +142,8 @@ pub struct St3Play {
     //stereomode        : bool,
     //mastervol         : u8,
     //mseg_len          : u32,
+
+    inside_loop       : bool,  // for oxdz scan control
 } 
 
 
@@ -596,7 +599,7 @@ impl St3Play {
 
                 // shutdown channel
                 //self.voice_set_source(ch, NULL, 0, 0, 0, 0, 0, 0);
-                mixer.set_volume(ch, 0);
+                mixer.reset_voice(ch);
                 mixer.set_voicepos(ch, 0.0);
             } else {
                 self.chn[ch].lastnote = note;
@@ -1123,9 +1126,11 @@ impl St3Play {
 
             self.jumptorow = self.patloopstart;
             self.np_patoff = -1;  // force reseek
+            self.inside_loop = true;
         } else {
             self.patloopcount = 0;
             self.patloopstart = self.np_row + 1;
+            self.inside_loop = false;
         }
     }
 
@@ -2122,7 +2127,8 @@ impl FormatPlayer for St3Play {
         }
 
         data.speed = self.musicmax as usize;
-        data.tempo = self.tempo as usize;
+        data.tempo = self.tempo as f32;
+        data.time  = 0.0;
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
@@ -2134,12 +2140,21 @@ impl FormatPlayer for St3Play {
         data.frame = self.musiccount as usize;
         data.row = self.np_row as usize;
         data.pos = self.np_ord as usize - 1;
-
         data.speed = self.musicmax as usize;
-        data.tempo = self.tempo as usize;
+        data.tempo = self.tempo as f32;
+        data.time += 20.0 * 125.0 / data.tempo as f32;
+        data.inside_loop = self.inside_loop;
     }
 
     fn reset(&mut self) {
+    }
+
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
+
+    unsafe fn restore_state(&mut self, state: &State) {
+        self.restore(&state)
     }
 }
 

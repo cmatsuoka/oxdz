@@ -1,5 +1,6 @@
 use module::{Module, ModuleData};
-use player::{Options, PlayerData, FormatPlayer};
+use player::{Options, PlayerData, FormatPlayer, State};
+use player::scan::SaveRestore;
 use format::st::StData;
 use mixer::Mixer;
 
@@ -11,6 +12,7 @@ use mixer::Mixer;
 /// > "Just look at it -- so small, innocent and cute. :)"
 /// > -- Olav "8bitbubsy" Sørensen
 
+#[derive(SaveRestore)]
 pub struct USTPlayer {
     options   : Options,
 
@@ -34,7 +36,7 @@ impl USTPlayer {
 
             datachn : [DataChnx::new(); 4],
             pointers: [0; 15],
-            trkpos  : 6,
+            trkpos  : 0,
             patpos  : 0,
             numpat  : module.song_length as u16,
             timpos  : 0,
@@ -188,54 +190,6 @@ impl USTPlayer {
     }
 }
 
-impl FormatPlayer for USTPlayer {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
-
-        let module = mdata.as_any().downcast_ref::<StData>().unwrap();
-
-        for i in 0..15 {
-            self.pointers[i] = module.samples[i].address;
-        }
-
-        data.speed = 6;
-        data.tempo = module.tempo as usize;
-
-        let pan = match self.options.option_int("pan") {
-            Some(val) => val,
-            None      => 70,
-        };
-        let panl = -128 * pan / 100;
-        let panr = 127 * pan / 100;
-
-        mixer.set_pan(0, panl);
-        mixer.set_pan(1, panr);
-        mixer.set_pan(2, panr);
-        mixer.set_pan(3, panl);
-
-        mixer.enable_paula(true);
-    }
-
-    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
-
-        let module = mdata.as_any().downcast_ref::<StData>().unwrap();
-
-        self.trkpos = data.pos as u16;
-        self.patpos = data.row as u8;
-        self.timpos = data.frame as u16;
-
-        self.replay_muzak(&module, &mut mixer);
-
-        data.frame = self.timpos as usize;
-        data.row = self.patpos as usize;
-        data.pos = self.trkpos as usize;
-    }
-
-    fn reset(&mut self) {
-        self.timpos = 0;
-        self.trkpos = 0;
-        self.patpos = 0;
-    }
-}
 
 //------------------------------------------------
 // used varibles
@@ -284,3 +238,58 @@ static NOTETABLE: [i16; 37] = [
     135, 127, 120, 113, 000
 ];
 
+
+impl FormatPlayer for USTPlayer {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<StData>().unwrap();
+
+        for i in 0..15 {
+            self.pointers[i] = module.samples[i].address;
+        }
+
+        data.speed = 6;
+        data.tempo = module.tempo as f32;
+        data.time  = 0.0;
+
+        let pan = match self.options.option_int("pan") {
+            Some(val) => val,
+            None      => 70,
+        };
+        let panl = -128 * pan / 100;
+        let panr = 127 * pan / 100;
+
+        mixer.set_pan(0, panl);
+        mixer.set_pan(1, panr);
+        mixer.set_pan(2, panr);
+        mixer.set_pan(3, panl);
+
+        mixer.enable_paula(true);
+    }
+
+    fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
+
+        let module = mdata.as_any().downcast_ref::<StData>().unwrap();
+
+        self.replay_muzak(&module, &mut mixer);
+
+        data.frame = self.timpos as usize;
+        data.row = self.patpos as usize;
+        data.pos = self.trkpos as usize;
+        data.time += 20.0 * 125.0 / data.tempo as f32;
+    }
+
+    fn reset(&mut self) {
+        self.timpos = 0;
+        self.trkpos = 0;
+        self.patpos = 0;
+    }
+
+    unsafe fn save_state(&self) -> State {
+        self.save()
+    }
+
+    unsafe fn restore_state(&mut self, state: &State) {
+        self.restore(&state)
+    }
+}

@@ -2,7 +2,6 @@ use module::sample::{Sample, SampleType};
 use mixer::interpolator::Interpolator;
 use mixer::paula::Paula;
 use util::MemOpExt;
-use util;
 use ::*;
 
 mod interpolator;
@@ -39,7 +38,7 @@ macro_rules! try_voice {
 
 pub struct Mixer<'a> {
     pub rate  : u32,
-    pub factor: f64,  // tempo factor multiplier
+    factor    : f64,  // tempo factor multiplier
     voices    : Vec<Voice>,
     framesize : usize,
     buf32     : [i32; MAX_FRAMESIZE],
@@ -51,9 +50,9 @@ pub struct Mixer<'a> {
 
 impl<'a> Mixer<'a> {
 
-    pub fn new(num: usize, sample: &'a Vec<Sample>) -> Self {
+    pub fn new(num: usize, rate: u32, sample: &'a Vec<Sample>) -> Self {
         let mut mixer = Mixer {
-            rate     : 44100,
+            rate,
             factor   : 1.0,
             voices   : vec![Voice::new(); num],
             framesize: 0,
@@ -104,11 +103,33 @@ impl<'a> Mixer<'a> {
         }
     }
 
-    pub fn set_tempo(&mut self, tempo: usize) {
-        self.framesize = ((self.rate as f64 * PAL_RATE) / (self.factor * tempo as f64 * 100.0)) as usize;
+    pub fn set_tempo(&mut self, tempo: f64) {
+        self.framesize = ((self.rate as f64 * PAL_RATE) / (self.factor * tempo * 100.0)) as usize;
     }
 
-    pub fn reset_voice(&self, voice: usize) {
+    pub fn reset_voice(&mut self, voice: usize) {
+        let v = &mut self.voices[voice];
+        v.pos = 0.0;
+        v.period = 0.0;
+        v.note = 0;
+        v.pan = 0;
+        v.vol = 0;
+        v.smp = 0;
+        v.end = 0;
+        v.loop_start = 0;
+        v.loop_end = 0;
+        v.has_loop = false;
+        v.mute = false;
+        v.active = false;
+        v.i_buffer = [0; 4];
+    }
+
+    pub fn reset(&mut self) {
+        self.buf32 = [0; MAX_FRAMESIZE];
+        self.buffer = [0; MAX_FRAMESIZE];
+        for voice in 0..self.voices.len() {
+            self.reset_voice(voice)
+        }
     }
 
     pub fn voicepos(&self, voice: usize) -> f64 {
@@ -149,19 +170,6 @@ impl<'a> Mixer<'a> {
         //}
     }
 
-    pub fn set_note(&mut self, voice: usize, mut note: usize) {
-        try_voice!(voice, self.voices);
-
-        // FIXME: Workaround for crash on notes that are too high
-        //        see 6nations.it (+114 transposition on instrument 16)
-        //
-        if note > 149 {
-            note = 149;
-        }
-        self.voices[voice].note = note;
-        self.voices[voice].period = util::note_to_period_mix(note, 0);
-    }
-
     pub fn set_volume(&mut self, voice: usize, vol: usize) {
         try_voice!(voice, self.voices);
         self.voices[voice].vol = vol;
@@ -185,11 +193,13 @@ impl<'a> Mixer<'a> {
         }
 
         let v = &mut self.voices[voice];
+        v.active = true;
         v.smp = smp - 1;
         v.pos = 0_f64;
         v.end = self.sample[smp - 1].size;
         v.has_loop = false;
         v.sample_end = true;
+        v.fix_loop();
     }
 
     pub fn set_sample_ptr(&mut self, voice: usize, addr: u32) {
@@ -199,12 +209,15 @@ impl<'a> Mixer<'a> {
 
         for s in self.sample {
             if addr >= s.address && addr < s.address + s.size {
+                v.active = true;
                 v.smp = s.num - 1;
                 v.pos = (addr - s.address) as f64;
                 v.end = s.size;
-                break
+                v.fix_loop();
+                return
             }
         }
+        v.active = false;
     }
 
     pub fn set_loop_start(&mut self, voice: usize, val: u32) {
@@ -228,7 +241,7 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn set_mute_all(&mut self, val: bool) {
-        for mut v in &mut self.voices {
+        for v in &mut self.voices {
             v.mute = val
         }
     }
@@ -247,7 +260,7 @@ impl<'a> Mixer<'a> {
         self.buf32[..].fill(0, self.framesize);
 
         for v in &mut self.voices {
-            if v.mute || v.period < 1.0 {
+            if v.mute || v.period < 1.0 || !v.active {
                 continue
             }
 
@@ -262,8 +275,10 @@ impl<'a> Mixer<'a> {
                 continue;
             }
 
-            //let lps = sample.loop_start;
-            //let lpe = sample.loop_end;
+            // sanity check
+            if v.end > sample.size {
+                v.end = sample.size;
+            }
 
             let mut usmp = 0;
             let mut size = self.framesize as isize;
@@ -325,7 +340,7 @@ impl<'a> Mixer<'a> {
                     if v.has_loop {
                         if v.pos + step >= v.end as f64 {
                             v.pos += step;
-                            v.loop_reposition(&sample);
+                            v.loop_reposition();
                         }
                     }
                     continue;
@@ -339,7 +354,7 @@ impl<'a> Mixer<'a> {
                 }
 
                 // reached end of loop
-                v.loop_reposition(&sample);
+                v.loop_reposition();
             }
         }
 
@@ -393,6 +408,7 @@ struct Voice {
     has_loop  : bool,
     sample_end: bool,
     mute      : bool,
+    active    : bool,
 
     i_buffer  : [i32; 4],
 
@@ -405,15 +421,8 @@ impl Voice {
         v
     }
 
-    pub fn loop_reposition(&mut self, sample: &Sample) {
+    pub fn loop_reposition(&mut self) {
         // sanity check
-        if self.loop_start > sample.size {
-            self.has_loop = false;
-            return
-        }
-        if self.loop_end > sample.size {
-            self.loop_end = sample.size;
-        }
         if self.pos > self.loop_end as f64 {
             self.pos = self.loop_end as f64;
         }
@@ -425,8 +434,24 @@ impl Voice {
         self.end = self.loop_end;
         self.has_loop = true;
 
+        // sanity check
+        if self.pos < 0.0 {
+            self.pos = 0.0;
+        }
+
         //if self.bidir_loop {
         //}
+    }
+
+    // sample loop sanity checks
+    pub fn fix_loop(&mut self) {
+        if self.loop_start > self.end {
+            self.loop_start = self.end;
+            self.has_loop = false;
+        }
+        if self.loop_end > self.end {
+            self.loop_end = self.end;
+        }
     }
 
     //pub fn anticlick(&self) {
@@ -538,4 +563,3 @@ impl SamplerOperations<i8> for Sampler {
         (*i as i32) << 8
     }
 }
-

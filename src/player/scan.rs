@@ -1,26 +1,31 @@
+use player::State;
 
-#[derive(Default)]
-pub struct ScanRow {
-    millis: u32,  // milliseconds since start of replay
-    speed : u8,   // current replay speed
-    tempo : u8,   // current replay tempo
-    gvol  : u8,   // current global volume
+pub trait SaveRestore {
+    unsafe fn save(&self) -> Vec<u8>;
+    unsafe fn restore(&mut self, &Vec<u8>);
 }
 
-
-pub struct ScanPos {
-    row: Vec<ScanRow>,
-}
-
+#[derive(Default, Clone)]
 pub struct ScanData {
-    pos: Vec<ScanPos>,
+    pub ord  : usize,
+    pub row  : usize,
+    pub frame: usize,
+    pub num  : usize,
 }
 
-impl ScanData {
-    pub fn new(size: usize) -> Self {
-        ScanData {
-            pos: Vec::new(),
+#[derive(Clone)]
+pub struct OrdData {
+    pub state: State,
+    pub time : u32,
+    pub used : bool,
+}
+
+impl OrdData {
+    pub fn new() -> Self {
+        OrdData{
+            state: vec![0; 0],
+            time : 0,
+            used : false,
         }
     }
 }
-
