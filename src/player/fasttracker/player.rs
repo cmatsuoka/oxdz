@@ -813,7 +813,7 @@ impl FormatPlayer for FtPlayer {
 
         data.speed = 6;
         data.tempo = 125;
-	data.time  = 0.0;
+        data.time  = 0.0;
 
         let pan = match self.options.option_int("pan") {
             Some(val) => val,
