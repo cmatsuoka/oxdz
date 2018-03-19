@@ -640,7 +640,11 @@ impl FtPlayer {
             let mut pos = self.ft_song_pos;
             pos = pos.wrapping_add(1);
             if pos >= module.song_length {
-                pos = module.restart;
+                if module.restart < module.song_length {
+                    pos = module.restart;
+                } else {
+                    pos = 0;
+                }
             }
             self.ft_song_pos = pos;
             //self.ft_current_pattern = module.pattern_in_position(pos as usize);
@@ -855,7 +859,7 @@ impl FormatPlayer for FtPlayer {
             mixer.set_volume(chn, (ch.output_volume as usize) << 4);
         }
 
-        data.frame = (self.ft_speed - self.ft_counter) as usize;
+        data.frame = ((self.ft_speed - self.ft_counter + 1) % self.ft_speed) as usize;
         data.row = self.ft_pattern_pos as usize;
         data.pos = self.ft_song_pos as usize;
         data.speed = self.ft_speed as usize;
