@@ -72,7 +72,7 @@ fn run(name: &String) -> Result<(), Box<Error>> {
 
     println!("Length: {}", module.len());
     println!("Patterns: {}", module.patterns());
-    println!("Position: {} ({})", player.position(), module.pattern_in_position(player.data.pos).unwrap());
+    //println!("Position: {} ({})", player.position(), module.pattern_in_position(player.data.pos).unwrap());
 
     show_pattern(&module, 0);
 
