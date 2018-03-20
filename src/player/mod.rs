@@ -242,7 +242,7 @@ impl<'a> Player<'a> {
 
                 if prev_pos != pos && !self.ord_data[pos].used {
                     unsafe{ self.ord_data[pos].state = self.format_player.save_state(); }
-                    self.ord_data[pos].time = self.data.time as u32;
+                    self.ord_data[pos].time = self.data.time;
                     prev_pos = pos;
                     self.ord_data[pos].used = true;
                     debug!("scan: pos {}: time {}", pos, self.ord_data[pos].time);
@@ -404,6 +404,7 @@ impl<'a> Player<'a> {
     pub fn set_position(&mut self, pos: usize) -> &Self {
         if pos < self.ord_data.len() {
             unsafe{ self.format_player.restore_state(&self.ord_data[pos].state) }
+            self.data.time = self.ord_data[pos].time;
         }
         self
     }
