@@ -25,6 +25,7 @@ pub struct FtPlayer {
     ft_pattern_pos    : u8,
     //ft_current_pattern: u16,
     cia_tempo         : u8,
+    position_jump_cmd : bool,
 
     channels          : usize,
     ft_chantemp       : [ChannelData; 8],
@@ -61,6 +62,7 @@ impl FtPlayer {
             ft_pattern_pos    : 0,
             //ft_current_pattern: 0,
             cia_tempo         : 125,
+            position_jump_cmd : false,
 
             channels          : module.channels,
             ft_chantemp       : [ChannelData::new(); 8],
@@ -198,6 +200,7 @@ impl FtPlayer {
         self.ft_song_pos = cmdlo.wrapping_sub(1);
         self.ft_pbreak_pos = 0;
         self.ft_pos_jump_flag = true;
+        self.position_jump_cmd = true;
     }
 
     fn ft_volume_change(&mut self, chn: usize, mut cmdlo: u8) {
@@ -272,8 +275,12 @@ impl FtPlayer {
                 ch.n_loopcount = cmdlo;
                 self.ft_pbreak_pos = ch.n_pattpos;
                 self.ft_pbreak_flag = true;
+                ch.inside_loop = true;
             } else {
                 ch.n_loopcount -= 1;
+                if ch.n_loopcount == 0 {
+                    ch.inside_loop = false;
+                }
             }
         }
     }
@@ -803,6 +810,8 @@ struct ChannelData {
     n_tremolospeed : u8,
     n_tremolodepth : u8,
     n_volume       : u8,
+
+    inside_loop    : bool,
 }
 
 impl ChannelData {
@@ -865,6 +874,16 @@ impl FormatPlayer for FtPlayer {
         data.speed = self.ft_speed as usize;
         data.tempo = self.cia_tempo as f32;
         data.time += 20.0 * 125.0 / data.tempo as f32;
+
+        if self.position_jump_cmd {
+            data.pos = self.ft_song_pos.wrapping_add(1) as usize;
+            self.position_jump_cmd = false;
+        }
+
+        data.inside_loop = false;
+        for chn in 0..8 {
+            data.inside_loop |= self.ft_chantemp[chn].inside_loop;
+        }
     }
 
     fn reset(&mut self) {
