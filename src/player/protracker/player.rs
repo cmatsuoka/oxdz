@@ -688,11 +688,11 @@ impl ModPlayer {
         if cmdlo == 0 {
             // mt_SetLoop
             ch.n_pattpos = self.mt_pattern_pos as u8;
-            ch.inside_loop = true;
         } else {
             if ch.n_loopcount == 0 {
                 // mt_jmpcnt
                 ch.n_loopcount = cmdlo;
+                ch.inside_loop = true;
             } else {
                 ch.n_loopcount -= 1;
                 if ch.n_loopcount == 0 {
