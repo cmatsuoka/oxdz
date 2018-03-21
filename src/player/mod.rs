@@ -228,7 +228,7 @@ impl<'a> Player<'a> {
                 //debug!("scan: check {}/{}", pos, row);
                 if self.scan_cnt[pos][row] > 0 {
                     if self.data.inside_loop {
-                        debug!("inside loop");
+                        //debug!("inside loop");
                     } else {
                         debug!("scan: already visited");
                         break;
