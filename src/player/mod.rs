@@ -225,7 +225,7 @@ impl<'a> Player<'a> {
             if prev_row != row || prev_pos != pos || prev_loop_count != loop_count {
 
                 // FIXME
-                debug!("scan: check {}/{}", pos, row);
+                //debug!("scan: check {}/{}", pos, row);
                 if self.scan_cnt[pos][row] > 0 {
                     if self.data.inside_loop {
                         debug!("inside loop");
@@ -245,7 +245,7 @@ impl<'a> Player<'a> {
                     self.ord_data[pos].time = self.data.time;
                     prev_pos = pos;
                     self.ord_data[pos].used = true;
-                    debug!("scan: pos {}: time {}", pos, self.ord_data[pos].time);
+                    //debug!("scan: pos {}: time {}", pos, self.ord_data[pos].time);
                 }
             }
 
