@@ -379,34 +379,6 @@ impl<'a> Player<'a> {
         self.mixer.set_mute_all(val)
     }
 
-/*
-    pub fn position(&self) -> usize {
-        self.data.pos
-    }
-
-    pub fn row(&self) -> usize {
-        self.data.row
-    }
-
-    pub fn frame(&self) -> usize {
-        self.data.frame
-    }
-
-    pub fn song(&self) -> usize {
-        self.data.song
-    }
-
-    pub fn set_row(&mut self, row: usize) -> &Self {
-        self.data.row = row;
-        self.set_frame(0)
-    }
-
-    pub fn set_frame(&mut self, frame: usize) -> &Self {
-        self.data.frame = frame;
-        self
-    }
-*/
-
     pub fn set_position(&mut self, pos: usize) -> &Self {
         if pos < self.ord_data.len() {
             unsafe{ self.format_player.restore_state(&self.ord_data[pos].state) }
