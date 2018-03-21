@@ -13,6 +13,7 @@ pub use mixer::Mixer;
 use std::cmp;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::default::Default;
 use module::{Module, ModuleData};
 use player::scan::{ScanData, OrdData};
 use util::MemOpExt;
@@ -362,6 +363,11 @@ impl<'a> Player<'a> {
         info.tempo = self.data.tempo as usize;
         info.loop_count = self.data.loop_count;
         info.time = self.data.time;
+        info.pattern = self.module.pattern_in_position(info.pos);
+        info.num_rows = match info.pattern {
+            Some(pat) => self.module.rows(pat),
+            None      => 0,
+        };
         self
     }
 
@@ -420,17 +426,28 @@ impl<'a> Player<'a> {
     }
 }
 
+pub struct ChannelInfo {
+    pub period    : u32,
+    pub position  : u32,
+    pub note      : u8,
+    pub sample    : u8,
+    pub volume    : u8,
+    pub pan       : i8,
+}
 
 #[derive(Default)]
 pub struct FrameInfo {
-    pub pos  : usize,
-    pub row  : usize,
-    pub frame: usize,
-    pub song : usize,
-    pub tempo: usize,
-    pub speed: usize,
+    pub pos       : usize,
+    pub row       : usize,
+    pub frame     : usize,
+    pub pattern   : Option<usize>,
+    pub num_rows  : usize,
+    pub song      : usize,
+    pub tempo     : usize,
+    pub speed     : usize,
     pub loop_count: usize,
-    pub time : f32,
+    pub time      : f32,
+    //pub channel_info: [ChannelInfo; MAX_CHANNELS],
 }
 
 impl FrameInfo {
