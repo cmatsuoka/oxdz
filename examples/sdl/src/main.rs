@@ -5,12 +5,14 @@ extern crate sdl2;
 use std::env;
 use std::error::Error;
 use std::fs::File;
+use std::io::{Write, stdout};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use memmap::Mmap;
-use oxdz::{Oxdz};
+use oxdz::{Oxdz, FrameInfo};
 use oxdz::player::Player;
 use sdl2::audio::{AudioCallback, AudioSpecDesired};
-use std::time::Duration;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -28,12 +30,17 @@ fn main() {
 
 struct ModPlayer<'a> {
     player: Player<'a>,
+    data: Arc<Mutex<FrameInfo>>,
 }
 
 impl<'a> AudioCallback for ModPlayer<'a> {
     type Channel = i16;
 
     fn callback(&mut self, mut out: &mut [i16]) {
+        {
+            let mut fi = self.data.lock().unwrap();
+            self.player.info(&mut fi);
+        }
         self.player.fill_buffer(&mut out, 0);
     }
 }
@@ -63,19 +70,27 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
         samples: None,      // default buffer size
     };
 
+    let data = Arc::new(Mutex::new(FrameInfo::new()));
+
     let device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
         // Show obtained AudioSpec
         println!("{:?}", spec);
 
         // initialize the audio callback
-        ModPlayer { player }
+        ModPlayer { player, data: data.clone() }
     }).unwrap();
 
     // Start playback
     device.resume();
 
-    // Play for 10 seconds
-    std::thread::sleep(Duration::from_millis(10_000));
+    loop {
+        {
+            let fi = data.lock().unwrap();
+            print!("pos:{:3} - row:{:3} \r", fi.pos, fi.row);
+            let _ = stdout().flush();
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
 
     Ok(())
 }
