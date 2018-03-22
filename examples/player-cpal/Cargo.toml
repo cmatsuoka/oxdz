@@ -1,5 +1,5 @@
 [package]
-name = "cpal"
+name = "player-cpal"
 version = "0.1.0"
 authors = ["Claudio Matsuoka <cmatsuoka@gmail.com>"]
 
