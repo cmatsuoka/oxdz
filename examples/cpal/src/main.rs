@@ -48,7 +48,7 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
     {
         let info = info.clone();
         // FIXME: we're using too much stack! check why
-        thread::Builder::new().stack_size(4 * 1024 * 1024).spawn(move || {
+        thread::spawn(move || {
             let filename = &args[1];
             let file = File::open(filename).unwrap();
             let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
@@ -75,7 +75,7 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
                     _ => { }
                 }
             });
-        }).unwrap();
+        });
     };
 
 

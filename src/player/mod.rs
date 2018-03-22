@@ -155,7 +155,7 @@ impl PlayerData {
 
 
 pub struct Player<'a> {
-    pub data      : PlayerData,
+    pub data      : Box<PlayerData>,
     pub total_time: u32,
     module        : &'a Module,
     format_player : Box<FormatPlayer>,
@@ -196,7 +196,7 @@ impl<'a> Player<'a> {
 
         let mixer = Mixer::new(module.channels, rate, &module.data.samples());
         Ok(Player {
-            data      : PlayerData::new(),
+            data      : Box::new(PlayerData::new()),
             module,
             format_player,
             mixer,

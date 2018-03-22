@@ -29,7 +29,7 @@ pub const MAX_CHANNELS : usize = 64;
 pub const MAX_SEQUENCES: usize = 16;
 
 pub struct Oxdz {
-    pub module   : module::Module,
+    pub module   : Box<module::Module>,
     pub rate     : u32,
     pub player_id: String,
 }
@@ -43,7 +43,7 @@ impl<'a> Oxdz {
         module = player::list_by_id(&id)?.import(module)?;
 
         Ok(Oxdz {
-            module,
+            module   : Box::new(module),
             rate,
             player_id: id,
         })
