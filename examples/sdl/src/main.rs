@@ -87,10 +87,8 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
         {
             let fi = data.lock().unwrap();
             print!("pos:{:3} - row:{:3} \r", fi.pos, fi.row);
-            let _ = stdout().flush();
         }
-        std::thread::sleep(Duration::from_millis(100));
+        stdout().flush().unwrap();
+        std::thread::sleep(Duration::from_millis(50));
     }
-
-    Ok(())
 }
