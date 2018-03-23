@@ -47,7 +47,6 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
   
     {
         let info = info.clone();
-        // FIXME: we're using too much stack! check why
         thread::spawn(move || {
             let filename = &args[1];
             let file = File::open(filename).unwrap();
