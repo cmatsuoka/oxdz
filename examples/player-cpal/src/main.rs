@@ -52,13 +52,13 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
             let file = File::open(filename).unwrap();
             let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
         
-            let oxdz = Oxdz::new(&mmap[..], 44100, "").unwrap();
+            let mut oxdz = Oxdz::new(&mmap[..], 44100, "").unwrap();
         
             // Display basic module information
-            println!("Title : {}", oxdz.module.title());
-            println!("Format: {}", oxdz.module.creator);
+            println!("Title : {}", oxdz.module_title());
+            println!("Format: {}", oxdz.module_creator());
         
-            let mut player = oxdz.player().unwrap();
+            let mut player = oxdz.player();
             player.start();
         
             event_loop.run(move |_, data| {

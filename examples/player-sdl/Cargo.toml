@@ -1,6 +1,6 @@
 [package]
 name = "player-sdl"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Claudio Matsuoka <cmatsuoka@gmail.com>"]
 
 [dependencies]

@@ -133,8 +133,8 @@ impl ModuleData for S3mData {
         num
     }
 
-    fn samples(&self) -> &Vec<Sample> {
-        &self.samples
+    fn samples(&self) -> Vec<Sample> {
+        self.samples.to_owned()
     }
 }
 

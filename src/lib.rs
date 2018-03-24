@@ -28,13 +28,13 @@ pub const MAX_KEYS     : usize = 128;
 pub const MAX_CHANNELS : usize = 64;
 pub const MAX_SEQUENCES: usize = 16;
 
-pub struct Oxdz {
-    pub module   : Box<module::Module>,
+pub struct Oxdz<'a> {
+    pub player   : player::Player<'a>,
     pub rate     : u32,
     pub player_id: String,
 }
 
-impl<'a> Oxdz {
+impl<'a> Oxdz<'a> {
     pub fn new(b: &[u8], rate: u32, player_id: &str) -> Result<Self, Error> {
         let mut module = format::load(&b, &player_id)?;
         let id = (if player_id.is_empty() { module.player } else { player_id }).to_owned();
@@ -42,26 +42,45 @@ impl<'a> Oxdz {
         // import the module if needed
         module = player::list_by_id(&id)?.import(module)?;
 
+        let mut player = player::Player::find(module, rate, &id, "")?;
+        player.scan();
+
         Ok(Oxdz {
-            module   : Box::new(module),
+            player,
             rate,
             player_id: id,
         })
     }
 
+/*
     pub fn module(&'a self) -> &'a module::Module {
         &self.module
+    }
+*/
+
+    pub fn module_title(&self) -> String {
+        self.player.module.title().to_owned()
+    }
+
+    pub fn module_creator(&self) -> String {
+        self.player.module.creator.to_owned()
     }
 
     pub fn player_info(&self) -> Result<player::PlayerInfo, Error> {
         Ok(player::list_by_id(&self.player_id)?.info())
     }
 
+    pub fn player(&'a mut self) -> &'a mut player::Player {
+        &mut self.player
+    }
+
+/*
     pub fn player(&self) -> Result<player::Player, Error> {
-        let mut player = player::Player::find(&self.module, self.rate, &self.player_id, "")?;
+        let mut player = player::Player::find(self.module, self.rate, &self.player_id, "")?;
         player.scan();
         Ok(player)
     }
+*/
 }
 
 

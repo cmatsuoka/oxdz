@@ -5,11 +5,6 @@ authors = ["Claudio Matsuoka <cmatsuoka@gmail.com>"]
 exclude = ["*.png", "doc/reference", "doc/formats"]
 publish = false
 
-[[bin]]
-name = "oxdz"
-path = "src/bin/oxdz.rs"
-doc = false
-
 [dependencies]
 byteorder = "1.2"
 getopts = "0.2"

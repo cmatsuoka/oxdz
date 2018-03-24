@@ -58,7 +58,7 @@ impl Module {
         self.data.pattern_data(pat, length / 6, &mut buffer)
     }
 
-    pub fn samples(&self) -> &Vec<Sample> {
+    pub fn samples(&self) -> Vec<Sample> {
         self.data.samples()
     }
 }
@@ -74,5 +74,5 @@ pub trait ModuleData: Send + Sync {
     fn instruments(&self) -> Vec<String>;
     fn rows(&self, pat: usize) -> usize;  // number of rows in pattern
     fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize;
-    fn samples(&self) -> &Vec<Sample>;
+    fn samples(&self) -> Vec<Sample>;
 }

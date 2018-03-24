@@ -70,8 +70,8 @@ impl ModuleData for ModData {
         get_mod_pattern(&self.patterns.data, pat, 4, num, &mut buffer)
     }
 
-    fn samples(&self) -> &Vec<Sample> {
-        &self.samples
+    fn samples(&self) -> Vec<Sample> {
+        self.samples.to_owned()
     }
 }
 

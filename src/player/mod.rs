@@ -157,7 +157,7 @@ impl PlayerData {
 pub struct Player<'a> {
     pub data      : Box<PlayerData>,
     pub total_time: u32,
-    module        : &'a Module,
+    pub module    : Module,
     format_player : Box<FormatPlayer>,
     mixer         : Mixer<'a>,
     loop_count    : usize,
@@ -173,7 +173,7 @@ pub struct Player<'a> {
 }
 
 impl<'a> Player<'a> {
-    pub fn find(module: &'a Module, rate: u32, player_id: &str, optstr: &str) -> Result<Self, Error> {
+    pub fn find(module: Module, rate: u32, player_id: &str, optstr: &str) -> Result<Self, Error> {
 
         let list_entry = list_by_id(player_id)?;
 
@@ -194,7 +194,9 @@ impl<'a> Player<'a> {
             scan_cnt.push(vec![0; module.rows(pat as usize)]);
         }
 
-        let mixer = Mixer::new(module.channels, rate, &module.data.samples());
+        let module_len = module.len();
+        let mixer = Mixer::new(module.channels, rate, module.data.samples());
+
         Ok(Player {
             data      : Box::new(PlayerData::new()),
             module,
@@ -206,7 +208,7 @@ impl<'a> Player<'a> {
             consumed  : 0,
             in_pos    : 0,
             in_size   : 0,
-            ord_data  : vec![OrdData::new(); module.len()],
+            ord_data  : vec![OrdData::new(); module_len],
             scan_cnt,
         })
     }
@@ -275,9 +277,11 @@ impl<'a> Player<'a> {
         }
     }
 
+/*
     pub fn module(&self) -> &'a Module {
         self.module
     }
+*/
 
     pub fn set_interpolator(&mut self, name: &str) -> Result<(), Error> {
         self.mixer.set_interpolator(name)
