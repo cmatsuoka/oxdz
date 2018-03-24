@@ -277,33 +277,13 @@ impl<'a> Player<'a> {
         }
     }
 
-/*
-    pub fn module(&self) -> &'a Module {
-        self.module
-    }
-*/
-
     pub fn set_interpolator(&mut self, name: &str) -> Result<(), Error> {
         self.mixer.set_interpolator(name)
     }
 
-/*
-    pub fn restart(&mut self) -> &Self {
-        self.data.pos = 0;
-        self.data.row = 0;
-        self.data.song = 0;
-        self.data.frame = 0;
-        self.data.speed = 6;
-        self.format_player.reset();
-        self
-    }
-*/
-
     pub fn start(&mut self) -> &mut Self {
         self.format_player.start(&mut self.data, &*self.module.data, &mut self.mixer);
-
         self.data.end_point = self.data.scan_data[0].num;
-
         self
     }
 

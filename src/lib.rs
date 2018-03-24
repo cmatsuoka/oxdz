@@ -36,6 +36,7 @@ pub struct ModuleInfo {
     pub creator    : String,            // tracker name
     pub channels   : usize,             // number of mixer channels
     pub player     : &'static str,      // primary player for this format
+    pub total_time : u32,               // replay time in ms
 }
 
 impl ModuleInfo {
@@ -84,6 +85,7 @@ impl<'a> Oxdz<'a> {
         mi.creator = self.player.module.creator.to_owned();
         mi.channels = self.player.module.channels;
         mi.player = self.player.module.player;
+        mi.total_time = self.player.total_time;
         self
     }
 
@@ -116,9 +118,14 @@ impl<'a> Oxdz<'a> {
         self
     }
 
-    pub fn set_position(&mut self, pos: usize) -> &Self {
+    pub fn set_position(&mut self, pos: usize) -> &mut Self {
         self.player.set_position(pos);
         self
+    }
+
+    pub fn set_interpolator(&mut self, name: &str) -> Result<&mut Self, Error> {
+        self.player.set_interpolator(name)?;
+        Ok(self)
     }
 
 /*
