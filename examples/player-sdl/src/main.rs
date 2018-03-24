@@ -10,8 +10,6 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use memmap::Mmap;
-use oxdz::{Oxdz, FrameInfo};
-use oxdz::player::Player;
 use sdl2::audio::{AudioCallback, AudioSpecDesired};
 
 fn main() {
@@ -29,8 +27,8 @@ fn main() {
 }
 
 struct ModPlayer<'a> {
-    player: Player<'a>,
-    data: Arc<Mutex<FrameInfo>>,
+    oxdz: oxdz::Oxdz<'a>,
+    data: Arc<Mutex<oxdz::FrameInfo>>,
 }
 
 impl<'a> AudioCallback for ModPlayer<'a> {
@@ -39,9 +37,9 @@ impl<'a> AudioCallback for ModPlayer<'a> {
     fn callback(&mut self, mut out: &mut [i16]) {
         {
             let mut fi = self.data.lock().unwrap();
-            self.player.info(&mut fi);
+            self.oxdz.frame_info(&mut fi);
         }
-        self.player.fill_buffer(&mut out, 0);
+        self.oxdz.fill_buffer(&mut out, 0);
     }
 }
 
@@ -51,14 +49,12 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
     let file = File::open(filename)?;
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
-    let mut oxdz = Oxdz::new(&mmap[..], 44100, "")?;
+    let oxdz = oxdz::Oxdz::new(&mmap[..], 44100, "")?;
 
     // Display basic module information
-    println!("Title : {}", oxdz.module_title());
-    println!("Format: {}", oxdz.module_creator());
-
-    let mut player = oxdz.player;
-    player.start();
+    let mut mi = oxdz::ModuleInfo::new();
+    println!("Title : {}", mi.title);
+    println!("Format: {}", mi.creator);
 
     // From Rust-SDL2 SquareWave example
     let sdl_context = sdl2::init().unwrap();
@@ -70,14 +66,14 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
         samples: None,      // default buffer size
     };
 
-    let data = Arc::new(Mutex::new(FrameInfo::new()));
+    let data = Arc::new(Mutex::new(oxdz::FrameInfo::new()));
 
     let device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
         // Show obtained AudioSpec
         println!("{:?}", spec);
 
         // initialize the audio callback
-        ModPlayer { player, data: data.clone() }
+        ModPlayer { oxdz, data: data.clone() }
     }).unwrap();
 
     // Start playback

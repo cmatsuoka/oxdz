@@ -33,7 +33,7 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
     let oxdz = Oxdz::new(&mmap[..], 44100, "")?;
-    show_pattern(&oxdz.module, num);
+    show_pattern(oxdz.module(), num);
 
     Ok(())
 }

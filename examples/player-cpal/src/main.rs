@@ -11,7 +11,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::thread;
 use memmap::Mmap;
-use oxdz::{Oxdz, FrameInfo};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -43,7 +42,7 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
     event_loop.play_stream(stream_id);
 
 
-    let info = Arc::new(Mutex::new(FrameInfo::new()));
+    let info = Arc::new(Mutex::new(oxdz::FrameInfo::new()));
   
     {
         let info = info.clone();
@@ -52,23 +51,22 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
             let file = File::open(filename).unwrap();
             let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
         
-            let mut oxdz = Oxdz::new(&mmap[..], 44100, "").unwrap();
+            let mut oxdz = oxdz::Oxdz::new(&mmap[..], 44100, "").unwrap();
         
             // Display basic module information
-            println!("Title : {}", oxdz.module_title());
-            println!("Format: {}", oxdz.module_creator());
-        
-            let mut player = oxdz.player();
-            player.start();
+            let mut mi = oxdz::ModuleInfo::new();
+            oxdz.module_info(&mut mi);
+            println!("Title : {}", mi.title);
+            println!("Format: {}", mi.creator);
         
             event_loop.run(move |_, data| {
                 match data {
                     cpal::StreamData::Output{buffer: cpal::UnknownTypeOutputBuffer::I16(mut buffer)} => {
                         {
                             let mut fi = info.lock().unwrap();
-                            player.info(&mut fi);
+                            oxdz.frame_info(&mut fi);
                         }
-                        player.fill_buffer(&mut buffer, 0);
+                        oxdz.fill_buffer(&mut buffer, 0);
                     },
     
                     _ => { }
