@@ -21,7 +21,7 @@ impl Loader for StmLoader {
         player::check_accepted(player_id, "stm")?;
 
         let magic = b.read_string(20, 10)?;
-        if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" {
+        if magic == "!Scream!\x1a\x02" || magic == "BMOD2STM\x1a\x02" || magic == "WUZAMOD!\x1a\x02" || magic == "SWavePro\x1a\x02" {
             Ok(FormatInfo{format: Format::Stm, title: b.read_string(0, 20)?})
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
@@ -93,6 +93,7 @@ impl Loader for StmLoader {
                              "!Scream!" => format!("Scream Tracker {}.{}", version_major, version_minor),
                              "BMOD2STM" => "BMOD2STM".to_owned(),
                              "WUZAMOD!" => "WUZAMOD".to_owned(),
+                             "SWavePro" => "SWavePro".to_owned(),
                              _          => "unknown".to_owned(),
                          },
             channels   : 4,
