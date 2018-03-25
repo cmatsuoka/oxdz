@@ -54,7 +54,7 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
     // Display basic module information
     let mut mi = oxdz::ModuleInfo::new();
     println!("Title : {}", mi.title);
-    println!("Format: {}", mi.creator);
+    println!("Format: {}", mi.description);
 
     // From Rust-SDL2 SquareWave example
     let sdl_context = sdl2::init().unwrap();

@@ -57,7 +57,7 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
             let mut mi = oxdz::ModuleInfo::new();
             oxdz.module_info(&mut mi);
             println!("Title : {}", mi.title);
-            println!("Format: {}", mi.creator);
+            println!("Format: {}", mi.description);
         
             event_loop.run(move |_, data| {
                 match data {
