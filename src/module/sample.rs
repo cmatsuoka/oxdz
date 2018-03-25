@@ -1,9 +1,5 @@
 use std::slice;
 
-// Allow 2 samples in 16-bit
-pub const GUARD_SIZE: usize = 4;
-
-
 #[derive(Debug, Clone)]
 pub enum SampleType {
     Sample8,
