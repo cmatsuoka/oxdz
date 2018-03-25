@@ -281,6 +281,14 @@ impl<'a> Player<'a> {
         self.mixer.set_interpolator(name)
     }
 
+    pub fn mixer_voices(&self) -> usize {
+        self.mixer.num_voices()
+    }
+
+    pub fn voice_pos(&self, voice: usize) -> f64 {
+        self.mixer.voicepos(voice)
+    }
+
     pub fn start(&mut self) -> &mut Self {
         self.format_player.start(&mut self.data, &*self.module.data, &mut self.mixer);
         self.data.end_point = self.data.scan_data[0].num;

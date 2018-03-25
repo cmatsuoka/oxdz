@@ -6,11 +6,13 @@ extern crate save_restore_derive;
 #[macro_use]
 mod util;
 
-pub mod format;
-pub mod mixer;
+mod player;
+mod format;
+mod mixer;
+
 pub mod module;
-pub mod player;
 pub use player::FrameInfo;
+pub use player::PlayerInfo;
 pub use module::Module;
 
 use std::error;
@@ -135,6 +137,13 @@ impl<'a> Oxdz<'a> {
 */
 }
 
+pub fn player_list() -> Vec<PlayerInfo> {
+    player::list()
+}
+
+pub fn format_list() -> Vec<Box<format::Loader>> {
+    format::list()
+}
 
 #[derive(Debug)]
 pub enum Error {
