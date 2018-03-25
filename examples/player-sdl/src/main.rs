@@ -53,6 +53,7 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
 
     // Display basic module information
     let mut mi = oxdz::ModuleInfo::new();
+    oxdz.module_info(&mut mi);
     println!("Title : {}", mi.title);
     println!("Format: {}", mi.description);
 

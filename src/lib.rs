@@ -80,7 +80,7 @@ impl<'a> Oxdz<'a> {
         Ok(player::list_by_id(&self.player_id)?.info())
     }
 
-    pub fn module_info(&mut self, mi: &mut ModuleInfo) -> &mut Self {
+    pub fn module_info(&self, mi: &mut ModuleInfo) {
         mi.title = self.player.module.title().to_owned();
         mi.format_id = self.player.module.format_id;
         mi.description = self.player.module.description.to_owned();
@@ -88,7 +88,6 @@ impl<'a> Oxdz<'a> {
         mi.channels = self.player.module.channels;
         mi.player = self.player.module.player;
         mi.total_time = self.player.total_time;
-        self
     }
 
     pub fn frame_info(&mut self, mut fi: &mut FrameInfo) -> &mut Self {
