@@ -8,7 +8,6 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 use memmap::Mmap;
-use oxdz::{Oxdz, FrameInfo};
 use riff_wave::WaveWriter;
 
 fn main() {
@@ -34,14 +33,15 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
     let file = File::open(filename)?;
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
-    let mut oxdz = Oxdz::new(&mmap[..], 44100, "")?;
+    let mut oxdz = oxdz::Oxdz::new(&mmap[..], 44100, "")?;
 
     // Display basic module information
-    println!("Title : {}", oxdz.module.title());
-    println!("Format: {}", oxdz.module.creator);
+    let mut mi = oxdz::ModuleInfo::new();
+    oxdz.module_info(&mut mi);
+    println!("Title : {}", mi.title);
+    println!("Format: {}", mi.description);
 
-    let mut player = oxdz.player()?;
-    let mut fi = FrameInfo::new();
+    let mut fi = oxdz::FrameInfo::new();
 
     // Prepare to write a wav file
     let out_filename = "out.wav";
@@ -49,11 +49,9 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
     let writer = BufWriter::new(file);
     let mut wave_writer = try!(WaveWriter::new(2, 44100, 16, writer));
 
-    player.start();
-
     let mut frames = 0;
     loop {
-        let buffer = player.info(&mut fi).play_frame().buffer();
+        let buffer = oxdz.frame_info(&mut fi).play_frame().buffer();
 	if fi.loop_count > 0 || fi.time > replay_time {
             break
         }
