@@ -416,6 +416,11 @@ impl FormatPlayer for ModPlayer {
         data.pos = self.mt_songpos as usize;
         data.speed = self.mt_speed as usize;
         data.time += 20.0;
+
+        // Is this correct? workaround for captive.mod
+        if data.pos == 255 {
+            data.pos = 0;
+        }
     }
 
     fn reset(&mut self) {
