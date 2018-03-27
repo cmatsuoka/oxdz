@@ -1,5 +1,5 @@
 use std::cmp;
-use format::{FormatInfo, Format, Loader};
+use format::{ProbeInfo, Format, Loader};
 use format::st::StData;
 use format::mk::{ModPatterns, ModInstrument};
 use module::{Module, Sample};
@@ -16,7 +16,7 @@ impl Loader for StLoader {
         "Soundtracker"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<FormatInfo, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<ProbeInfo, Error> {
 
         player::check_accepted(player_id, "st")?;
 
@@ -152,13 +152,13 @@ impl Loader for StLoader {
         let title = b.read_string(0,20)?;
 
         if ust {
-            Ok(FormatInfo{format: Format::Ust, title})
+            Ok(ProbeInfo{format: Format::Ust, title})
         } else {
-            Ok(FormatInfo{format: Format::St, title})
+            Ok(ProbeInfo{format: Format::St, title})
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], info: FormatInfo) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], info: ProbeInfo) -> Result<Module, Error> {
 
         if info.format != Format::St && info.format != Format::Ust {
             return Err(Error::Format("unsupported format".to_owned()));

@@ -22,21 +22,24 @@ pub enum Format {
     Stm,
 }
 
-pub struct FormatInfo {
+pub struct ProbeInfo {
     pub format: Format,
     pub title : String,
 }
 
-// Trait for module loader
-
-pub trait Loader {
-    fn name(&self) -> &'static str;
-    fn probe(&self, &[u8], &str) -> Result<FormatInfo, Error>;
-    fn load(self: Box<Self>, &[u8], FormatInfo) -> Result<Module, Error>;
+pub struct FormatInfo {
+    pub name: &'static str,
 }
 
+// Trait for module loader
 
-pub fn list() -> Vec<Box<Loader>> {
+pub trait Loader: Sync {
+    fn name(&self) -> &'static str;
+    fn probe(&self, &[u8], &str) -> Result<ProbeInfo, Error>;
+    fn load(self: Box<Self>, &[u8], ProbeInfo) -> Result<Module, Error>;
+}
+
+fn loader_list() -> Vec<Box<Loader>> {
     vec![
         Box::new(s3m::S3mLoader),
         Box::new(stm::StmLoader),
@@ -46,9 +49,13 @@ pub fn list() -> Vec<Box<Loader>> {
     ]
 }
 
+pub fn list() -> Vec<FormatInfo> {
+    loader_list().iter().map(|x| FormatInfo{name: x.name()}).collect()
+}
+
 pub fn load(b: &[u8], player_id: &str) -> Result<Module, Error> {
 
-    for f in list() {
+    for f in loader_list() {
         debug!("Probing format: {}", f.name());
 
         let info = match f.probe(b, player_id) {

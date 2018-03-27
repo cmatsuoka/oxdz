@@ -28,6 +28,7 @@ mod mixer;
 pub mod module;
 pub use player::FrameInfo;
 pub use player::PlayerInfo;
+pub use format::FormatInfo;
 pub use module::Module;
 
 use std::error;
@@ -167,14 +168,16 @@ impl<'a> Oxdz<'a> {
 */
 }
 
+/// Retrieve the list of supported module formats.
+pub fn format_list() -> Vec<FormatInfo> {
+    format::list()
+}
+
 /// Retrieve the list of available players.
 pub fn player_list() -> Vec<PlayerInfo> {
     player::list()
 }
 
-pub fn format_list() -> Vec<Box<format::Loader>> {
-    format::list()
-}
 
 #[derive(Debug)]
 pub enum Error {

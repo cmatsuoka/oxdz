@@ -1,5 +1,5 @@
 use std::cmp;
-use format::{FormatInfo, Format, Loader};
+use format::{ProbeInfo, Format, Loader};
 use format::mk::{ModData, ModPatterns, ModInstrument};
 use module::{Module, Sample};
 use module::sample::SampleType;
@@ -14,7 +14,7 @@ impl Loader for FestLoader {
         "His Master's Noise"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<FormatInfo, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<ProbeInfo, Error> {
         if b.len() < 1084 {
             return Err(Error::Format(format!("file too short ({})", b.len())));
         }
@@ -23,13 +23,13 @@ impl Loader for FestLoader {
 
         let magic = b.read_string(1080, 4)?;
         if magic == "FEST" {
-            Ok(FormatInfo{format: Format::Fest, title: b.read_string(0, 20)?})
+            Ok(ProbeInfo{format: Format::Fest, title: b.read_string(0, 20)?})
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], info: FormatInfo) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], info: ProbeInfo) -> Result<Module, Error> {
 
         if info.format != Format::Fest {
             return Err(Error::Format("unsupported format".to_owned()));

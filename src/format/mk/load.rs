@@ -1,5 +1,5 @@
 use std::cmp;
-use format::{FormatInfo, Format, Loader};
+use format::{ProbeInfo, Format, Loader};
 use format::mk::{ModData, ModPatterns, ModInstrument};
 use format::mk::fingerprint::{Fingerprint, TrackerID};
 use module::{Module, Sample};
@@ -15,7 +15,7 @@ impl Loader for ModLoader {
         "Amiga Protracker/Compatible"
     }
   
-    fn probe(&self, b: &[u8], player_id: &str) -> Result<FormatInfo, Error> {
+    fn probe(&self, b: &[u8], player_id: &str) -> Result<ProbeInfo, Error> {
         if b.len() < 1084 {
             return Err(Error::Format(format!("file too short ({})", b.len())));
         }
@@ -23,28 +23,28 @@ impl Loader for ModLoader {
         let magic = b.read32b(1080)?;
         if magic == magic4!('M','.','K','.') || magic == magic4!('M','!','K','!') || magic == magic4!('M','&','K','!') || magic == magic4!('N','S','M','S') {
             player::check_accepted(player_id, "m.k.")?;
-            Ok(FormatInfo{format: Format::Mk, title: b.read_string(0, 20)?})
+            Ok(ProbeInfo{format: Format::Mk, title: b.read_string(0, 20)?})
         } else if magic == magic4!('6','C','H','N') || magic == magic4!('8','C','H','N') {
             player::check_accepted(player_id, "xchn")?;
-            Ok(FormatInfo{format: Format::Xchn, title: b.read_string(0, 20)?})
+            Ok(ProbeInfo{format: Format::Xchn, title: b.read_string(0, 20)?})
         } else if magic & 0xffff == magic4!('\0','\0','C','H') {
             let c1 = (magic >> 24) as u8 as char;
             let c2 = ((magic & 0xff0000) >> 16) as u8 as char;
             if c1.is_digit(10) && c2.is_digit(10) {
                 player::check_accepted(player_id, "xxch")?;
-                Ok(FormatInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
+                Ok(ProbeInfo{format: Format::Xxch, title: b.read_string(0, 20)?})
             } else {
                 Err(Error::Format(format!("bad magic {:?}", magic)))
             }
         } else if magic == magic4!('F','L','T','4') || magic == magic4!('F','L','T','8') {
             player::check_accepted(player_id, "flt")?;
-            Ok(FormatInfo{format: Format::Flt, title: b.read_string(0, 20)?})
+            Ok(ProbeInfo{format: Format::Flt, title: b.read_string(0, 20)?})
         } else {
             Err(Error::Format(format!("bad magic {:?}", magic)))
         }
     }
 
-    fn load(self: Box<Self>, b: &[u8], info: FormatInfo) -> Result<Module, Error> {
+    fn load(self: Box<Self>, b: &[u8], info: ProbeInfo) -> Result<Module, Error> {
 
         if info.format != Format::Mk && info.format != Format::Xchn && info.format != Format::Xxch {
             return Err(Error::Format("unsupported format".to_owned()));
