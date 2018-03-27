@@ -2,6 +2,9 @@
 name = "oxdz"
 version = "0.1.0"
 authors = ["Claudio Matsuoka <cmatsuoka@gmail.com>"]
+description = "A multi-format module player library written in Rust."
+repository = "https://github.com/cmatsuoka/oxdz"
+license = "MIT OR Apache-2.0"
 exclude = ["*.png", "doc/reference", "doc/formats"]
 publish = false
 

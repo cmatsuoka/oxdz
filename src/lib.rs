@@ -1,3 +1,18 @@
+//!
+//! ## Formats and players
+//!
+//! Oxidrizzle can load different module formats, and play them using
+//! different format replayers.
+//!
+//! Module formats have a preferred player, but they can be played by
+//! alternative players as long as they're compatible. For example, a
+//! Noisetracker module is played using the NoiseReplay player by default,
+//! but it can also be played by Protracker, FastTracker, His Master's
+//! NoiseTracker or Scream Tracker 3 players. Depending on the module,
+//! the result may not be identical, since each player has its own
+//! algorithms and quirks.
+//!
+
 extern crate byteorder;
 
 #[macro_use]
@@ -20,32 +35,45 @@ use std::fmt;
 use std::io;
 
 pub const PERIOD_BASE  : f64 = 13696.0;  // C0 period
+/// The maximum sampling supported by the sound mixer.
 pub const MAX_RATE     : i32 = 96000;
+/// The minimum sampling supported by the sound mixer.
 pub const MIN_RATE     : i32 = 4000;
 pub const MIN_BPM      : i32 = 20;
 // frame rate = (50 * bpm / 125) Hz
 // frame size = (sampling rate * channels) / frame rate
 pub const MAX_FRAMESIZE: usize = (5 * MAX_RATE / MIN_BPM) as usize;
+/// The maximum number of notes supported in pattern events.
 pub const MAX_KEYS     : usize = 128;
+/// The maximum number of mixer voices.
 pub const MAX_CHANNELS : usize = 64;
 pub const MAX_SEQUENCES: usize = 16;
 
 #[derive(Default)]
 pub struct ModuleInfo {
-    pub title      : String,            // module title
-    pub format_id  : &'static str,      // format identifier
-    pub description: String,            // format description
-    pub creator    : String,            // tracker name
-    pub channels   : usize,             // number of mixer channels
-    pub player     : &'static str,      // primary player for this format
-    pub total_time : u32,               // replay time in ms
+    /// The module title.
+    pub title: String,
+    /// The module format identifier.
+    pub format_id: &'static str,
+    /// The module format description.
+    pub description: String,
+    /// The program used to create this module (usually a tracker).
+    pub creator: String,
+    /// The number of channels used in the module.
+    pub channels: usize,
+    /// The primary player for this format.
+    pub player: &'static str,
+    /// Total replay time in ms.
+    pub total_time : u32,
 }
 
 impl ModuleInfo {
+    /// Create a new `ModuleInfo`.
     pub fn new() -> Self {
         Default::default()
     }
 }
+
 
 pub struct Oxdz<'a> {
     pub player   : player::Player<'a>,
@@ -80,6 +108,7 @@ impl<'a> Oxdz<'a> {
         Ok(player::list_by_id(&self.player_id)?.info())
     }
 
+    /// Retrieve module information.
     pub fn module_info(&self, mi: &mut ModuleInfo) {
         mi.title = self.player.module.title().to_owned();
         mi.format_id = self.player.module.format_id;
@@ -100,6 +129,8 @@ impl<'a> Oxdz<'a> {
         self
     }
 
+    /// Play a module frame and renders the output on an internal buffer.
+    /// The buffer can be retrieved using the `buffer()` function.
     pub fn play_frame(&mut self) -> &mut Self {
         self.player.play_frame();
         self
@@ -136,6 +167,7 @@ impl<'a> Oxdz<'a> {
 */
 }
 
+/// Retrieve the list of available players.
 pub fn player_list() -> Vec<PlayerInfo> {
     player::list()
 }
