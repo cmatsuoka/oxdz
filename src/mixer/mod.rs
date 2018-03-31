@@ -41,8 +41,8 @@ pub struct Mixer<'a> {
     factor    : f64,  // tempo factor multiplier
     voices    : Vec<Voice>,
     framesize : usize,
-    buf32     : [i32; MAX_FRAMESIZE],
-    buffer    : [i16; MAX_FRAMESIZE],
+    buf32     : Vec<i32>,
+    buffer    : Vec<i16>,
     pub interp: &'a interpolator::Interpolator,
     sample    : Vec<Sample>,
 }
@@ -56,8 +56,8 @@ impl<'a> Mixer<'a> {
             factor   : 1.0,
             voices   : vec![Voice::new(); num],
             framesize: 0,
-            buf32    : [0; MAX_FRAMESIZE],
-            buffer   : [0; MAX_FRAMESIZE],
+            buf32    : vec![0; MAX_FRAMESIZE],
+            buffer   : vec![0; MAX_FRAMESIZE],
             interp   : &interpolator::Spline,
             sample,
         };
@@ -125,8 +125,8 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn reset(&mut self) {
-        self.buf32 = [0; MAX_FRAMESIZE];
-        self.buffer = [0; MAX_FRAMESIZE];
+        self.buf32 = vec![0; MAX_FRAMESIZE];
+        self.buffer = vec![0; MAX_FRAMESIZE];
         for voice in 0..self.voices.len() {
             self.reset_voice(voice)
         }
