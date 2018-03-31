@@ -170,9 +170,19 @@ impl<'a> Mixer<'a> {
         //}
     }
 
+    pub fn volume(&self, voice: usize) -> usize {
+        try_voice!(voice, self.voices, 0);
+        self.voices[voice].vol
+    }
+
     pub fn set_volume(&mut self, voice: usize, vol: usize) {
         try_voice!(voice, self.voices);
         self.voices[voice].vol = vol;
+    }
+
+    pub fn pan(&self, voice: usize) -> isize {
+        try_voice!(voice, self.voices, 0);
+        self.voices[voice].pan
     }
 
     pub fn set_pan(&mut self, voice: usize, pan: isize) {
@@ -180,9 +190,19 @@ impl<'a> Mixer<'a> {
         self.voices[voice].pan = pan;
     }
 
+    pub fn period(&self, voice: usize) -> f64 {
+        try_voice!(voice, self.voices, 0.0);
+        self.voices[voice].period
+    }
+
     pub fn set_period(&mut self, voice: usize, period: f64) {
         try_voice!(voice, self.voices);
         self.voices[voice].period = period;
+    }
+
+    pub fn sample(&self, voice: usize) -> usize {
+        try_voice!(voice, self.voices, 0);
+        self.voices[voice].smp + 1
     }
 
     pub fn set_sample(&mut self, voice: usize, smp: usize) {
