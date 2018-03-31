@@ -44,23 +44,25 @@ const FX_TREMOR        : u16 = 0x09;
 //const FX_VIBRA_VSLIDE  : u16 = 0x0b;
 //const FX_TONE_VSLIDE   : u16 = 0x0f;
 
-static TEMPO_MUL: [u16; 18] = [ 140, 50, 25, 15, 10, 7, 6, 4, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1 ];
+lazy_static! {
+    static ref TEMPO_MUL: Box<[u16; 18]> = Box::new([ 140, 50, 25, 15, 10, 7, 6, 4, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1 ]);
 
-static PERIOD_TABLE: [i16; 16*5] = [
-    17080, 16012, 15184, 14236, 13664, 12808, 12008, 11388, 10676, 10248,  9608,  9108, 0, 0, 0, 0,
-     8540,  8006,  7592,  7118,  6832,  6404,  6004,  5694,  5338,  5124,  4804,  4554, 0, 0, 0, 0,
-     4270,  4003,  3796,  3559,  3416,  3202,  3002,  2847,  2669,  2562,  2402,  2277, 0, 0, 0, 0,
-     2135,  2001,  1898,  1779,  1708,  1601,  1501,  1423,  1334,  1281,  1201,  1138, 0, 0, 0, 0,
-     1067,  1000,   949,   889,   854,   800,   750,   711,   667,   640,   600,   569, 0, 0, 0, 0 
-];
+    static ref PERIOD_TABLE: Box<[i16; 16*5]> = Box::new([
+        17080, 16012, 15184, 14236, 13664, 12808, 12008, 11388, 10676, 10248,  9608,  9108, 0, 0, 0, 0,
+         8540,  8006,  7592,  7118,  6832,  6404,  6004,  5694,  5338,  5124,  4804,  4554, 0, 0, 0, 0,
+         4270,  4003,  3796,  3559,  3416,  3202,  3002,  2847,  2669,  2562,  2402,  2277, 0, 0, 0, 0,
+         2135,  2001,  1898,  1779,  1708,  1601,  1501,  1423,  1334,  1281,  1201,  1138, 0, 0, 0, 0,
+         1067,  1000,   949,   889,   854,   800,   750,   711,   667,   640,   600,   569, 0, 0, 0, 0 
+    ]);
 
-static LFO_TABLE: [i16; 65] = [
-       0,   24,   49,   74,   97,  120,  141,  161,  180,  197,  212,  224,  235,  244,  250,  253,
-     255,  253,  250,  244,  235,  224,  212,  197,  180,  161,  141,  120,   97,   74,   49,   24,
-       0,  -24,  -49,  -74,  -97, -120, -141, -161, -180, -197, -212, -224, -235, -244, -250, -253,
-    -255, -253, -250, -244, -235, -224, -212, -197, -180, -161, -141, -120,  -97,  -74,  -49,  -24,
-       0
-];
+    static ref LFO_TABLE: Box<[i16; 65]> = Box::new([
+           0,   24,   49,   74,   97,  120,  141,  161,  180,  197,  212,  224,  235,  244,  250,  253,
+         255,  253,  250,  244,  235,  224,  212,  197,  180,  161,  141,  120,   97,   74,   49,   24,
+           0,  -24,  -49,  -74,  -97, -120, -141, -161, -180, -197, -212, -224, -235, -244, -250, -253,
+        -255, -253, -250, -244, -235, -224, -212, -197, -180, -161, -141, -120,  -97,  -74,  -49,  -24,
+           0
+    ]);
+}
 
 
 #[derive(SaveRestore)]
@@ -233,19 +235,19 @@ impl St2Play {
         let volume = self.channels[chn].event_volume as i16;
         let smp = self.channels[chn].event_smp as usize;
         let cmd = self.channels[chn].event_cmd;
-    
+
         if self.channels[chn].event_volume != 65 {
             self.channels[chn].volume_current = volume;
             self.channels[chn].volume_initial = self.channels[chn].volume_current;
         }
-    
+
         if cmd == FX_TONEPORTAMENTO {
             if note != 255 {
                 self.channels[chn].period_target = PERIOD_TABLE[note];
             }
             return;
         }
-    
+
         if smp != 0 {
             let instrument = &module.instruments[smp - 1];
 
@@ -254,10 +256,10 @@ impl St2Play {
                 self.channels[chn].volume_current = (instrument.volume & 0xff) as i16;
                 self.channels[chn].volume_initial = self.channels[chn].volume_current;
             }
-    
+
             //self.channels[chn].smp_data_ptr = ctx->samples[smp].data;
             mixer.set_sample(chn, smp);
-    
+
             if module.instruments[smp-1].loop_end != 0xffff {
                 //self.channels[chn].smp_loop_end = ctx->samples[smp].loop_end;
                 //self.channels[chn].smp_loop_start = ctx->samples[smp].loop_start;
@@ -270,11 +272,11 @@ impl St2Play {
                 mixer.enable_loop(chn, false);
             }
         }
-    
+
         if note != 255 {
             //self.channels[chn].smp_position = 0;
             mixer.set_voicepos(chn, 0.0);
-    
+
             if note == 254 {
                 //self.channels[chn].smp_loop_end = 0;
                 //self.channels[chn].smp_loop_start = 0xffff;
@@ -287,7 +289,7 @@ impl St2Play {
                 //self.update_frequency(chn);
             }
         }
-    
+
         self.cmd_once(chn);
     }
 
@@ -322,6 +324,11 @@ impl St2Play {
         if pat == 98 || pat == 99 {
             self.order_next = if pat == 99 { self.order_first } else { 0 };
             self.loop_count += 1;
+        }
+
+	// oxdz: sanity check
+        if self.order_next as usize >= module.len() {
+            self.order_next = 0;
         }
 
         self.pattern_current = module.orders[self.order_next as usize] as u16;

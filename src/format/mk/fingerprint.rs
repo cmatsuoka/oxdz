@@ -1,6 +1,6 @@
 use format::mk::ModData;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum TrackerID {
     Unknown,
     Protracker,
@@ -216,9 +216,9 @@ impl Fingerprint {
             }
             if has_st_instruments {
                 return TrackerID::UnknownOrConverted;
-            } /*else {
+            } else if chn == 6 || chn == 8 {
                 return TrackerID::FastTracker;
-            } */
+            }
         }
     
         tracker_id 

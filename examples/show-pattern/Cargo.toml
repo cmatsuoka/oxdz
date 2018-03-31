@@ -1,0 +1,8 @@
+[package]
+name = "show-pattern"
+version = "0.1.0"
+authors = ["Claudio Matsuoka <cmatsuoka@gmail.com>"]
+
+[dependencies]
+oxdz = { path = "../.." }
+memmap = "0.6"

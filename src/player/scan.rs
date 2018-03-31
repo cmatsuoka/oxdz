@@ -16,7 +16,7 @@ pub struct ScanData {
 #[derive(Clone)]
 pub struct OrdData {
     pub state: State,
-    pub time : u32,
+    pub time : f32,
     pub used : bool,
 }
 
@@ -24,7 +24,7 @@ impl OrdData {
     pub fn new() -> Self {
         OrdData{
             state: vec![0; 0],
-            time : 0,
+            time : 0.0,
             used : false,
         }
     }

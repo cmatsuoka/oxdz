@@ -41,23 +41,23 @@ pub struct Mixer<'a> {
     factor    : f64,  // tempo factor multiplier
     voices    : Vec<Voice>,
     framesize : usize,
-    buf32     : [i32; MAX_FRAMESIZE],
-    buffer    : [i16; MAX_FRAMESIZE],
+    buf32     : Vec<i32>,
+    buffer    : Vec<i16>,
     pub interp: &'a interpolator::Interpolator,
-    sample    : &'a Vec<Sample>,
+    sample    : Vec<Sample>,
 }
 
 
 impl<'a> Mixer<'a> {
 
-    pub fn new(num: usize, rate: u32, sample: &'a Vec<Sample>) -> Self {
+    pub fn new(num: usize, rate: u32, sample: Vec<Sample>) -> Self {
         let mut mixer = Mixer {
             rate,
             factor   : 1.0,
             voices   : vec![Voice::new(); num],
             framesize: 0,
-            buf32    : [0; MAX_FRAMESIZE],
-            buffer   : [0; MAX_FRAMESIZE],
+            buf32    : vec![0; MAX_FRAMESIZE],
+            buffer   : vec![0; MAX_FRAMESIZE],
             interp   : &interpolator::Spline,
             sample,
         };
@@ -125,8 +125,8 @@ impl<'a> Mixer<'a> {
     }
 
     pub fn reset(&mut self) {
-        self.buf32 = [0; MAX_FRAMESIZE];
-        self.buffer = [0; MAX_FRAMESIZE];
+        self.buf32 = vec![0; MAX_FRAMESIZE];
+        self.buffer = vec![0; MAX_FRAMESIZE];
         for voice in 0..self.voices.len() {
             self.reset_voice(voice)
         }
@@ -207,7 +207,7 @@ impl<'a> Mixer<'a> {
 
         let v = &mut self.voices[voice];
 
-        for s in self.sample {
+        for s in &self.sample {
             if addr >= s.address && addr < s.address + s.size {
                 v.active = true;
                 v.smp = s.num - 1;
