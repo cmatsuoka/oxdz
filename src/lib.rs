@@ -16,6 +16,9 @@
 extern crate byteorder;
 
 #[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
 extern crate save_restore_derive;
 
 #[macro_use]
