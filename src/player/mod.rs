@@ -364,6 +364,16 @@ impl<'a> Player<'a> {
             Some(pat) => self.module.rows(pat),
             None      => 0,
         };
+
+        for i in 0..self.module.channels {
+            let mut cinfo = &mut info.channel_info[i];
+            cinfo.period = self.mixer.period(i) as u32;
+            cinfo.position = self.mixer.voicepos(i) as u32;
+            cinfo.sample = self.mixer.sample(i) as u8;
+            cinfo.volume = self.mixer.volume(i) as u8;
+            cinfo.pan = self.mixer.pan(i) as i8;
+        }
+
         self
     }
 
@@ -394,14 +404,21 @@ impl<'a> Player<'a> {
     }
 }
 
+#[derive(Default, Clone)]
 pub struct ChannelInfo {
     pub period    : u32,
     pub position  : u32,
-    pub note      : u8,
     pub sample    : u8,
     pub volume    : u8,
     pub pan       : i8,
 }
+
+impl ChannelInfo {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
 
 #[derive(Default)]
 pub struct FrameInfo {
@@ -415,12 +432,14 @@ pub struct FrameInfo {
     pub speed     : usize,
     pub loop_count: usize,
     pub time      : f32,
-    //pub channel_info: [ChannelInfo; MAX_CHANNELS],
+    pub channel_info: Vec<ChannelInfo>,
 }
 
 impl FrameInfo {
     pub fn new() -> Self {
-        Default::default()
+        let mut fi: FrameInfo = Default::default();
+        fi.channel_info = vec![ChannelInfo::new(); MAX_CHANNELS];
+        fi
     }
 }
 

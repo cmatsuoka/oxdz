@@ -28,28 +28,29 @@ struct Magic {
     ch   : u8,
 }
 
-static MAGIC: [Magic; 13] = [
-    Magic{magic:"M.K.", flag:false, id:TrackerID::Protracker,     ch:4},
-    Magic{magic:"M!K!", flag:true,  id:TrackerID::Protracker,     ch:4},
-    Magic{magic:"M&K!", flag:true,  id:TrackerID::Noisetracker,   ch:4},
-    Magic{magic:"N.T.", flag:true,  id:TrackerID::Noisetracker,   ch:4},
-    Magic{magic:"6CHN", flag:false, id:TrackerID::FastTracker,    ch:6},
-    Magic{magic:"8CHN", flag:false, id:TrackerID::FastTracker,    ch:8},
-    Magic{magic:"CD61", flag:true,  id:TrackerID::Octalyser,      ch:6},  // Atari STe/Falcon
-    Magic{magic:"CD81", flag:true,  id:TrackerID::Octalyser,      ch:8},  // Atari STe/Falcon
-    Magic{magic:"TDZ4", flag:true,  id:TrackerID::TakeTracker,    ch:4},  // see XModule SaveTracker.c
-    Magic{magic:"FA04", flag:true,  id:TrackerID::DigitalTracker, ch:4},  // Atari Falcon
-    Magic{magic:"FA06", flag:true,  id:TrackerID::DigitalTracker, ch:6},  // Atari Falcon
-    Magic{magic:"FA08", flag:true,  id:TrackerID::DigitalTracker, ch:8},  // Atari Falcon
-    Magic{magic:"NSMS", flag:true,  id:TrackerID::Unknown,        ch:4},  // in Kingdom.mod
+lazy_static! {
+    static ref MAGIC: Box<[Magic; 13]> = Box::new([
+        Magic{magic:"M.K.", flag:false, id:TrackerID::Protracker,     ch:4},
+        Magic{magic:"M!K!", flag:true,  id:TrackerID::Protracker,     ch:4},
+        Magic{magic:"M&K!", flag:true,  id:TrackerID::Noisetracker,   ch:4},
+        Magic{magic:"N.T.", flag:true,  id:TrackerID::Noisetracker,   ch:4},
+        Magic{magic:"6CHN", flag:false, id:TrackerID::FastTracker,    ch:6},
+        Magic{magic:"8CHN", flag:false, id:TrackerID::FastTracker,    ch:8},
+        Magic{magic:"CD61", flag:true,  id:TrackerID::Octalyser,      ch:6},  // Atari STe/Falcon
+        Magic{magic:"CD81", flag:true,  id:TrackerID::Octalyser,      ch:8},  // Atari STe/Falcon
+        Magic{magic:"TDZ4", flag:true,  id:TrackerID::TakeTracker,    ch:4},  // see XModule SaveTracker.c
+        Magic{magic:"FA04", flag:true,  id:TrackerID::DigitalTracker, ch:4},  // Atari Falcon
+        Magic{magic:"FA06", flag:true,  id:TrackerID::DigitalTracker, ch:6},  // Atari Falcon
+        Magic{magic:"FA08", flag:true,  id:TrackerID::DigitalTracker, ch:8},  // Atari Falcon
+        Magic{magic:"NSMS", flag:true,  id:TrackerID::Unknown,        ch:4},  // in Kingdom.mod
+    ]);
 
-];
-
-static STANDARD_NOTES: [u16; 36] = [
-    856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
-    428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
-    214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113
-];
+    static ref STANDARD_NOTES: Box<[u16; 36]> = Box::new([
+        856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
+        428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
+        214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113
+    ]);
+}
 
 /// Try to identify the tracker used to create a module. This is a direct port of the
 /// mod fingerprinting routine used in libxmp.
@@ -139,11 +140,11 @@ impl Fingerprint {
         if Fingerprint::has_large_instruments(&data) {
             return TrackerID::OpenMPT;
         }
-            
+
         let has_replen_0 = Fingerprint::has_replen_0(&data);
         let has_st_instruments = Fingerprint::has_st_instruments(&data);
         let empty_ins_has_volume = Fingerprint::empty_ins_has_volume(&data);
-    
+
         if data.restart as usize == data.patterns.num {
             tracker_id = if chn == 4 {
                 TrackerID::Soundtracker
@@ -176,12 +177,12 @@ impl Fingerprint {
         } else if data.restart > 0x7f {
             return TrackerID::Unknown;
         }
-    
+
         if !has_replen_0 {  // All loops are size 2 or greater
             if Fingerprint::size_1_and_volume_0(&data) {
                 return TrackerID::Converted;
             }
-    
+
             if !has_st_instruments {
                 for ins in &data.instruments {
                     if ins.size != 0 || ins.replen != 1 {
@@ -220,10 +221,10 @@ impl Fingerprint {
                 return TrackerID::FastTracker;
             }
         }
-    
+
         tracker_id 
     }
-    
+
     fn standard_octaves(data: &ModData) -> bool {
         for p in 0..*&data.patterns.num {
             for r in 0..64 {
