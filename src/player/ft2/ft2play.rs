@@ -31,7 +31,7 @@ struct SongTyp {
     p_break_flag   : bool,
     p_break_pos    : u8,
     pos_jump_flag  : bool,
-    //song_tab       : [u8; 256],
+    song_tab       : Vec<u8>,
     ver            : u16,
     name           : String,
 }
@@ -164,6 +164,7 @@ struct TonTyp {
     eff    : u8,
 }
 
+
 const MAX_NOTES : usize = (12 * 10 * 16) + 16;
 const MAX_VOICES: usize = 32;
 
@@ -213,13 +214,14 @@ lazy_static! {
 #[derive(Default, SaveRestore)]
 pub struct Ft2Play {
     linear_frq_tab      : bool,
+    patt_lens           : Vec<u16>,
     speed_val           : u32,
     real_replay_rate    : u32,
     f_audio_freq        : f32,
     quick_vol_ramp_mul_f: f32,
     tick_vol_ramp_mul_f : f32,
     song                : SongTyp,
-    stm                 : [StmTyp; MAX_VOICES],
+    stm                 : Box<[StmTyp; MAX_VOICES]>,
     instr               : Vec<InstrTyp>,
 
     vib_sine_tab        : Vec<i8>,
@@ -229,7 +231,10 @@ pub struct Ft2Play {
 
 impl Ft2Play {
     pub fn new(_module: &Module, _options: Options) -> Self {
-        Default::default()
+        let mut ft2: Ft2Play = Default::default();
+        ft2.patt_lens = vec![0; 256];
+        ft2.song.song_tab = vec![0; 256];
+        ft2
     }
 
     // CODE START
@@ -1889,7 +1894,89 @@ impl Ft2Play {
         }
     }
     
+    fn no_new_all_channels(&mut self) {
+        for i in 0..self.song.ant_chn as usize {
+            self.do_effects(i);
+            self.fixa_envelope_vibrato(i);
+        }
+    }
+    
+    fn get_next_pos(&mut self) {
+        if self.song.timer == 1 {
+            self.song.patt_pos += 1;
+    
+            if self.song.patt_del_time != 0 {
+                self.song.patt_del_time_2 = self.song.patt_del_time;
+                self.song.patt_del_time = 0;
+            }
+    
+            if self.song.patt_del_time_2 != 0 {
+                self.song.patt_del_time_2 -= 1;
+                if self.song.patt_del_time_2 != 0 {
+                    self.song.patt_pos -= 1;
+                }
+            }
+    
+            if self.song.p_break_flag {
+                self.song.p_break_flag = false;
+                self.song.patt_pos = self.song.p_break_pos as i16;
+            }
+    
+            if self.song.patt_pos >= self.song.patt_len || self.song.pos_jump_flag {
+                self.song.patt_pos = self.song.p_break_pos as i16;
+                self.song.p_break_pos = 0;
+                self.song.pos_jump_flag = false;
+    
+                self.song.song_pos += 1;
+                if self.song.song_pos >= self.song.len as i16 {
+                      self.song.song_pos = self.song.rep_s as i16;
+                }
+    
+                self.song.patt_nr = self.song.song_tab[self.song.song_pos as usize & 0xFF] as i16;
+                self.song.patt_len = self.patt_lens[self.song.patt_nr as usize & 0xFF] as i16;
+            }
+        }
+    }
+    
+    fn main_player(&mut self) {  // periodically called from mixer
+        /*if (musicPaused || !self.songPlaying)
+        {
+            for (i = 0; i < self.song.ant_chn; ++i)
+                fixa_envelope_vibrato(&stm[i]);
+        }
+        else
+        {*/
+        let mut read_new_note = false;
+        self.song.timer -= 1;
+        if self.song.timer == 0 {
+            self.song.timer = self.song.tempo;
+            read_new_note = true;
+        }
+
+        if read_new_note {
+            if self.song.patt_del_time_2 == 0 {
+                for i in 0..self.song.ant_chn as usize {
+                    //if patt[self.song.patt_nr] != NULL {
+                    //self.get_new_note(i, &patt[self.song.patt_nr][(self.song.patt_pos as usize * MAX_VOICES) + i]);
+                    //} else {
+                    //    get_new_note(i, &nilPatternLine[(self.song.patt_pos * MAX_VOICES) + i]);
+                    //}
+
+                    self.fixa_envelope_vibrato(i);
+                }
+            } else {
+                self.no_new_all_channels();
+            }
+        } else {
+            self.no_new_all_channels();
+        }
+
+        self.get_next_pos();
+        //}
+    }
+
 }
+
 
 
 impl FormatPlayer for Ft2Play {
