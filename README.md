@@ -46,7 +46,7 @@ correctly implemented. Sound quality will be improved over time.
   * Amiga sound emulation              :heavy_check_mark:
   * Bidirectional loop
 * Module pre-scan                      :heavy_check_mark:
-* Skip patterns forward/backwards
+* Skip patterns forward/backwards      :heavy_check_mark:
 * Other language bindings
   * C
 * Stable API
