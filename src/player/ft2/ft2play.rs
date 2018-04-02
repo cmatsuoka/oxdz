@@ -2,7 +2,7 @@ use std::cmp;
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer, State};
 use player::scan::SaveRestore;
-use format::xm::XmData;
+use format::xm::{XmData, TonTyp};
 use mixer::Mixer;
 
 const IS_VOL     : u8 = 1;
@@ -154,14 +154,6 @@ struct StmTyp {
 
     smp_ptr               : usize,  // oxdz: store these as indexes instead of ponters
     instr_ptr             : usize,
-}
-
-struct TonTyp {
-    ton    : u8,
-    instr  : u8,
-    vol    : u8,
-    eff_typ: u8,
-    eff    : u8,
 }
 
 
@@ -1938,7 +1930,7 @@ impl Ft2Play {
         }
     }
     
-    fn main_player(&mut self) {  // periodically called from mixer
+    fn main_player(&mut self, module: &XmData) {  // periodically called from mixer
         /*if (musicPaused || !self.songPlaying)
         {
             for (i = 0; i < self.song.ant_chn; ++i)
@@ -1957,7 +1949,9 @@ impl Ft2Play {
             if self.song.patt_del_time_2 == 0 {
                 for i in 0..self.song.ant_chn as usize {
                     //if patt[self.song.patt_nr] != NULL {
-                    //self.get_new_note(i, &patt[self.song.patt_nr][(self.song.patt_pos as usize * MAX_VOICES) + i]);
+                    let pat_num = self.song.patt_nr as usize;
+                    let pat_pos = self.song.patt_pos;
+                    self.get_new_note(i, module.patterns[pat_num].event(pat_pos, i));
                     //} else {
                     //    get_new_note(i, &nilPatternLine[(self.song.patt_pos * MAX_VOICES) + i]);
                     //}
