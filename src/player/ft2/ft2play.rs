@@ -383,7 +383,7 @@ impl Ft2Play {
         ch.old_pan = s.pan;
 
         ch.fine_tune = if eff_typ == 0x0E && (eff & 0xF0) == 0x50 {
-            ((eff & 0x0F) * 16) as i8 - 128  // result is now -128 .. 127
+            ((eff & 0x0F) * 16) as i8 + -128  // result is now -128 .. 127
         } else {
             s.fine
         };
@@ -1987,14 +1987,15 @@ impl FormatPlayer for Ft2Play {
 
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
 
+        self.main_player(&module);
+
         //self.dorow(&module, &mut mixer);
 
-        /*data.frame = self.musiccount as usize;
-        data.row = self.np_row as usize;
-        data.pos = self.np_ord as usize - 1;
-
-        data.speed = self.musicmax as usize;
-        data.tempo = self.tempo as usize;*/
+        data.frame = self.song.timer as usize;
+        data.row = self.song.patt_pos as usize;
+        data.pos = self.song.song_pos as usize;
+        data.speed = self.song.speed as usize;
+        data.tempo = self.song.tempo as f32;
     }
 
     fn reset(&mut self) {

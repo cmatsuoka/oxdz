@@ -43,6 +43,7 @@ pub trait Loader: Sync {
 
 fn loader_list() -> Vec<Box<Loader>> {
     vec![
+        Box::new(xm::XmLoader),
         Box::new(s3m::S3mLoader),
         Box::new(stm::StmLoader),
         Box::new(mk::ModLoader),
