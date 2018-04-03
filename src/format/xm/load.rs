@@ -39,6 +39,13 @@ impl Loader for XmLoader {
         let creator = header.prog_name.clone();
    	let channels = header.ant_chn as usize;
 
+        let patterns: Vec<PatternHeaderTyp> = Vec::with_capacity(header.ant_ptn as usize);
+        let mut offset = 60 + 20 + header.len as usize;
+        for i in 0..header.ant_ptn as usize {
+            let (pattern, size) = PatternHeaderTyp::from_slice(i, b.slice(offset, b.len() - offset)?, header.ant_chn as usize)?;
+            offset += size;
+        }
+
         let data = XmData{
             header,
             patterns: Vec::new(),
