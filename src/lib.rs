@@ -84,7 +84,7 @@ pub struct Oxdz<'a> {
     pub player   : player::Player<'a>,
     pub rate     : u32,
     pub player_id: String,
-    pub md5sum   : String,
+    pub md5sum   : [u8; 16],
 }
 
 impl<'a> Oxdz<'a> {
@@ -95,8 +95,9 @@ impl<'a> Oxdz<'a> {
         // import the module if needed
         module = player::list_by_id(&id)?.import(module)?;
 
-        let md5sum = format!("{:x}", md5::compute(b));
-	debug!("md5sum: {}", md5sum);
+        // store digest as an array of bytes
+        let md5::Digest(md5sum) = md5::compute(b);
+	debug!("md5sum: {}", md5sum.iter().fold("".to_owned(), |mut s, x| { s.push_str(&format!("{:x}", x)); s } ));
 
         let mut player = player::Player::find(module, rate, &id, "")?;
         player.scan();
