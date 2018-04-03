@@ -1978,9 +1978,20 @@ impl FormatPlayer for Ft2Play {
 
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
 
+        let h = &module.header;
 
-        //data.speed = self.song.speed as usize;
-        //data.tempo = self.song.tempo as usize;
+        self.song.len = h.len;
+        self.song.rep_s = h.rep_s;
+        self.song.ant_chn = h.ant_chn as u8;
+        self.song.speed = if h.def_speed != 0 { h.def_speed } else { 125 };
+        self.song.tempo = if h.def_tempo != 0 { h.def_tempo } else { 6 };
+        self.song.ant_instrs = h.ant_instrs;
+        self.song.ant_ptn = h.ant_ptn;
+        self.song.ver = h.ver;
+        self.linear_frq_tab = h.flags & 1 != 0;
+
+        data.speed = self.song.tempo as usize;
+        data.tempo = self.song.speed as f32;
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
@@ -1994,8 +2005,8 @@ impl FormatPlayer for Ft2Play {
         data.frame = self.song.timer as usize;
         data.row = self.song.patt_pos as usize;
         data.pos = self.song.song_pos as usize;
-        data.speed = self.song.speed as usize;
-        data.tempo = self.song.tempo as f32;
+        data.speed = self.song.tempo as usize;
+        data.tempo = self.song.speed as f32;
     }
 
     fn reset(&mut self) {

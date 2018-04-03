@@ -13,16 +13,16 @@ pub struct SongHeaderTyp {
     sig        : String,
     name       : String,
     prog_name  : String,
-    ver        : u16,
+    pub ver        : u16,
     header_size: u32,
-    len        : u16,
-    rep_s      : u16,
-    ant_chn    : u16,
-    ant_ptn    : u16,
-    ant_instrs : u16,
-    flags      : u16,
-    def_tempo  : u16, 
-    def_speed  : u16,
+    pub len        : u16,
+    pub rep_s      : u16,
+    pub ant_chn    : u16,
+    pub ant_ptn    : u16,
+    pub ant_instrs : u16,
+    pub flags      : u16,
+    pub def_tempo  : u16,
+    pub def_speed  : u16,
     song_tab   : Vec<u8>,
 }
 
@@ -84,6 +84,23 @@ impl SampleHeaderTyp {
     pub fn new() -> Self {
         Default::default()
     }
+
+    pub fn from_slice(b: &[u8]) -> Result<Self, Error> {
+        let mut samp = SampleHeaderTyp::new();
+
+        samp.len = b.read32l(0)? as i32;
+        samp.rep_s = b.read32l(4)? as i32;
+        samp.rep_l = b.read32l(8)? as i32;
+        samp.vol = b.read8(12)?;
+        samp.fine = b.read8i(13)?;
+        samp.typ = b.read8(14)?;
+        samp.pan = b.read8(15)?;
+        samp.rel_ton = b.read8i(16)?;
+        samp.skrap = b.read8(17)?;
+        samp.name = b.read_string(18, 22)?;
+
+        Ok(samp)
+    }
 }
 
 
@@ -95,8 +112,8 @@ pub struct InstrHeaderTyp {
     ant_samp    : u16,
     sample_size : i32,
     ta          : Vec<u8>, //[u8; 96],
-    env_vp      : Vec<Vec<i16>>, //[[i16; 2]; 12],   
-    env_pp      : Vec<Vec<i16>>, //[[i16; 2]; 12],   
+    env_vp      : Vec<[i16; 2]>, //[[i16; 2]; 12],
+    env_pp      : Vec<[i16; 2]>, //[[i16; 2]; 12],
     env_vp_ant  : u8,
     env_pp_ant  : u8,
     env_v_sust  : u8,
@@ -125,14 +142,54 @@ impl InstrHeaderTyp {
         Default::default()
     }
 
-    pub fn from_slice(b: &[u8]) -> Result<Self, Error> {
+    pub fn from_slice(b: &[u8]) -> Result<(Self, usize), Error> {
         let mut ins = Self::new();
         ins.instr_size = b.read32l(0)?;
         ins.name =  b.read_string(4, 22)?;
         ins.typ = b.read8(26)?;
         ins.ant_samp = b.read16l(27)?;
+        debug!("instrument: {:22} {:02x} {:2}", ins.name, ins.typ, ins.ant_samp);
 
-        Ok(ins)
+        let mut ofs = ins.instr_size as usize;
+
+        if ins.ant_samp > 0 {
+            ins.sample_size = b.read32l(29)? as i32;
+            ins.ta = b.slice(33, 96)?.to_vec();
+            for i in 0..12 {
+                let x = b.read16l(129 + 4*i)? as i16;
+                let y = b.read16l(129 + 4*i + 2)? as i16;
+                ins.env_vp.push([x, y]);
+            }
+            for i in 0..12 {
+                let x = b.read16l(177 + 4*i)? as i16;
+                let y = b.read16l(177 + 4*i + 2)? as i16;
+                ins.env_vp.push([x, y]);
+            }
+            ins.env_vp_ant = b.read8(225)?;
+            ins.env_pp_ant = b.read8(226)?;
+            ins.env_v_sust = b.read8(227)?;
+            ins.env_v_rep_s = b.read8(228)?;
+            ins.env_v_rep_e = b.read8(229)?;
+            ins.env_p_sust = b.read8(230)?;
+            ins.env_p_rep_s = b.read8(231)?;
+            ins.env_p_rep_e = b.read8(232)?;
+            ins.env_v_typ = b.read8(233)?;
+            ins.env_p_typ = b.read8(234)?;
+            ins.vib_type = b.read8(235)?;
+            ins.vib_sweep = b.read8(236)?;
+            ins.vib_depth = b.read8(237)?;
+            ins.vib_rate = b.read8(238)?;
+            ins.fade_out = b.read16l(239)?;
+
+            for i in 0..ins.ant_samp {
+                let samp = SampleHeaderTyp::from_slice(b.slice(ofs, b.len() - ofs)?)?;
+                debug!(" sample {:2}: {:22} {:02x} {:08x} {:08x} {:08x} {:02x}", i, samp.name, samp.typ, samp.len, samp.rep_s, samp.rep_l, samp.vol);
+                ofs += 40 + samp.len as usize * if samp.typ & 4 != 0 { 2 } else { 1 };
+                ins.samp.push(samp);
+            }
+        }
+
+        Ok((ins, ofs))
     }
 }
 
@@ -239,7 +296,6 @@ pub struct XmData {
     pub header     : SongHeaderTyp,
     pub instruments: Vec<InstrHeaderTyp>,
     pub patterns   : Vec<PatternHeaderTyp>,
-    pub xm_samples : Vec<SampleHeaderTyp>,
     pub samples    : Vec<Sample>,
 }
 
@@ -289,7 +345,7 @@ impl ModuleData for XmData {
     }
 
     fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
-        0 
+        0
     }
 
     fn samples(&self) -> Vec<Sample> {

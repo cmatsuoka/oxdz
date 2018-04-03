@@ -49,11 +49,17 @@ impl Loader for XmLoader {
             patterns.push(ptn);
         }
 
+        let mut instruments: Vec<InstrHeaderTyp> = Vec::with_capacity(header.ant_instrs as usize);
+        for i in 0..header.ant_instrs as usize {
+            let (ins, size) = InstrHeaderTyp::from_slice(b.slice(offset, b.len() - offset)?)?;
+            offset += size;
+            instruments.push(ins);
+        }
+
         let data = XmData{
             header,
             patterns,
-            instruments: Vec::new(),
-            xm_samples: Vec::new(),
+            instruments,
             samples: Vec::new(),
         };
 
