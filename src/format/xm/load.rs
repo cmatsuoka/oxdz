@@ -35,20 +35,22 @@ impl Loader for XmLoader {
         }
 
         let header = SongHeaderTyp::from_slice(&b)?;
+	debug!("{:?}", header);
         let version = header.ver;
         let creator = header.prog_name.clone();
    	let channels = header.ant_chn as usize;
 
-        let patterns: Vec<PatternHeaderTyp> = Vec::with_capacity(header.ant_ptn as usize);
-        let mut offset = 60 + 20 + header.len as usize;
+        let mut offset = header.header_size as usize;
+        let mut patterns: Vec<PatternHeaderTyp> = Vec::with_capacity(header.ant_ptn as usize);
         for i in 0..header.ant_ptn as usize {
-            let (pattern, size) = PatternHeaderTyp::from_slice(i, b.slice(offset, b.len() - offset)?, header.ant_chn as usize)?;
+            let (ptn, size) = PatternHeaderTyp::from_slice(i, b.slice(offset, b.len() - offset)?, header.ant_chn as usize)?;
+            patterns.push(ptn);
             offset += size;
         }
 
         let data = XmData{
             header,
-            patterns: Vec::new(),
+            patterns,
             instruments: Vec::new(),
             xm_samples: Vec::new(),
             samples: Vec::new(),

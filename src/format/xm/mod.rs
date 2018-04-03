@@ -8,6 +8,7 @@ use util::BinaryRead;
 use ::*;
 
 
+#[derive(Debug)]
 pub struct SongHeaderTyp {
     sig        : String,
     name       : String,

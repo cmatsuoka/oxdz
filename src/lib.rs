@@ -14,6 +14,7 @@
 //!
 
 extern crate byteorder;
+extern crate md5;
 
 #[macro_use]
 extern crate lazy_static;
@@ -83,6 +84,7 @@ pub struct Oxdz<'a> {
     pub player   : player::Player<'a>,
     pub rate     : u32,
     pub player_id: String,
+    pub md5sum   : [u8; 16],
 }
 
 impl<'a> Oxdz<'a> {
@@ -93,6 +95,10 @@ impl<'a> Oxdz<'a> {
         // import the module if needed
         module = player::list_by_id(&id)?.import(module)?;
 
+        // store digest as an array of bytes
+        let md5::Digest(md5sum) = md5::compute(b);
+	debug!("md5sum: {}", md5sum.iter().fold("".to_owned(), |mut s, x| { s.push_str(&format!("{:x}", x)); s } ));
+
         let mut player = player::Player::find(module, rate, &id, "")?;
         player.scan();
         player.start();
@@ -101,6 +107,7 @@ impl<'a> Oxdz<'a> {
             player,
             rate,
             player_id: id,
+            md5sum,
         })
     }
 
@@ -108,6 +115,7 @@ impl<'a> Oxdz<'a> {
         &self.player.module
     }
 
+    /// Retrieve player information.
     pub fn player_info(&self) -> Result<player::PlayerInfo, Error> {
         Ok(player::list_by_id(&self.player_id)?.info())
     }
@@ -123,6 +131,7 @@ impl<'a> Oxdz<'a> {
         mi.total_time = self.player.total_time;
     }
 
+    /// Retrieve frame information.
     pub fn frame_info(&mut self, mut fi: &mut FrameInfo) -> &mut Self {
         self.player.info(&mut fi);
         self
