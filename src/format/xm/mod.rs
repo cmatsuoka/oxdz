@@ -23,7 +23,7 @@ pub struct SongHeaderTyp {
     pub flags      : u16,
     pub def_tempo  : u16,
     pub def_speed  : u16,
-    song_tab   : Vec<u8>,
+    pub song_tab   : Vec<u8>,
 }
 
 impl SongHeaderTyp {
@@ -71,11 +71,11 @@ pub struct SampleHeaderTyp {
     len    : i32,
     rep_s  : i32,
     rep_l  : i32,
-    vol    : u8,
-    fine   : i8,
-    typ    : u8,
-    pan    : u8,
-    rel_ton: i8,
+    pub vol    : u8,
+    pub fine   : i8,
+    pub typ    : u8,
+    pub pan    : u8,
+    pub rel_ton: i8,
     skrap  : u8,
     name   : String,
 }
@@ -111,30 +111,30 @@ pub struct InstrHeaderTyp {
     typ         : u8,
     ant_samp    : u16,
     sample_size : i32,
-    ta          : Vec<u8>, //[u8; 96],
-    env_vp      : Vec<[i16; 2]>, //[[i16; 2]; 12],
-    env_pp      : Vec<[i16; 2]>, //[[i16; 2]; 12],
-    env_vp_ant  : u8,
-    env_pp_ant  : u8,
-    env_v_sust  : u8,
-    env_v_rep_s : u8,
-    env_v_rep_e : u8,
-    env_p_sust  : u8,
-    env_p_rep_s : u8,
-    env_p_rep_e : u8,
-    env_v_typ   : u8,
-    env_p_typ   : u8,
-    vib_type    : u8,
-    vib_sweep   : u8,
-    vib_depth   : u8,
-    vib_rate    : u8,
-    fade_out    : u16,
+    pub ta          : Vec<u8>, //[u8; 96],
+    pub env_vp      : Vec<[i16; 2]>, //[[i16; 2]; 12],
+    pub env_pp      : Vec<[i16; 2]>, //[[i16; 2]; 12],
+    pub env_vp_ant  : u8,
+    pub env_pp_ant  : u8,
+    pub env_v_sust  : u8,
+    pub env_v_rep_s : u8,
+    pub env_v_rep_e : u8,
+    pub env_p_sust  : u8,
+    pub env_p_rep_s : u8,
+    pub env_p_rep_e : u8,
+    pub env_v_typ   : u8,
+    pub env_p_typ   : u8,
+    pub vib_typ     : u8,
+    pub vib_sweep   : u8,
+    pub vib_depth   : u8,
+    pub vib_rate    : u8,
+    pub fade_out    : u16,
     //midi_on     : bool,
     //midi_channel: u8,
     //midi_program: i16,
     //midi_bend   : i16,
     //mute        : bool,
-    samp        : Vec<SampleHeaderTyp>,
+    pub samp        : Vec<SampleHeaderTyp>,
 }
 
 impl InstrHeaderTyp {
@@ -175,7 +175,7 @@ impl InstrHeaderTyp {
             ins.env_p_rep_e = b.read8(232)?;
             ins.env_v_typ = b.read8(233)?;
             ins.env_p_typ = b.read8(234)?;
-            ins.vib_type = b.read8(235)?;
+            ins.vib_typ = b.read8(235)?;
             ins.vib_sweep = b.read8(236)?;
             ins.vib_depth = b.read8(237)?;
             ins.vib_rate = b.read8(238)?;
@@ -213,7 +213,7 @@ impl TonTyp {
 pub struct PatternHeaderTyp {
     pattern_header_size: i32,
     typ                : u8,
-    patt_len           : u16,
+    pub patt_len       : u16,
     data_len           : u16,
     num_chn            : usize,
     data               : Vec<TonTyp>,
