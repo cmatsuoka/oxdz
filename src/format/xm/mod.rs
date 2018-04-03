@@ -164,7 +164,7 @@ pub struct PatternHeaderTyp {
 
 
 impl PatternHeaderTyp {
-    pub fn from_slice(num: usize, b: &[u8], num_chn: usize) -> Result<(Self, usize), Error> {
+    pub fn from_slice(num: usize, b: &[u8], num_chn: usize) -> Result<Self, Error> {
         let pattern_header_size = b.read32l(0)? as i32;
         let typ = b.read8(4)?;
         let patt_len = b.read16l(5)?;
@@ -221,7 +221,7 @@ impl PatternHeaderTyp {
             }
         }
 
-        Ok((pat, ofs))
+        Ok(pat)
     }
 
     pub fn data(&self) -> &Vec<TonTyp> {
