@@ -1905,6 +1905,182 @@ impl Ft2Play {
         }
     }
 
+/*
+    static void voiceSetVolRamp(uint8_t chNr)
+    {
+        voice_t *v1, *v2;
+
+        if (volumeRamping)
+        {
+            v1 = &voice[chNr]; // curr voice
+            v2 = &voice[MAX_VOICES + chNr]; // ramp out voice
+
+            if (v1->sampleData8 != NULL)
+            {
+                // copy current voice to ramp out voice
+                memcpy(v2, v1, sizeof (voice_t));
+
+                // set ramp out voice
+                v2->faderDest  = 0.0f;
+                v2->faderDelta = (v2->faderDest - v2->fader) * quickVolRampMul_f;
+            }
+
+            /* set ramp in for current voice */
+            v1->fader      = 0.0f;
+            v1->faderDest  = 1.0f;
+            v1->faderDelta = (v1->faderDest - v1->fader) * quickVolRampMul_f;
+        }
+    }
+
+    static void voiceUpdateVolumes(uint8_t i, uint8_t status)
+    {
+        float volL_f, volR_f, deltaMul_f;
+        voice_t *v;
+
+        v = &voice[i];
+
+        volL_f = v->volume * v->panL;
+        volR_f = v->volume * v->panR;
+
+        if (volumeRamping)
+        {
+            if (!(status & IS_NyTon))
+            {
+                /* set vol ramp stuff */
+                v->targetVolL = volL_f;
+                v->targetVolR = volR_f;
+
+                deltaMul_f = (status & IS_QuickVol) ? quickVolRampMul_f : tickVolRampMul_f;
+
+                v->volDeltaL = (v->targetVolL - v->volumeL) * deltaMul_f;
+                v->volDeltaR = (v->targetVolR - v->volumeR) * deltaMul_f;
+            }
+            else
+            {
+                v->targetVolL = v->volumeL = volL_f;
+                v->targetVolR = v->volumeR = volR_f;
+
+                v->volDeltaL = 0.0f;
+                v->volDeltaR = 0.0f;
+            }
+        }
+        else
+        {
+            v->volumeL = volL_f;
+            v->volumeR = volR_f;
+        }
+    }
+*/
+
+    fn voice_set_source(&mut self, i: usize, smp_num: u32, sample_length: i32, sample_loop_begin: i32,
+        sample_loop_length: i32, sample_loop_end: i32, loop_flag: u8, sixteenbit: bool, stereo: bool,
+        position: i32)
+    {
+/*
+        voice_t *v;
+
+        v = &voice[i];
+
+        if ((sampleData == NULL) || (sampleLength < 1))
+        {
+            v->sampleData8  = NULL;
+            v->sampleData16 = NULL;
+            return;
+        }
+
+        if (position >= sampleLength)
+        {
+            position = 0;
+            v->sampleData8  = NULL;
+            v->sampleData16 = NULL;
+        }
+        else
+        {
+            v->sampleData8  = sampleData;
+            v->sampleData16 = (const int16_t *)(sampleData);
+        }
+
+        if (sixteenbit)
+        {
+            sampleLoopBegin  = (sampleLoopBegin  & 0xFFFFFFFE) / 2;
+            sampleLength     = (sampleLength     & 0xFFFFFFFE) / 2;
+            sampleLoopLength = (sampleLoopLength & 0xFFFFFFFE) / 2;
+            sampleLoopEnd    = (sampleLoopEnd    & 0xFFFFFFFE) / 2;
+
+            v->sampleData16R = &v->sampleData16[sampleLength];
+        }
+        else
+        {
+            v->sampleData8R = &v->sampleData8[sampleLength];
+        }
+
+        if (sampleLoopLength < 2) /* FT2 can do 1-sample loops, but we don't (for security reasons) */
+            loopFlag = false;
+
+        v->frac             = 0.0f;
+        v->sample16bit      = sixteenbit ? true : false;
+        v->loopingBackwards = false;
+        v->samplePosition   = position;
+        v->sampleLength     = sampleLength;
+        v->sampleLoopBegin  = sampleLoopBegin;
+        v->sampleLoopEnd    = sampleLoopEnd;
+        v->sampleLoopLength = sampleLoopLength;;
+        v->loop             = loopFlag ? ((loopFlag & 2) ? 2 : 1) : 0;
+        v->stereo           = stereo ? true : false;
+*/
+    }
+
+/*
+    static void voiceSetVolume(uint8_t i, uint16_t vol)
+    {
+        voice[i].volume = vol / 256.0f;
+    }
+
+    static void voiceSetPanning(uint8_t i, uint8_t pan)
+    {
+        voice_t *v;
+
+        v = &voice[i];
+
+        v->panL = panningTab[256 - pan] / 65536.0f;
+        v->panR = panningTab[      pan] / 65536.0f;
+    }
+
+    static void voiceSetSamplingFreq(uint8_t i, uint32_t samplingFrequency)
+    {
+        if (f_audioFreq > 0.0f)
+            voice[i].delta = samplingFrequency / f_audioFreq;
+    }
+*/
+
+    fn voice_trigger(&mut self, chn: usize, module: &XmData) {
+        let instr_nr = self.stm[chn].instr_nr;
+        let smp_ptr = self.stm[chn].smp_ptr;
+
+        let ins = &module.instruments[instr_nr as usize];
+        let s = &ins.samp[smp_ptr];
+        let smp_start_pos = self.stm[chn].smp_start_pos as i32;
+        self.voice_set_source(chn, s.smp_num, s.len, s.rep_s, s.rep_l, s.rep_s + s.rep_l, s.typ & 3,
+                              s.typ & 16 != 0, s.typ & 32 != 0, smp_start_pos);
+    }
+
+    fn update_channel_vol_pan_frq(&mut self, module: &XmData) {
+        for i in 0..MAX_VOICES {
+            let status = self.stm[i].status;
+            if status != 0 {
+                self.stm[i].status = 0;
+
+                /* this order is carefully selected, modification can result in unwanted behavior */
+                //if status & IS_NYTON          != 0 { self.voiceSetVolRamp(i); }
+                //if status & IS_VOL            != 0 { self.voiceSetVolume(i, ch->finalVol); }
+                //if status & IS_PAN            != 0 { self.voiceSetPanning(i, ch->finalPan); }
+                //if status & (IS_VOL | IS_PAN) != 0 { self.voiceUpdateVolumes(i, status); }
+                //if status & IS_PERIOD         != 0 { self.voiceSetSamplingFreq(i, getFrequenceValue(ch->finalPeriod)); }
+                if status & IS_NYTON          != 0 { self.voice_trigger(i, &module); }
+            }
+        }
+    }
+
     fn no_new_all_channels(&mut self, module: &XmData) {
         for i in 0..self.song.ant_chn as usize {
             self.do_effects(i, &module);
@@ -2097,6 +2273,7 @@ impl FormatPlayer for Ft2Play {
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
 
         self.main_player(&module);
+        self.update_channel_vol_pan_frq(&module);
 
         for chn in 0..self.song.ant_chn as usize {
             let ch = &self.stm[chn];

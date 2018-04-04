@@ -68,9 +68,9 @@ impl SongHeaderTyp {
 
 #[derive(Default)]
 pub struct SampleHeaderTyp {
-    len    : i32,
-    rep_s  : i32,
-    rep_l  : i32,
+    pub len    : i32,
+    pub rep_s  : i32,
+    pub rep_l  : i32,
     pub vol    : u8,
     pub fine   : i8,
     pub typ    : u8,
@@ -78,6 +78,8 @@ pub struct SampleHeaderTyp {
     pub rel_ton: i8,
     skrap  : u8,
     name   : String,
+
+    pub smp_num: u32,
 }
 
 impl SampleHeaderTyp {
