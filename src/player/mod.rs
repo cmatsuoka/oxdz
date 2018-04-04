@@ -120,7 +120,7 @@ pub struct PlayerData {
     loop_count: usize,
     end_point : usize,
 
-    scan_data  : [ScanData; MAX_SEQUENCES],
+    scan_data  : Box<[ScanData; MAX_SEQUENCES]>,
     inside_loop: bool,
 }
 
