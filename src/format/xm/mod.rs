@@ -109,7 +109,7 @@ pub struct InstrHeaderTyp {
     instr_size  : u32,
     name        : String,
     typ         : u8,
-    ant_samp    : u16,
+    pub ant_samp    : u16,
     sample_size : i32,
     pub ta          : Vec<u8>, //[u8; 96],
     pub env_vp      : Vec<[i16; 2]>, //[[i16; 2]; 12],
@@ -158,7 +158,7 @@ impl InstrHeaderTyp {
             for i in 0..12 {
                 let x = b.read16l(129 + 4*i)? as i16;
                 let y = b.read16l(129 + 4*i + 2)? as i16;
-                ins.env_vp.push([x, y]);
+                ins.env_pp.push([x, y]);
             }
             for i in 0..12 {
                 let x = b.read16l(177 + 4*i)? as i16;

@@ -1,4 +1,5 @@
 use std::cmp;
+use std::f64::consts::PI;
 use module::{Module, ModuleData};
 use player::{Options, PlayerData, FormatPlayer, State};
 use player::scan::SaveRestore;
@@ -217,6 +218,8 @@ pub struct Ft2Play {
     //instr             : Vec<InstrTyp>,
 
     vib_sine_tab        : Vec<i8>,
+    linear_periods      : Vec<i16>,
+    amiga_periods       : Vec<i16>,
     note2period         : Vec<i16>,
     log_tab             : Vec<u32>,
 }
@@ -366,6 +369,11 @@ impl Ft2Play {
         //let ins = &self.instr[ch.instr_nr as usize];
         let ins = &module.instruments[ch.instr_nr as usize];
 
+        // oxdz: sanity check
+        if ins.ant_samp == 0 {
+            return
+        }
+
         //ch.instr_ptr = ins;
         ch.instr_ptr = ch.instr_nr as usize;
 
@@ -398,7 +406,7 @@ impl Ft2Play {
 
         if ton > 0 {
             // MUST use >> 3 here (sar cl,3) - safe for x86/x86_64
-            let tmp_ton = ((ton - 1) * 16) + ((((ch.fine_tune >> 3) + 16) as u8 )& 0xFF);
+            let tmp_ton = (((ton - 1) as u16 * 16) + ((((ch.fine_tune >> 3) + 16) as u16) & 0xFF)) as u8;
 
             // oxdz: can't happen, tmp_ton is limited by type size
             /*
@@ -1131,7 +1139,7 @@ impl Ft2Play {
                 let mut env_did_interpolate = false;
                 let mut env_pos = ch.env_v_pos as usize;
 
-                ch.env_v_cnt += 1;
+                ch.env_v_cnt.wrapping_add(1);
                 if ch.env_v_cnt == ins.env_vp[env_pos][0] as u16 {
                     ch.env_v_amp = ((ins.env_vp[env_pos][1] & 0x00FF) as u16) << 8;
 
@@ -1211,7 +1219,7 @@ impl Ft2Play {
 
         // *** PANNING ENVELOPE ***
 
-        let mut env_val = 0;
+        let mut env_val: i32 = 0;
         if ins.env_p_typ & 1 != 0 {
             let mut env_did_interpolate = false;
             let mut env_pos = ch.env_p_pos as usize;
@@ -1254,7 +1262,7 @@ impl Ft2Play {
                             ch.env_p_ip_value  = ((ins.env_pp[env_pos][1] - ins.env_pp[env_pos - 1][1]) & 0x00FF) << 8;
                             ch.env_p_ip_value /= ins.env_pp[env_pos][0] - ins.env_pp[env_pos - 1][0];
 
-                            env_val = ch.env_p_amp;
+                            env_val = ch.env_p_amp as i32;
                             env_did_interpolate = true;
                         }
                     }
@@ -1266,7 +1274,7 @@ impl Ft2Play {
             if !env_did_interpolate {
                 ch.env_p_amp += ch.env_p_ip_value as u16;
 
-                env_val = ch.env_p_amp;
+                env_val = ch.env_p_amp as i32;
                 if env_val>>8 > 0x40 {
                     if env_val>>8 > (0x40 + 0xC0) / 2 {
                         env_val = 16384;
@@ -1287,7 +1295,7 @@ impl Ft2Play {
 
             env_val -= 32 * 256;
 
-            ch.final_pan = ch.out_pan + (((env_val as i32 * ((pan_tmp as i32) << 3)) >> 16) & 0xFF) as u8;
+            ch.final_pan = (ch.out_pan as i32 + (((env_val as i32 * ((pan_tmp as i32) << 3)) >> 16) & 0xFF)) as u8;
             ch.status  |= IS_PAN;
         } else {
             ch.final_pan = ch.out_pan;
@@ -1313,7 +1321,7 @@ impl Ft2Play {
                 auto_vib_amp = ch.e_vib_amp;
             }
 
-            ch.e_vib_pos += ins.vib_rate;
+            ch.e_vib_pos.wrapping_add(ins.vib_rate);
 
             // square
             if ins.vib_typ == 1 {
@@ -2010,6 +2018,53 @@ impl FormatPlayer for Ft2Play {
     fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
+
+
+        // generate tables
+
+        // generate log table (value-exact to FT2's table)
+        for i in 0..(4 * 12 * 16) {
+            self.log_tab.push((((256.0 * 8363.0) * ((i as f64 / 768.0) * 2.0_f64.ln()).exp()) + 0.5) as u32);
+        }
+
+        // generate linear table (value-exact to FT2's table)
+        for i in 0..((12 * 10 * 16) + 16) {
+            self.linear_periods.push((((12 * 10 * 16) + 16) * 4) - (i * 4));
+        }
+
+        // generate amiga period table (value-exact to FT2's table, except for last 17 entries)
+        for i in 0..10 {
+            for j in 0..(if i == 9 {96 + 8} else {96}) {
+                let note_val = (((AMIGA_FINE_PERIOD[j % 96] * 64) + ((1 << i) - 1)) >> (i + 1)) as i16;
+                /* NON-FT2: j % 96. added for safety. we're patching the values later anyways. */
+
+                self.amiga_periods.push(note_val);
+                self.amiga_periods.push(note_val);
+            }
+        }
+
+        /* interpolate between points (end-result is exact to FT2's table, except for last 17 entries) */
+        for i in 0..(12 * 10 * 8) + 7 {
+            self.amiga_periods[(i * 2) + 1] = ((self.amiga_periods[i * 2] as i32 + self.amiga_periods[(i * 2) + 2] as i32) / 2) as i16;
+        }
+
+        // the amiga linear period table has its 17 last entries generated wrongly.
+        // the content seem to be garbage because of an 'out of boundaries' read from AmigaFinePeriods.
+        // these 17 values were taken from a memdump of FT2 in DOSBox.
+        // they might change depending on what you ran before FT2, but let's not make it too complicated.
+
+        /*amigaPeriods[1919] = 22; amigaPeriods[1920] = 16; amigaPeriods[1921] =  8; amigaPeriods[1922] =  0;
+        amigaPeriods[1923] = 16; amigaPeriods[1924] = 32; amigaPeriods[1925] = 24; amigaPeriods[1926] = 16;
+        amigaPeriods[1927] =  8; amigaPeriods[1928] =  0; amigaPeriods[1929] = 16; amigaPeriods[1930] = 32;
+        amigaPeriods[1931] = 24; amigaPeriods[1932] = 16; amigaPeriods[1933] =  8; amigaPeriods[1934] =  0;
+        amigaPeriods[1935] =  0;*/
+
+        // generate auto-vibrato table (value-exact to FT2's table)
+        for i in 0..256 {
+            self.vib_sine_tab.push((((64.0 * ((-i as f64 * (2.0 * PI)) / 256.0).sin()) + 0.5).floor()) as i8);
+        }
+
+
 
         let h = &module.header;
 

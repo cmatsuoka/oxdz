@@ -1,4 +1,3 @@
-use std::cmp;
 use format::{ProbeInfo, Format, Loader};
 use format::xm::{XmData, SongHeaderTyp, InstrHeaderTyp, SampleHeaderTyp, PatternHeaderTyp};
 use module::{Module, Sample};
@@ -35,7 +34,6 @@ impl Loader for XmLoader {
         }
 
         let header = SongHeaderTyp::from_slice(&b)?;
-	debug!("{:?}", header);
         let version = header.ver;
         let creator = header.prog_name.clone();
    	let channels = header.ant_chn as usize;
