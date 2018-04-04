@@ -2098,13 +2098,29 @@ impl FormatPlayer for Ft2Play {
 
         self.main_player(&module);
 
-        //self.dorow(&module, &mut mixer);
+        /*data.frame = self.song.timer as usize;
+        data.row = self.song.patt_pos as usize;
+        data.pos = self.song.song_pos as usize;
+        data.speed = self.song.tempo as usize;
+        data.tempo = self.song.speed as f32;*/
 
-        data.frame = self.song.timer as usize;
+        data.frame = ((self.song.tempo - self.song.timer + 1) % self.song.tempo) as usize;
         data.row = self.song.patt_pos as usize;
         data.pos = self.song.song_pos as usize;
         data.speed = self.song.tempo as usize;
         data.tempo = self.song.speed as f32;
+        data.time += 20.0 * 125.0 / data.tempo as f32;
+
+        /*if self.position_jump_cmd {
+            data.pos = self.ft_song_pos.wrapping_add(1) as usize;
+            self.position_jump_cmd = false;
+        }
+
+        data.inside_loop = false;
+        for chn in 0..8 {
+            data.inside_loop |= self.ft_chantemp[chn].inside_loop;
+        }*/
+
     }
 
     fn reset(&mut self) {

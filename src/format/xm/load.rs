@@ -10,7 +10,7 @@ pub struct XmLoader;
 
 impl Loader for XmLoader {
     fn name(&self) -> &'static str {
-        "FastTracker 2 XM"
+        "FastTracker II XM"
     }
   
     fn probe(&self, b: &[u8], player_id: &str) -> Result<ProbeInfo, Error> {
@@ -63,7 +63,7 @@ impl Loader for XmLoader {
 
         let m = Module {
             format_id  : "xm",
-            description: format!("FastTracker {}.{:02} module", version >> 8, version & 0x0ff),
+            description: format!("Extended module v{}.{:02}", version >> 8, version & 0x0ff),
             creator,
             channels,
             player     : "ft2",
