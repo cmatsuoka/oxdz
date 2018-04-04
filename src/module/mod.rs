@@ -36,14 +36,6 @@ impl Module {
         self.data.pattern_in_position(pos)
     }
 
-    pub fn next_position(&self, pos: usize) -> usize {
-        self.data.next_position(pos)
-    }
-
-    pub fn prev_position(&self, pos: usize) -> usize {
-        self.data.prev_position(pos)
-    }
-
     pub fn instruments(&self) -> Vec<String> {
         self.data.instruments()
     }
@@ -69,8 +61,6 @@ pub trait ModuleData: Send + Sync {
     fn patterns(&self) -> usize;        // number of patterns
     fn len(&self) -> usize;             // module length
     fn pattern_in_position(&self, usize) -> Option<usize>;
-    fn next_position(&self, usize) -> usize;
-    fn prev_position(&self, usize) -> usize;
     fn instruments(&self) -> Vec<String>;
     fn rows(&self, pat: usize) -> usize;  // number of rows in pattern
     fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize;

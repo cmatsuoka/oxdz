@@ -51,14 +51,6 @@ impl ModuleData for StmData {
         }
     }
 
-    fn next_position(&self, _pos: usize) -> usize {
-        0
-    }
-
-    fn prev_position(&self, _pos: usize) -> usize {
-        0
-    }
-
     fn instruments(&self) -> Vec<String> {
         self.instruments.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>()
     }
