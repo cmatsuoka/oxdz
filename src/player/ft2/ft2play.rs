@@ -2098,6 +2098,18 @@ impl FormatPlayer for Ft2Play {
 
         self.main_player(&module);
 
+        for chn in 0..self.song.ant_chn as usize {
+            let ch = &self.stm[chn];
+            //mixer.set_loop_start(chn, ch.n_loopstart as u32 * 2);
+            //mixer.set_loop_end(chn, (ch.n_loopstart + ch.n_replen) as u32 * 2);
+            //mixer.enable_loop(chn, ch.n_replen > 1);
+            mixer.set_period(chn, ch.final_period as f64);
+            mixer.set_volume(chn, (ch.final_vol as usize) << 4);
+            mixer.set_pan(chn, ch.final_pan as isize - 128);
+        }
+
+
+
         /*data.frame = self.song.timer as usize;
         data.row = self.song.patt_pos as usize;
         data.pos = self.song.song_pos as usize;
