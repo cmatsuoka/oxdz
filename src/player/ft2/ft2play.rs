@@ -301,14 +301,14 @@ impl Ft2Play {
         let ins = &module.instruments[ch.instr_ptr];
 
         if ins.env_p_typ & 1 == 0 {  // yes, FT2 does this (!)
-            if ch.env_p_cnt >= ins.env_pp[ch.env_p_pos as usize][0] as u16 {
-                ch.env_p_cnt = ins.env_pp[ch.env_p_pos as usize][0] as u16 - 1;
+            if ch.env_p_cnt >= ins.env_pp[ch.env_p_pos as usize].0 as u16 {
+                ch.env_p_cnt = ins.env_pp[ch.env_p_pos as usize].0 as u16 - 1;
             }
         }
 
         if ins.env_v_typ & 1 != 0 {
-            if ch.env_v_cnt >= ins.env_vp[ch.env_v_pos as usize][0] as u16 {
-                ch.env_v_cnt = ins.env_vp[ch.env_v_pos as usize][0] as u16 - 1;
+            if ch.env_v_cnt >= ins.env_vp[ch.env_v_pos as usize].0 as u16 {
+                ch.env_v_cnt = ins.env_vp[ch.env_v_pos as usize].0 as u16 - 1;
             }
         } else {
             ch.real_vol = 0;
@@ -678,24 +678,24 @@ impl Ft2Play {
                     if ins.env_vp_ant > 1 {
                         env_pos += 1;
                         for i in 0..ins.env_vp_ant {
-                            if new_env_pos < ins.env_vp[env_pos][0] {
+                            if new_env_pos < ins.env_vp[env_pos].0 {
                                 env_pos -= 1;
 
-                                new_env_pos -= ins.env_vp[env_pos][0];
+                                new_env_pos -= ins.env_vp[env_pos].0;
                                 if new_env_pos == 0 {
                                     env_update = false;
                                     break
                                 }
 
-                                if ins.env_vp[env_pos + 1][0] <= ins.env_vp[env_pos][0] {
+                                if ins.env_vp[env_pos + 1].0 <= ins.env_vp[env_pos].0 {
                                     env_update = true;
                                     break
                                 }
 
-                                ch.env_v_ip_value = ((ins.env_vp[env_pos + 1][1] - ins.env_vp[env_pos][1]) & 0x00FF) << 8;
-                                ch.env_v_ip_value /= ins.env_vp[env_pos + 1][0] - ins.env_vp[env_pos][0];
+                                ch.env_v_ip_value = ((ins.env_vp[env_pos + 1].1 - ins.env_vp[env_pos].1) & 0x00FF) << 8;
+                                ch.env_v_ip_value /= ins.env_vp[env_pos + 1].0 - ins.env_vp[env_pos].0;
 
-                                ch.env_v_amp = (ch.env_v_ip_value * (new_env_pos - 1) + (ins.env_vp[env_pos][1] & 0x00FF) << 8) as u16;
+                                ch.env_v_amp = (ch.env_v_ip_value * (new_env_pos - 1) + (ins.env_vp[env_pos].1 & 0x00FF) << 8) as u16;
 
                                 env_pos += 1;
 
@@ -713,7 +713,7 @@ impl Ft2Play {
 
                     if env_update {
                         ch.env_v_ip_value = 0;
-                        ch.env_v_amp = ((ins.env_vp[env_pos][1] & 0x00FF) << 8) as u16;
+                        ch.env_v_amp = ((ins.env_vp[env_pos].1 & 0x00FF) << 8) as u16;
                     }
 
                     if env_pos >= ins.env_vp_ant as usize {
@@ -737,24 +737,24 @@ impl Ft2Play {
                     if ins.env_pp_ant > 1 {
                         env_pos += 1;
                         for i in 0..ins.env_pp_ant - 1 {
-                            if new_env_pos < ins.env_pp[env_pos][0] {
+                            if new_env_pos < ins.env_pp[env_pos].0 {
                                 env_pos -= 1;
 
-                                new_env_pos -= ins.env_pp[env_pos][0];
+                                new_env_pos -= ins.env_pp[env_pos].0;
                                 if new_env_pos == 0 {
                                     env_update = false;
                                     break
                                 }
 
-                                if ins.env_pp[env_pos + 1][0] <= ins.env_pp[env_pos][0] {
+                                if ins.env_pp[env_pos + 1].0 <= ins.env_pp[env_pos].0 {
                                     env_update = true;
                                     break
                                 }
 
-                                ch.env_p_ip_value = ((ins.env_pp[env_pos + 1][1] - ins.env_pp[env_pos][1]) & 0x00FF) << 8;
-                                ch.env_p_ip_value /= ins.env_pp[env_pos + 1][0] - ins.env_pp[env_pos][0];
+                                ch.env_p_ip_value = ((ins.env_pp[env_pos + 1].1 - ins.env_pp[env_pos].1) & 0x00FF) << 8;
+                                ch.env_p_ip_value /= ins.env_pp[env_pos + 1].0 - ins.env_pp[env_pos].0;
 
-                                ch.env_p_amp = ((ch.env_p_ip_value * (new_env_pos - 1)) + (ins.env_pp[env_pos][1] & 0x00FF) << 8) as u16;
+                                ch.env_p_amp = ((ch.env_p_ip_value * (new_env_pos - 1)) + (ins.env_pp[env_pos].1 & 0x00FF) << 8) as u16;
 
                                 env_pos += 1;
 
@@ -772,7 +772,7 @@ impl Ft2Play {
 
                     if env_update {
                         ch.env_p_ip_value = 0;
-                        ch.env_p_amp = ((ins.env_pp[env_pos][1] & 0x00FF) << 8) as u16;
+                        ch.env_p_amp = ((ins.env_pp[env_pos].1 & 0x00FF) << 8) as u16;
                     }
 
                     if env_pos >= ins.env_pp_ant as usize {
@@ -972,7 +972,7 @@ impl Ft2Play {
                 let ch = &mut self.stm[chn];
 
                 /* MUST use >> 3 here (sar cl,3) - safe for x86/x86_64 */
-                let porta_tmp = ((((p.ton as i8 - 1) + ch.rel_ton_nr) & 0x00FF) * 16) + ((ch.fine_tune >> 3) + 16) & 0x00FF;
+                let porta_tmp = (((((p.ton as i16 - 1) + ch.rel_ton_nr as i16) & 0x00FF) * 16) + ((ch.fine_tune as i16 >> 3) + 16) & 0x00FF) as i8;
 
                 if porta_tmp < MAX_NOTES as i8 {
                     ch.want_period = self.note2period[porta_tmp as usize];
@@ -1140,8 +1140,8 @@ impl Ft2Play {
                 let mut env_pos = ch.env_v_pos as usize;
 
                 ch.env_v_cnt.wrapping_add(1);
-                if ch.env_v_cnt == ins.env_vp[env_pos][0] as u16 {
-                    ch.env_v_amp = ((ins.env_vp[env_pos][1] & 0x00FF) as u16) << 8;
+                if ch.env_v_cnt == ins.env_vp[env_pos].0 as u16 {
+                    ch.env_v_amp = ((ins.env_vp[env_pos].1 & 0x00FF) as u16) << 8;
 
                     env_pos += 1;
                     if ins.env_v_typ & 4 != 0 {
@@ -1151,8 +1151,8 @@ impl Ft2Play {
                             if ins.env_v_typ & 2 == 0 || env_pos != ins.env_v_sust as usize || ch.env_sustain_active {
                                 env_pos = ins.env_v_rep_s as usize;
 
-                                ch.env_v_cnt = ins.env_vp[env_pos][0] as u16;
-                                ch.env_v_amp = ((ins.env_vp[env_pos][1] & 0x00FF) as u16) << 8;
+                                ch.env_v_cnt = ins.env_vp[env_pos].0 as u16;
+                                ch.env_v_amp = ((ins.env_vp[env_pos].1 & 0x00FF) as u16) << 8;
                             }
                         }
 
@@ -1173,9 +1173,9 @@ impl Ft2Play {
                             ch.env_v_pos = env_pos as u8;
 
                             ch.env_v_ip_value = 0;
-                            if ins.env_vp[env_pos][0] > ins.env_vp[env_pos - 1][0] {
-                                ch.env_v_ip_value = ((ins.env_vp[env_pos][1] - ins.env_vp[env_pos - 1][1]) & 0x00FF) << 8;
-                                ch.env_v_ip_value /= ins.env_vp[env_pos][0] - ins.env_vp[env_pos - 1][0];
+                            if ins.env_vp[env_pos].0 > ins.env_vp[env_pos - 1].0 {
+                                ch.env_v_ip_value = ((ins.env_vp[env_pos].1 - ins.env_vp[env_pos - 1].1) & 0x00FF) << 8;
+                                ch.env_v_ip_value /= ins.env_vp[env_pos].0 - ins.env_vp[env_pos - 1].0;
 
                                 env_val = ch.env_v_amp;
                                 env_did_interpolate = true;
@@ -1187,7 +1187,7 @@ impl Ft2Play {
                 }
 
                 if !env_did_interpolate {
-                    ch.env_v_amp += ch.env_v_ip_value as u16;
+                    ch.env_v_amp = (ch.env_v_amp as i32 + ch.env_v_ip_value as i32) as u16;
 
                     env_val = ch.env_v_amp as u16;
                     if env_val>>8 > 0x40 {
@@ -1225,8 +1225,8 @@ impl Ft2Play {
             let mut env_pos = ch.env_p_pos as usize;
 
             ch.env_p_cnt.wrapping_add(1);
-            if ch.env_p_cnt == ins.env_pp[env_pos][0] as u16 {
-                ch.env_p_amp = ((ins.env_pp[env_pos][1] & 0x00FF) as u16) << 8;
+            if ch.env_p_cnt == ins.env_pp[env_pos].0 as u16 {
+                ch.env_p_amp = ((ins.env_pp[env_pos].1 & 0x00FF) as u16) << 8;
 
                 env_pos += 1;
                 if ins.env_p_typ & 4 != 0 {
@@ -1236,8 +1236,8 @@ impl Ft2Play {
                         if ins.env_p_typ & 2 == 0 || env_pos != ins.env_p_sust as usize || ch.env_sustain_active {
                             env_pos = ins.env_p_rep_s as usize;
 
-                            ch.env_p_cnt = ins.env_pp[env_pos][0] as u16;
-                            ch.env_p_amp = ((ins.env_pp[env_pos][1] & 0x00FF) as u16) << 8;
+                            ch.env_p_cnt = ins.env_pp[env_pos].0 as u16;
+                            ch.env_p_amp = ((ins.env_pp[env_pos].1 & 0x00FF) as u16) << 8;
                         }
                     }
 
@@ -1258,9 +1258,9 @@ impl Ft2Play {
                         ch.env_p_pos = env_pos as u8;
 
                         ch.env_p_ip_value = 0;
-                        if ins.env_pp[env_pos][0] > ins.env_pp[env_pos - 1][0] {
-                            ch.env_p_ip_value  = ((ins.env_pp[env_pos][1] - ins.env_pp[env_pos - 1][1]) & 0x00FF) << 8;
-                            ch.env_p_ip_value /= ins.env_pp[env_pos][0] - ins.env_pp[env_pos - 1][0];
+                        if ins.env_pp[env_pos].0 > ins.env_pp[env_pos - 1].0 {
+                            ch.env_p_ip_value  = ((ins.env_pp[env_pos].1 - ins.env_pp[env_pos - 1].1) & 0x00FF) << 8;
+                            ch.env_p_ip_value /= ins.env_pp[env_pos].0 - ins.env_pp[env_pos - 1].0;
 
                             env_val = ch.env_p_amp as i32;
                             env_did_interpolate = true;
@@ -1475,7 +1475,7 @@ impl Ft2Play {
             _ => tmp_vib = 255,
         }
 
-        tmp_vib = (tmp_vib * ch.vib_depth) / 32;
+        tmp_vib = ((tmp_vib as u16 * ch.vib_depth as u16) / 32) as u8;
 
         ch.out_period = if ch.vib_pos >= 128 {
             ch.real_period - tmp_vib as i16
@@ -1484,7 +1484,7 @@ impl Ft2Play {
         } as u16;
 
         ch.status |= IS_PERIOD;
-        ch.vib_pos += ch.vib_speed;
+        ch.vib_pos.wrapping_add(ch.vib_speed);
     }
 
     fn vibrato(&mut self, chn: usize) {
@@ -1720,7 +1720,7 @@ impl Ft2Play {
                 _ => tmp_trem = 255,
             }
 
-            tmp_trem = (tmp_trem * ch.trem_depth) / 64;
+            tmp_trem = ((tmp_trem as u16 * ch.trem_depth as u16) / 64) as u8;
 
             let mut trem_vol: i16;
             if ch.trem_pos >= 128 {
