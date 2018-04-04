@@ -158,7 +158,7 @@ struct StmTyp {
 }
 
 
-const MAX_NOTES : usize = (12 * 10 * 16) + 16;
+const MAX_NOTES : u16 = (12 * 10 * 16) + 16;
 const MAX_VOICES: usize = 32;
 
 
@@ -972,9 +972,9 @@ impl Ft2Play {
                 let ch = &mut self.stm[chn];
 
                 /* MUST use >> 3 here (sar cl,3) - safe for x86/x86_64 */
-                let porta_tmp = (((((p.ton as i16 - 1) + ch.rel_ton_nr as i16) & 0x00FF) * 16) + ((ch.fine_tune as i16 >> 3) + 16) & 0x00FF) as i8;
+                let porta_tmp = (((((p.ton as i16 - 1) + ch.rel_ton_nr as i16) & 0x00FF) * 16) + ((ch.fine_tune as i16 >> 3) + 16) & 0x00FF) as u16;
 
-                if porta_tmp < MAX_NOTES as i8 {
+                if porta_tmp < MAX_NOTES {
                     ch.want_period = self.note2period[porta_tmp as usize];
 
                     if ch.want_period == ch.real_period {
@@ -1287,11 +1287,12 @@ impl Ft2Play {
             }
 
             // panning calculated exactly like FT2
-            let mut pan_tmp = ch.out_pan - 128;
+            let mut pan_tmp = ch.out_pan.wrapping_sub(128) as i8;
             if pan_tmp > 0 {
-                pan_tmp = 0 - pan_tmp;
+                pan_tmp = -pan_tmp;
             }
-            pan_tmp += 128;
+            //pan_tmp.wrapping_add(128);
+            pan_tmp.wrapping_sub(1);
 
             env_val -= 32 * 256;
 
@@ -1886,7 +1887,7 @@ impl Ft2Play {
             let mut tremor_sign = ch.tremor_pos & 0x80;
             let mut tremor_data = ch.tremor_pos & 0x7F;
 
-            tremor_data -= 1;
+            tremor_data.wrapping_sub(1);
             if tremor_data & 0x80 != 0 {
                 if tremor_sign == 0x80 {
                     tremor_sign = 0x00;
