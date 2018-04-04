@@ -861,7 +861,7 @@ impl FormatPlayer for FtPlayer {
         self.ft_music(&module, &mut mixer);
 
         for chn in 0..self.channels {
-            let ch = &mut self.ft_chantemp[chn];
+            let ch = &self.ft_chantemp[chn];
             mixer.set_loop_start(chn, ch.n_loopstart as u32 * 2);
             mixer.set_loop_end(chn, (ch.n_loopstart + ch.n_replen) as u32 * 2);
             mixer.enable_loop(chn, ch.n_replen > 1);
