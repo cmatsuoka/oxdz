@@ -218,8 +218,8 @@ pub struct Ft2Play {
     //instr             : Vec<InstrTyp>,
 
     vib_sine_tab        : Vec<i8>,
-    linear_periods      : Vec<i16>,
-    amiga_periods       : Vec<i16>,
+    //linear_periods      : Vec<i16>,
+    //amiga_periods       : Vec<i16>,
     note2period         : Vec<i16>,
     log_tab             : Vec<u32>,
 }
@@ -302,13 +302,13 @@ impl Ft2Play {
 
         if ins.env_p_typ & 1 == 0 {  // yes, FT2 does this (!)
             if ch.env_p_cnt >= ins.env_pp[ch.env_p_pos as usize].0 as u16 {
-                ch.env_p_cnt = ins.env_pp[ch.env_p_pos as usize].0 as u16 - 1;
+                ch.env_p_cnt = (ins.env_pp[ch.env_p_pos as usize].0 - 1) as u16;
             }
         }
 
         if ins.env_v_typ & 1 != 0 {
             if ch.env_v_cnt >= ins.env_vp[ch.env_v_pos as usize].0 as u16 {
-                ch.env_v_cnt = ins.env_vp[ch.env_v_pos as usize].0 as u16 - 1;
+                ch.env_v_cnt = (ins.env_vp[ch.env_v_pos as usize].0 - 1) as u16;
             }
         } else {
             ch.real_vol = 0;
@@ -2020,51 +2020,6 @@ impl FormatPlayer for Ft2Play {
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
 
 
-        // generate tables
-
-        // generate log table (value-exact to FT2's table)
-        for i in 0..(4 * 12 * 16) {
-            self.log_tab.push((((256.0 * 8363.0) * ((i as f64 / 768.0) * 2.0_f64.ln()).exp()) + 0.5) as u32);
-        }
-
-        // generate linear table (value-exact to FT2's table)
-        for i in 0..((12 * 10 * 16) + 16) {
-            self.linear_periods.push((((12 * 10 * 16) + 16) * 4) - (i * 4));
-        }
-
-        // generate amiga period table (value-exact to FT2's table, except for last 17 entries)
-        for i in 0..10 {
-            for j in 0..(if i == 9 {96 + 8} else {96}) {
-                let note_val = (((AMIGA_FINE_PERIOD[j % 96] * 64) + ((1 << i) - 1)) >> (i + 1)) as i16;
-                /* NON-FT2: j % 96. added for safety. we're patching the values later anyways. */
-
-                self.amiga_periods.push(note_val);
-                self.amiga_periods.push(note_val);
-            }
-        }
-
-        /* interpolate between points (end-result is exact to FT2's table, except for last 17 entries) */
-        for i in 0..(12 * 10 * 8) + 7 {
-            self.amiga_periods[(i * 2) + 1] = ((self.amiga_periods[i * 2] as i32 + self.amiga_periods[(i * 2) + 2] as i32) / 2) as i16;
-        }
-
-        // the amiga linear period table has its 17 last entries generated wrongly.
-        // the content seem to be garbage because of an 'out of boundaries' read from AmigaFinePeriods.
-        // these 17 values were taken from a memdump of FT2 in DOSBox.
-        // they might change depending on what you ran before FT2, but let's not make it too complicated.
-
-        /*amigaPeriods[1919] = 22; amigaPeriods[1920] = 16; amigaPeriods[1921] =  8; amigaPeriods[1922] =  0;
-        amigaPeriods[1923] = 16; amigaPeriods[1924] = 32; amigaPeriods[1925] = 24; amigaPeriods[1926] = 16;
-        amigaPeriods[1927] =  8; amigaPeriods[1928] =  0; amigaPeriods[1929] = 16; amigaPeriods[1930] = 32;
-        amigaPeriods[1931] = 24; amigaPeriods[1932] = 16; amigaPeriods[1933] =  8; amigaPeriods[1934] =  0;
-        amigaPeriods[1935] =  0;*/
-
-        // generate auto-vibrato table (value-exact to FT2's table)
-        for i in 0..256 {
-            self.vib_sine_tab.push((((64.0 * ((-i as f64 * (2.0 * PI)) / 256.0).sin()) + 0.5).floor()) as i8);
-        }
-
-
 
         let h = &module.header;
 
@@ -2082,7 +2037,53 @@ impl FormatPlayer for Ft2Play {
         self.song.ver = h.ver;
         self.linear_frq_tab = h.flags & 1 != 0;
 
-        //self.song.song_tab = h.song_tab.to_owned();
+
+        // generate tables
+
+        // generate log table (value-exact to FT2's table)
+        for i in 0..(4 * 12 * 16) {
+            self.log_tab.push((((256.0 * 8363.0) * ((i as f64 / 768.0) * 2.0_f64.ln()).exp()) + 0.5) as u32);
+        }
+
+        if self.linear_frq_tab {
+            // generate linear table (value-exact to FT2's table)
+            for i in 0..((12 * 10 * 16) + 16) {
+                self.note2period.push((((12 * 10 * 16) + 16) * 4) - (i * 4));
+            }
+        } else {
+            // generate amiga period table (value-exact to FT2's table, except for last 17 entries)
+            for i in 0..10 {
+                for j in 0..(if i == 9 {96 + 8} else {96}) {
+                    let note_val = (((AMIGA_FINE_PERIOD[j % 96] * 64) + ((1 << i) - 1)) >> (i + 1)) as i16;
+                    /* NON-FT2: j % 96. added for safety. we're patching the values later anyways. */
+
+                    self.note2period.push(note_val);
+                    self.note2period.push(note_val);
+                }
+            }
+
+            /* interpolate between points (end-result is exact to FT2's table, except for last 17 entries) */
+            for i in 0..(12 * 10 * 8) + 7 {
+                self.note2period[(i * 2) + 1] = ((self.note2period[i * 2] as i32 + self.note2period[(i * 2) + 2] as i32) / 2) as i16;
+            }
+
+            // the amiga linear period table has its 17 last entries generated wrongly.
+            // the content seem to be garbage because of an 'out of boundaries' read from AmigaFinePeriods.
+            // these 17 values were taken from a memdump of FT2 in DOSBox.
+            // they might change depending on what you ran before FT2, but let's not make it too complicated.
+
+            /*amigaPeriods[1919] = 22; amigaPeriods[1920] = 16; amigaPeriods[1921] =  8; amigaPeriods[1922] =  0;
+            amigaPeriods[1923] = 16; amigaPeriods[1924] = 32; amigaPeriods[1925] = 24; amigaPeriods[1926] = 16;
+            amigaPeriods[1927] =  8; amigaPeriods[1928] =  0; amigaPeriods[1929] = 16; amigaPeriods[1930] = 32;
+            amigaPeriods[1931] = 24; amigaPeriods[1932] = 16; amigaPeriods[1933] =  8; amigaPeriods[1934] =  0;
+            amigaPeriods[1935] =  0;*/
+        }
+
+        // generate auto-vibrato table (value-exact to FT2's table)
+        for i in 0..256 {
+            self.vib_sine_tab.push((((64.0 * ((-i as f64 * (2.0 * PI)) / 256.0).sin()) + 0.5).floor()) as i8);
+        }
+
 
         self.set_pos(0, 0, &module);
 
