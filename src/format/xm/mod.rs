@@ -194,14 +194,18 @@ impl InstrHeaderTyp {
                 let mut smp = Sample::new();
                 smp.name = samp.name.to_owned();
                 smp.size = samp.len as u32;
+                let byte_size: usize;
                 smp.sample_type = if samp.typ & 4 != 0 {
+                    byte_size = samp.len as usize * 2;
+                    smp.store(b.slice(ofs, byte_size)?);
                     SampleType::Sample16
                 } else {
+                    byte_size = samp.len as usize;
+                    let buf = diff_decode_8(b.slice(ofs, byte_size)?);
+                    smp.store(&buf[..]);
                     SampleType::Sample8
                 };
-                let byte_size = samp.len as usize * if samp.typ & 4 != 0 { 2 } else { 1 };
 
-                smp.store(b.slice(ofs, byte_size)?);
                 sample.push(smp);
                 ins.samp.push(samp);
 
@@ -212,6 +216,17 @@ impl InstrHeaderTyp {
 
         Ok((ins, ofs, sample))
     }
+}
+
+fn diff_decode_8(b: &[u8]) -> Vec<u8> {
+    let mut buf: Vec<u8> = Vec::with_capacity(b.len());
+    let mut old = 0_u8;
+    for (src, dst) in b.iter().zip(buf.iter_mut()) {
+        let new = src.wrapping_add(old);
+        *dst = new;
+        old = new;
+    }
+    buf
 }
 
 
