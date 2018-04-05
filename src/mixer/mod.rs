@@ -151,6 +151,12 @@ impl<'a> Mixer<'a> {
         try_voice!(voice, self.voices);
 
         let v = &mut self.voices[voice];
+
+        if v.smp >= self.sample.len() {
+            debug!("set_voicepos: invalid sample number {}", v.smp);
+            return
+        }
+
         v.pos = pos;
 
         let sample = &self.sample[v.smp];

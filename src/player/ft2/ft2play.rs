@@ -1972,10 +1972,11 @@ impl Ft2Play {
     }
 */
 
-    fn voice_set_source(&mut self, i: usize, smp_num: u32, sample_length: i32, sample_loop_begin: i32,
+    fn voice_set_source(&mut self, chn: usize, smp_num: u32, sample_length: i32, sample_loop_begin: i32,
         sample_loop_length: i32, sample_loop_end: i32, loop_flag: u8, sixteenbit: bool, stereo: bool,
-        position: i32)
+        mut position: i32, mixer: &mut Mixer)
     {
+
 /*
         voice_t *v;
 
@@ -1987,19 +1988,17 @@ impl Ft2Play {
             v->sampleData16 = NULL;
             return;
         }
+*/
 
-        if (position >= sampleLength)
-        {
+        if position >= sample_length {
             position = 0;
-            v->sampleData8  = NULL;
-            v->sampleData16 = NULL;
-        }
-        else
-        {
-            v->sampleData8  = sampleData;
-            v->sampleData16 = (const int16_t *)(sampleData);
+            // reset voice?
+            return;
+        } else {
+            mixer.set_sample(chn, smp_num as usize);
         }
 
+/*
         if (sixteenbit)
         {
             sampleLoopBegin  = (sampleLoopBegin  & 0xFFFFFFFE) / 2;
@@ -2013,10 +2012,14 @@ impl Ft2Play {
         {
             v->sampleData8R = &v->sampleData8[sampleLength];
         }
+*/
 
-        if (sampleLoopLength < 2) /* FT2 can do 1-sample loops, but we don't (for security reasons) */
-            loopFlag = false;
-
+        mixer.set_loop_start(chn, sample_loop_begin as u32);
+        mixer.set_loop_end(chn, sample_loop_end as u32);
+        mixer.enable_loop(chn, sample_loop_length > 1);   // FT2 can do 1-sample loops, but we don't (for security reasons)
+        mixer.set_voicepos(chn, position as f64);
+	
+/*
         v->frac             = 0.0f;
         v->sample16bit      = sixteenbit ? true : false;
         v->loopingBackwards = false;
@@ -2030,30 +2033,7 @@ impl Ft2Play {
 */
     }
 
-/*
-    static void voiceSetVolume(uint8_t i, uint16_t vol)
-    {
-        voice[i].volume = vol / 256.0f;
-    }
-
-    static void voiceSetPanning(uint8_t i, uint8_t pan)
-    {
-        voice_t *v;
-
-        v = &voice[i];
-
-        v->panL = panningTab[256 - pan] / 65536.0f;
-        v->panR = panningTab[      pan] / 65536.0f;
-    }
-
-    static void voiceSetSamplingFreq(uint8_t i, uint32_t samplingFrequency)
-    {
-        if (f_audioFreq > 0.0f)
-            voice[i].delta = samplingFrequency / f_audioFreq;
-    }
-*/
-
-    fn voice_trigger(&mut self, chn: usize, module: &XmData) {
+    fn voice_trigger(&mut self, chn: usize, module: &XmData, mut mixer: &mut Mixer) {
         let instr_nr = self.stm[chn].instr_nr;
         let smp_ptr = self.stm[chn].smp_ptr;
 
@@ -2061,10 +2041,10 @@ impl Ft2Play {
         let s = &ins.samp[smp_ptr];
         let smp_start_pos = self.stm[chn].smp_start_pos as i32;
         self.voice_set_source(chn, s.smp_num, s.len, s.rep_s, s.rep_l, s.rep_s + s.rep_l, s.typ & 3,
-                              s.typ & 16 != 0, s.typ & 32 != 0, smp_start_pos);
+                              s.typ & 16 != 0, s.typ & 32 != 0, smp_start_pos, &mut mixer);
     }
 
-    fn update_channel_vol_pan_frq(&mut self, module: &XmData) {
+    fn update_channel_vol_pan_frq(&mut self, module: &XmData, mut mixer: &mut Mixer) {
         for i in 0..MAX_VOICES {
             let status = self.stm[i].status;
             if status != 0 {
@@ -2072,11 +2052,11 @@ impl Ft2Play {
 
                 /* this order is carefully selected, modification can result in unwanted behavior */
                 //if status & IS_NYTON          != 0 { self.voiceSetVolRamp(i); }
-                //if status & IS_VOL            != 0 { self.voiceSetVolume(i, ch->finalVol); }
-                //if status & IS_PAN            != 0 { self.voiceSetPanning(i, ch->finalPan); }
-                //if status & (IS_VOL | IS_PAN) != 0 { self.voiceUpdateVolumes(i, status); }
-                //if status & IS_PERIOD         != 0 { self.voiceSetSamplingFreq(i, getFrequenceValue(ch->finalPeriod)); }
-                if status & IS_NYTON          != 0 { self.voice_trigger(i, &module); }
+                if status & IS_VOL            != 0 { mixer.set_volume(i, (self.stm[i].final_vol as usize) << 2); }   // 0..256 => 0..1024
+                if status & IS_PAN            != 0 { mixer.set_pan(i, self.stm[i].final_pan as isize - 128); }
+                //if status & (IS_VOL | IS_PAN) != 0 { self.voice_update_volumes(i, status); }
+                if status & IS_PERIOD         != 0 { mixer.set_period(i, self.stm[i].final_period as f64); }  // FIXME: linear
+                if status & IS_NYTON          != 0 { self.voice_trigger(i, &module, &mut mixer); }
             }
         }
     }
@@ -2192,7 +2172,7 @@ impl Ft2Play {
 
 
 impl FormatPlayer for Ft2Play {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
 
@@ -2273,25 +2253,7 @@ impl FormatPlayer for Ft2Play {
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
 
         self.main_player(&module);
-        self.update_channel_vol_pan_frq(&module);
-
-        for chn in 0..self.song.ant_chn as usize {
-            let ch = &self.stm[chn];
-            //mixer.set_loop_start(chn, ch.n_loopstart as u32 * 2);
-            //mixer.set_loop_end(chn, (ch.n_loopstart + ch.n_replen) as u32 * 2);
-            //mixer.enable_loop(chn, ch.n_replen > 1);
-            mixer.set_period(chn, ch.final_period as f64);
-            mixer.set_volume(chn, (ch.final_vol as usize) << 4);
-            mixer.set_pan(chn, ch.final_pan as isize - 128);
-        }
-
-
-
-        /*data.frame = self.song.timer as usize;
-        data.row = self.song.patt_pos as usize;
-        data.pos = self.song.song_pos as usize;
-        data.speed = self.song.tempo as usize;
-        data.tempo = self.song.speed as f32;*/
+        self.update_channel_vol_pan_frq(&module, &mut mixer);
 
         data.frame = ((self.song.tempo - self.song.timer + 1) % self.song.tempo) as usize;
         data.row = self.song.patt_pos as usize;
