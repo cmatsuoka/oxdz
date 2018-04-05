@@ -4,6 +4,7 @@ pub use self::load::*;
 
 use std::any::Any;
 use module::{event, ModuleData, Sample};
+use module::sample::SampleType;
 use util::BinaryRead;
 use ::*;
 
@@ -87,7 +88,7 @@ impl SampleHeaderTyp {
         Default::default()
     }
 
-    pub fn from_slice(b: &[u8]) -> Result<Self, Error> {
+    pub fn from_slice(smp_num: usize, b: &[u8]) -> Result<Self, Error> {
         let mut samp = SampleHeaderTyp::new();
 
         samp.len = b.read32l(0)? as i32;
@@ -100,6 +101,7 @@ impl SampleHeaderTyp {
         samp.rel_ton = b.read8i(16)?;
         samp.skrap = b.read8(17)?;
         samp.name = b.read_string(18, 22)?;
+        samp.smp_num = smp_num as u32;
 
         Ok(samp)
     }
@@ -144,7 +146,7 @@ impl InstrHeaderTyp {
         Default::default()
     }
 
-    pub fn from_slice(b: &[u8]) -> Result<(Self, usize), Error> {
+    pub fn from_slice(mut smp_num: usize, b: &[u8]) -> Result<(Self, usize, Vec<Sample>), Error> {
         let mut ins = Self::new();
         ins.instr_size = b.read32l(0)?;
         ins.name =  b.read_string(4, 22)?;
@@ -152,6 +154,7 @@ impl InstrHeaderTyp {
         ins.ant_samp = b.read16l(27)?;
         debug!("instrument: {:22} {:02x} {:2}", ins.name, ins.typ, ins.ant_samp);
 
+        let mut sample: Vec<Sample> = Vec::new();
         let mut ofs = ins.instr_size as usize;
 
         if ins.ant_samp > 0 {
@@ -184,14 +187,30 @@ impl InstrHeaderTyp {
             ins.fade_out = b.read16l(239)?;
 
             for i in 0..ins.ant_samp {
-                let samp = SampleHeaderTyp::from_slice(b.slice(ofs, b.len() - ofs)?)?;
-                debug!(" sample {:2}: {:22} {:02x} {:08x} {:08x} {:08x} {:02x}", i, samp.name, samp.typ, samp.len, samp.rep_s, samp.rep_l, samp.vol);
-                ofs += 40 + samp.len as usize * if samp.typ & 4 != 0 { 2 } else { 1 };
+                let samp = SampleHeaderTyp::from_slice(smp_num, b.slice(ofs, b.len() - ofs)?)?;
+                debug!("sample {:3}: {:22} {:02x} {:08x} {:08x} {:08x} {:02x}", samp.smp_num, samp.name, samp.typ, samp.len, samp.rep_s, samp.rep_l, samp.vol);
+                ofs += 40;
+
+                let mut smp = Sample::new();
+                smp.name = samp.name.to_owned();
+                smp.size = samp.len as u32;
+                smp.sample_type = if samp.typ & 4 != 0 {
+                    SampleType::Sample16
+                } else {
+                    SampleType::Sample8
+                };
+                let byte_size = samp.len as usize * if samp.typ & 4 != 0 { 2 } else { 1 };
+
+                smp.store(b.slice(ofs, byte_size)?);
+                sample.push(smp);
                 ins.samp.push(samp);
+
+                ofs += byte_size;
+                smp_num += 1;
             }
         }
 
-        Ok((ins, ofs))
+        Ok((ins, ofs, sample))
     }
 }
 
