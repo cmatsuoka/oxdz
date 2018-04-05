@@ -42,7 +42,6 @@ impl ModuleData for StmData {
         128
     }
 
-
     fn pattern_in_position(&self, pos: usize) -> Option<usize> {
         if pos >= self.orders.len() {
             None

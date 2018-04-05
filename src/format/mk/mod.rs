@@ -147,7 +147,7 @@ impl ModPatterns {
                 }
             }
         }
-        
+
         Ok(pat)
     }
 

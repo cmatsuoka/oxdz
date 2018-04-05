@@ -167,7 +167,7 @@ pub struct Player<'a> {
     consumed      : usize,
     in_pos        : usize,
     in_size       : usize,
-    
+
     ord_data      : Vec<OrdData>,
     scan_cnt      : Vec<Vec<u32>>,
 }
@@ -477,5 +477,4 @@ impl Options {
         None
     }
 }
-
 

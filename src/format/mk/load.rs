@@ -14,7 +14,7 @@ impl Loader for ModLoader {
     fn name(&self) -> &'static str {
         "Amiga Protracker/Compatible"
     }
-  
+
     fn probe(&self, b: &[u8], player_id: &str) -> Result<ProbeInfo, Error> {
         if b.len() < 1084 {
             return Err(Error::Format(format!("file too short ({})", b.len())));

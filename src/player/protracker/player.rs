@@ -727,7 +727,7 @@ impl ModPlayer {
         if self.mt_counter % cmdlo != 0 {
             return
         }
-        
+
         // mt_DoRetrig
         mixer.set_voicepos(chn, 0.0);
     }
