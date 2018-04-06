@@ -103,6 +103,9 @@ impl SampleHeaderTyp {
         samp.name = b.read_string(18, 22)?;
         samp.smp_num = smp_num as u32;
 
+        debug!("sample {:3}: {:22} {:02x} {:08x} {:08x} {:08x} {:02x}", samp.smp_num,
+               samp.name, samp.typ, samp.len, samp.rep_s, samp.rep_l, samp.vol);
+
         Ok(samp)
     }
 }
@@ -146,7 +149,7 @@ impl InstrHeaderTyp {
         Default::default()
     }
 
-    pub fn from_slice(mut smp_num: usize, b: &[u8]) -> Result<(Self, usize, Vec<Sample>), Error> {
+    pub fn from_slice(mut smp_num: usize, b: &[u8]) -> Result<Self, Error> {
         let mut ins = Self::new();
         ins.instr_size = b.read32l(0)?;
         ins.name =  b.read_string(4, 22)?;
@@ -188,45 +191,14 @@ impl InstrHeaderTyp {
 
             for i in 0..ins.ant_samp {
                 let samp = SampleHeaderTyp::from_slice(smp_num, b.slice(ofs, b.len() - ofs)?)?;
-                debug!("sample {:3}: {:22} {:02x} {:08x} {:08x} {:08x} {:02x}", samp.smp_num, samp.name, samp.typ, samp.len, samp.rep_s, samp.rep_l, samp.vol);
                 ofs += 40;
-
-                let mut smp = Sample::new();
-                smp.name = samp.name.to_owned();
-                smp.size = samp.len as u32;
-                let byte_size: usize;
-                smp.sample_type = if samp.typ & 4 != 0 {
-                    byte_size = samp.len as usize * 2;
-                    smp.store(b.slice(ofs, byte_size)?);
-                    SampleType::Sample16
-                } else {
-                    byte_size = samp.len as usize;
-                    let buf = diff_decode_8(b.slice(ofs, byte_size)?);
-                    smp.store(&buf[..]);
-                    SampleType::Sample8
-                };
-
-                sample.push(smp);
                 ins.samp.push(samp);
-
-                ofs += byte_size;
                 smp_num += 1;
             }
         }
 
-        Ok((ins, ofs, sample))
+        Ok(ins)
     }
-}
-
-fn diff_decode_8(b: &[u8]) -> Vec<u8> {
-    let mut buf: Vec<u8> = Vec::with_capacity(b.len());
-    let mut old = 0_u8;
-    for (src, dst) in b.iter().zip(buf.iter_mut()) {
-        let new = src.wrapping_add(old);
-        *dst = new;
-        old = new;
-    }
-    buf
 }
 
 

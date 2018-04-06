@@ -12,7 +12,7 @@ impl Loader for XmLoader {
     fn name(&self) -> &'static str {
         "FastTracker II XM"
     }
-  
+
     fn probe(&self, b: &[u8], player_id: &str) -> Result<ProbeInfo, Error> {
         if b.len() < 128 {
             return Err(Error::Format(format!("file too short ({})", b.len())));
@@ -50,12 +50,39 @@ impl Loader for XmLoader {
         let mut instruments: Vec<InstrHeaderTyp> = Vec::with_capacity(header.ant_instrs as usize);
         let mut samples: Vec<Sample> = Vec::new();
         let mut smp_num = 1;  // start at 1
+
         for i in 0..header.ant_instrs as usize {
-            let (ins, size, mut sample) = InstrHeaderTyp::from_slice(smp_num, b.slice(offset, b.len() - offset)?)?;
-            offset += size;
+            let ins = InstrHeaderTyp::from_slice(smp_num, b.slice(offset, b.len() - offset)?)?;
+            let ant_samp = ins.ant_samp;
+
+            offset += ins.instr_size as usize + 40 * ant_samp as usize;
+            if ant_samp > 0 {
+
+                for j in 0..ant_samp as usize {
+                    let samp = &ins.samp[j];
+                    let mut smp = Sample::new();
+                    smp.num = smp_num;
+                    smp.name = samp.name.to_owned();
+                    smp.size = samp.len as u32;
+                    let byte_size: usize;
+                    smp.sample_type = if samp.typ & 4 != 0 {
+                        byte_size = samp.len as usize * 2;
+                        smp.store(b.slice(offset, byte_size)?);
+                        SampleType::Sample16
+                    } else {
+                        byte_size = samp.len as usize;
+                        let buf = diff_decode_8(b.slice(offset, byte_size)?);
+                        smp.store(&buf[..]);
+                        SampleType::Sample8
+                    };
+
+                    smp_num += 1;
+                    offset += byte_size;
+                    samples.push(smp);
+                }
+            }
+
             instruments.push(ins);
-            smp_num += sample.len();
-            samples.append(&mut sample);
         }
 
         let data = XmData{
@@ -76,5 +103,17 @@ impl Loader for XmLoader {
 
         Ok(m)
     }
+}
+
+
+fn diff_decode_8(b: &[u8]) -> Vec<u8> {
+    let mut buf: Vec<u8> = Vec::with_capacity(b.len());
+    let mut old = 0_u8;
+    for (src, dst) in b.iter().zip(buf.iter_mut()) {
+        let new = src.wrapping_add(old);
+        *dst = new;
+        old = new;
+    }
+    buf
 }
 
