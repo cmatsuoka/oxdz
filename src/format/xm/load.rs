@@ -49,7 +49,7 @@ impl Loader for XmLoader {
 
         let mut instruments: Vec<InstrHeaderTyp> = Vec::with_capacity(header.ant_instrs as usize);
         let mut samples: Vec<Sample> = Vec::new();
-        let mut smp_num = 1;  // start at 1
+        let mut smp_num = 0;
 
         for i in 0..header.ant_instrs as usize {
             let ins = InstrHeaderTyp::from_slice(smp_num, b.slice(offset, b.len() - offset)?)?;
