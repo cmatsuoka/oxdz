@@ -1190,8 +1190,8 @@ impl Ft2Play {
                     ch.env_v_amp = (ch.env_v_amp as i32 + ch.env_v_ip_value as i32) as u16;
 
                     env_val = ch.env_v_amp as u16;
-                    if env_val>>8 > 0x40 {
-                        if env_val>>8 > (0x40 + 0xC0) / 2 {
+                    if (env_val>>8) > 0x40 {
+                        if (env_val>>8) > (0x40 + 0xC0) / 2 {
                             env_val = 16384;
                         } else {
                             env_val = 0;
@@ -1202,6 +1202,7 @@ impl Ft2Play {
                 }
 
                 env_val >>= 8;
+env_val = 64;
 
                 ch.final_vol = ((self.song.glob_vol as u32 * (((env_val * ch.out_vol as u16) as u32 * ch.fade_out_amp) >> (16 + 2))) >> 7) as u16;
                 ch.status  |= IS_VOL;
@@ -2184,6 +2185,7 @@ impl FormatPlayer for Ft2Play {
             self.patt_lens.push(p.patt_len);
         }
 
+        self.song.glob_vol = 64;
         self.song.len = h.len;
         self.song.rep_s = h.rep_s;
         self.song.ant_chn = h.ant_chn as u8;

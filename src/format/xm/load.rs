@@ -71,7 +71,8 @@ impl Loader for XmLoader {
                         SampleType::Sample16
                     } else {
                         byte_size = samp.len as usize;
-                        let buf = diff_decode_8(b.slice(offset, byte_size)?);
+                        //let buf = diff_decode_8(b.slice(offset, byte_size)?);
+                        let buf = b.slice(offset, byte_size)?;
                         smp.store(&buf[..]);
                         SampleType::Sample8
                     };
