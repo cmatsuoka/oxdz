@@ -250,7 +250,7 @@ impl PatternHeaderTyp {
                 let mut e = TonTyp::new();
                 let ton = b.read8(ofs)?;
                 ofs += 1;
-                let event = if ton & 0x80 != 0 {
+                if ton & 0x80 != 0 {
                     // packed event
                     if ton & 0x01 != 0 {
                         e.ton = b.read8(ofs)?;
@@ -274,12 +274,12 @@ impl PatternHeaderTyp {
                     }
                 } else {
                     // unpacked event
-                    e.ton = b.read8(ofs)?;
-                    e.instr = b.read8(ofs + 1)?;
-                    e.vol = b.read8(ofs + 2)?;
-                    e.eff_typ = b.read8(ofs + 3)?;
-                    e.eff = b.read8(ofs + 4)?;
-                    ofs += 5
+                    e.ton = ton;
+                    e.instr = b.read8(ofs)?;
+                    e.vol = b.read8(ofs + 1)?;
+                    e.eff_typ = b.read8(ofs + 2)?;
+                    e.eff = b.read8(ofs + 3)?;
+                    ofs += 4
                 };
 
                 pat.data.push(e);
@@ -353,7 +353,27 @@ impl ModuleData for XmData {
     }
 
     fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
-        0
+        let pattern = &self.patterns[pat];
+        let chn = pattern.num_chn;
+        let data = &pattern.data;
+
+        let mut i = 0;
+        for _ in 0..num {
+            let (row, ch) = (i / chn, i % chn);
+            let ofs = i * 6;
+            let e = &data[i];
+
+            let mut flags = 0;
+            buffer[ofs+1] = if e.ton > 0 { flags |= event::HAS_NOTE; e.ton - 1 } else { 0 };
+            buffer[ofs+2] = if e.instr > 0 { flags |= event::HAS_INS; e.instr } else { 0 };
+            buffer[ofs+3] = if e.vol > 0 { flags |= event::HAS_VOL; e.vol } else { 0 };
+            buffer[ofs+4] = if e.eff_typ != 0 && e.eff != 0 { flags |= event::HAS_CMD; e.eff_typ } else { 0 };
+            buffer[ofs+5] = e.eff;
+            buffer[ofs  ] = flags;
+
+            i += 1;
+        }
+        i
     }
 
     fn samples(&self) -> Vec<Sample> {
