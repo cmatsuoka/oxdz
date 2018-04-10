@@ -43,7 +43,13 @@ impl Sample {
 
     pub fn data_8(&self) -> &[i8] {
         unsafe {
-            slice::from_raw_parts(self.data.as_ptr() as *const i8, self.size as usize + 2)
+            slice::from_raw_parts(self.data.as_ptr() as *const i8, self.size as usize)
+        }
+    }
+
+    pub fn data_u8(&self) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(self.data.as_ptr() as *const u8, self.size as usize)
         }
     }
 
