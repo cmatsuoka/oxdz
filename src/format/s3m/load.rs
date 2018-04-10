@@ -15,7 +15,7 @@ impl<'a> BinaryReadExt for &'a [u8] {
         let hi = self.read16l(ofs + 2)? as u32;
         Ok((hi << 16) | lo)
     }
-    
+
 }
 
 /// Scream Tracker 2 module loader
@@ -25,7 +25,7 @@ impl Loader for S3mLoader {
     fn name(&self) -> &'static str {
         "Scream Tracker 3"
     }
-  
+
     fn probe(&self, b: &[u8], player_id: &str) -> Result<ProbeInfo, Error> {
         if b.len() < 256 {
             return Err(Error::Format(format!("file too short ({})", b.len())));
@@ -73,7 +73,7 @@ impl Loader for S3mLoader {
         // Pattern parapointers
         let mut pattern_pp = Vec::<u32>::new();
         for _ in 0..pat_num { pattern_pp.push(b.read16l(ofs)? as u32 * 16); ofs += 2; }
- 
+
         // Channel pan positions
         let ch_pan = b.slice(ofs, 32)?;
 

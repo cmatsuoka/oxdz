@@ -26,9 +26,9 @@ extern crate save_restore_derive;
 mod util;
 
 mod player;
-mod format;
 mod mixer;
 
+pub mod format;
 pub mod module;
 pub use player::FrameInfo;
 pub use player::PlayerInfo;

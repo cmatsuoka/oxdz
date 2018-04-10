@@ -15,7 +15,7 @@ impl Loader for StLoader {
     fn name(&self) -> &'static str {
         "Soundtracker"
     }
-  
+
     fn probe(&self, b: &[u8], player_id: &str) -> Result<ProbeInfo, Error> {
 
         player::check_accepted(player_id, "st")?;

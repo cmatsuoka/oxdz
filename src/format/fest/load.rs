@@ -13,7 +13,7 @@ impl Loader for FestLoader {
     fn name(&self) -> &'static str {
         "His Master's Noise"
     }
-  
+
     fn probe(&self, b: &[u8], player_id: &str) -> Result<ProbeInfo, Error> {
         if b.len() < 1084 {
             return Err(Error::Format(format!("file too short ({})", b.len())));

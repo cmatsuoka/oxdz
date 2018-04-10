@@ -143,7 +143,7 @@ impl<'a> Mixer<'a> {
             // TODO: handle bidirectional loop
         }
 */
-        
+
         v.pos
     }
 
@@ -294,7 +294,7 @@ impl<'a> Mixer<'a> {
 
             let vol_r = v.vol * (0x80 - v.pan) as usize;
             let vol_l = v.vol * (0x80 + v.pan) as usize;
-        
+
             let sample = &self.sample[v.smp];
             let step = C4_PERIOD * C4_PAL_RATE * sample.rate / self.rate as f64 / v.period;
             if step < 0.001 {
@@ -452,7 +452,7 @@ impl Voice {
         if self.pos > self.loop_end as f64 {
             self.pos = self.loop_end as f64;
         }
-        
+
         let loop_size = self.loop_end - self.loop_start;
 
         // Reposition for next loop

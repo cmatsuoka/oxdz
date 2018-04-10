@@ -79,14 +79,6 @@ impl ModuleData for S3mData {
         }
     }
 
-    fn next_position(&self, _pos: usize) -> usize {
-        0
-    }
-
-    fn prev_position(&self, _pos: usize) -> usize {
-        0
-    }
-
     fn instruments(&self) -> Vec<String> {
         self.samples.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>()
     }

@@ -144,13 +144,13 @@ impl StPlayer {
         let event = module.patterns.event(pat, self.mt_partnote, chn);
         {
             let ch = &mut self.mt_audtemp[chn];
-    
+
             ch.n_0_note = event.note;      // move.l  (a0,d1.l),(a6)
             ch.n_2_cmd = event.cmd;
             ch.n_3_cmdlo = event.cmdlo;
-    
+
             let ins = ((event.cmd & 0xf0) >> 4) as usize;
-    
+
             if ins != 0 {
                 let instrument = &module.instruments[ins as usize - 1];
                 ch.n_4_samplestart = self.mt_sample1[ins as usize - 1];     // move.l  (a1,d2),4(a6)

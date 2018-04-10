@@ -124,7 +124,7 @@ pub struct PlayerData {
     loop_count: usize,
     end_point : usize,
 
-    scan_data  : [ScanData; MAX_SEQUENCES],
+    scan_data  : Box<[ScanData; MAX_SEQUENCES]>,
     inside_loop: bool,
 }
 
@@ -171,7 +171,7 @@ pub struct Player<'a> {
     consumed      : usize,
     in_pos        : usize,
     in_size       : usize,
-    
+
     ord_data      : Vec<OrdData>,
     scan_cnt      : Vec<Vec<u32>>,
 }
@@ -481,5 +481,4 @@ impl Options {
         None
     }
 }
-
 

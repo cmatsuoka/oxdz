@@ -131,7 +131,7 @@ impl USTPlayer {
             Some(val) => val,
             None      => return,
         };
-        
+
         for chn in 0..4 {
             self.chanelhandler(pat, chn, &module, &mut mixer);
         }
@@ -155,11 +155,11 @@ impl USTPlayer {
         let event = module.patterns.event(pat, self.patpos, chn);
         {
             let datachn = &mut self.datachn[chn];
-    
+
             datachn.n_0_note = event.note as i16;           // get period & action-word
             datachn.n_2_sound_number = event.cmd;
             datachn.n_3_effect_number = event.cmdlo;
-    
+
             let ins = (event.cmd >> 4) as usize;            // get nibble for soundnumber
             if ins != 0 {
                 let instrument = &module.instruments[ins as usize - 1];

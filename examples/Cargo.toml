@@ -1,2 +1,2 @@
 [workspace]
-members = ["wav-writer", "player-sdl", "player-cpal", "show-pattern"]
+members = ["wav-writer", "player-sdl", "player-cpal", "show-pattern", "save-sample"]

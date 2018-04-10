@@ -42,21 +42,12 @@ impl ModuleData for StmData {
         128
     }
 
-
     fn pattern_in_position(&self, pos: usize) -> Option<usize> {
         if pos >= self.orders.len() {
             None
         } else {
             Some(self.orders[pos] as usize)
         }
-    }
-
-    fn next_position(&self, _pos: usize) -> usize {
-        0
-    }
-
-    fn prev_position(&self, _pos: usize) -> usize {
-        0
     }
 
     fn instruments(&self) -> Vec<String> {
