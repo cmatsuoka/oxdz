@@ -399,7 +399,7 @@ impl Ft2Play {
         ch.old_pan = s.pan;
 
         ch.fine_tune = if eff_typ == 0x0E && (eff & 0xF0) == 0x50 {
-            ((eff & 0x0F) * 16) as i8 + -128  // result is now -128 .. 127
+            (((eff & 0x0F) * 16) - 128) as i8  // result is now -128 .. 127
         } else {
             s.fine
         };

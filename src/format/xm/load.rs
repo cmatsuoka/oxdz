@@ -36,7 +36,7 @@ impl Loader for XmLoader {
         let header = SongHeaderTyp::from_slice(&b)?;
         let version = header.ver;
         let creator = header.prog_name.clone();
-   	let channels = header.ant_chn as usize;
+        let channels = header.ant_chn as usize;
 
         let mut offset = 60 + header.header_size as usize;
         let mut patterns: Vec<PatternHeaderTyp> = Vec::with_capacity(header.ant_ptn as usize);
@@ -71,8 +71,8 @@ impl Loader for XmLoader {
                         SampleType::Sample16
                     } else {
                         byte_size = samp.len as usize;
-                        //let buf = diff_decode_8(b.slice(offset, byte_size)?);
-                        let buf = b.slice(offset, byte_size)?;
+                        let buf = diff_decode_8(b.slice(offset, byte_size)?);
+                        //let buf = b.slice(offset, byte_size)?;
                         smp.store(&buf[..]);
                         SampleType::Sample8
                     };
@@ -108,11 +108,11 @@ impl Loader for XmLoader {
 
 
 fn diff_decode_8(b: &[u8]) -> Vec<u8> {
-    let mut buf: Vec<u8> = Vec::with_capacity(b.len());
+    let mut buf: Vec<u8> = vec![0; b.len()];
     let mut old = 0_u8;
-    for (src, dst) in b.iter().zip(buf.iter_mut()) {
-        let new = src.wrapping_add(old);
-        *dst = new;
+    for i in 0..b.len() {
+        let new = b[i].wrapping_add(old);
+        buf[i] = new;
         old = new;
     }
     buf
