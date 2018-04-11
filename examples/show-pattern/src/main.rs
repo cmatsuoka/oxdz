@@ -6,7 +6,6 @@ use std::error::Error;
 use std::fs::File;
 use std::path::Path;
 use memmap::Mmap;
-use oxdz::Oxdz;
 use oxdz::module::{self, event};
 
 fn main() {
@@ -32,7 +31,7 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
     let file = File::open(filename)?;
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
-    let mut module = oxdz::format::load(&mmap[..], "")?;
+    let module = oxdz::format::load(&mmap[..], "")?;
     show_pattern(&module, num);
 
     Ok(())
@@ -52,7 +51,7 @@ fn show_pattern(module: &module::Module, num: usize) {
     let ch = module.channels;
     let mut buffer = vec![0_u8; 6 * rows * ch];
 
-    module.pattern_data(0, &mut buffer);
+    module.pattern_data(num, &mut buffer);
 
     let mut ofs = 0;
     for r in 0..rows {
