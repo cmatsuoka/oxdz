@@ -49,9 +49,11 @@ fn run(args: Vec<String>) -> Result<(), Box<Error>> {
         thread::spawn(move || {
             let filename = &args[1];
             let file = File::open(filename).unwrap();
-            let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
-        
-            let mut oxdz = oxdz::Oxdz::new(&mmap[..], 44100, "").unwrap();
+
+            let mut oxdz = {
+                let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
+                oxdz::Oxdz::new(&mmap[..], 44100, "").unwrap()
+            };
         
             // Display basic module information
             let mut mi = oxdz::ModuleInfo::new();
