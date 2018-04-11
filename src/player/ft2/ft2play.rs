@@ -406,15 +406,12 @@ impl Ft2Play {
 
         if ton > 0 {
             // MUST use >> 3 here (sar cl,3) - safe for x86/x86_64
-            let tmp_ton = (((ton - 1) as u16 * 16) + ((((ch.fine_tune >> 3) + 16) as u16) & 0xFF)) as u8;
+            let tmp_ton = ((ton - 1) as u16 * 16) + ((((ch.fine_tune >> 3) + 16) as u16) & 0xFF);
 
-            // oxdz: can't happen, tmp_ton is limited by type size
-            /*
             if tmp_ton < MAX_NOTES {  // should never happen, but FT2 does this check
                 ch.real_period = self.note2period[tmp_ton as usize];
                 ch.out_period  = ch.real_period as u16;
             }
-            */
         }
 
         ch.status |= IS_PERIOD + IS_VOL + IS_PAN + IS_NYTON + IS_QUICKVOL;
@@ -971,7 +968,7 @@ impl Ft2Play {
             } else {
                 let ch = &mut self.stm[chn];
 
-                /* MUST use >> 3 here (sar cl,3) - safe for x86/x86_64 */
+                // MUST use >> 3 here (sar cl,3) - safe for x86/x86_64
                 let porta_tmp = (((((p.ton as i16 - 1) + ch.rel_ton_nr as i16) & 0x00FF) * 16) + ((ch.fine_tune as i16 >> 3) + 16) & 0x00FF) as u16;
 
                 if porta_tmp < MAX_NOTES {
@@ -2056,7 +2053,7 @@ env_val = 64;
                 if status & IS_VOL            != 0 { mixer.set_volume(i, (self.stm[i].final_vol as usize) << 2); }   // 0..256 => 0..1024
                 if status & IS_PAN            != 0 { mixer.set_pan(i, self.stm[i].final_pan as isize - 128); }
                 //if status & (IS_VOL | IS_PAN) != 0 { self.voice_update_volumes(i, status); }
-                if status & IS_PERIOD         != 0 { mixer.set_period(i, self.stm[i].final_period as f64 / 64.0); }  // FIXME: linear
+                if status & IS_PERIOD         != 0 { mixer.set_period(i, self.stm[i].final_period as f64 / 16.0); }  // FIXME: linear
                 if status & IS_NYTON          != 0 { self.voice_trigger(i, &module, &mut mixer); }
             }
         }
