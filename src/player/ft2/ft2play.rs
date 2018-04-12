@@ -37,6 +37,7 @@ struct SongTyp {
     name           : String,
 }
 
+/*
 #[derive(Default)]
 struct SampleTyp {
     len      : i32,
@@ -84,6 +85,7 @@ struct InstrTyp {
     //mute       : bool,
     samp       : [SampleTyp; 32],
 }
+*/
 
 #[derive(Default)]
 struct StmTyp {
@@ -2014,7 +2016,7 @@ env_val = 64;
 
         mixer.set_loop_start(chn, sample_loop_begin as u32);
         mixer.set_loop_end(chn, sample_loop_end as u32);
-        mixer.enable_loop(chn, sample_loop_length > 1);   // FT2 can do 1-sample loops, but we don't (for security reasons)
+        mixer.enable_loop(chn, loop_flag != 0);   // FT2 can do 1-sample loops, but we don't (for security reasons)
         mixer.set_voicepos(chn, position as f64);
 	
 /*
@@ -2035,7 +2037,18 @@ env_val = 64;
         let instr_nr = self.stm[chn].instr_nr;
         let smp_ptr = self.stm[chn].smp_ptr;
 
-        let ins = &module.instruments[instr_nr as usize];
+        // oxdz: sanity check
+        if instr_nr == 0 {
+            return
+        }
+
+        let ins = &module.instruments[instr_nr as usize - 1];
+
+        // oxdz: sanity check
+        if smp_ptr >= ins.samp.len() {
+            return
+        }
+
         let s = &ins.samp[smp_ptr];
         let smp_start_pos = self.stm[chn].smp_start_pos as i32;
         self.voice_set_source(chn, s.smp_num, s.len, s.rep_s, s.rep_l, s.rep_s + s.rep_l, s.typ & 3,

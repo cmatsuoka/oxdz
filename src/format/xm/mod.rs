@@ -78,7 +78,7 @@ pub struct SampleHeaderTyp {
     pub pan    : u8,
     pub rel_ton: i8,
     skrap  : u8,
-    name   : String,
+    pub name   : String,
 
     pub smp_num: u32,
 }
