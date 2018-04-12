@@ -969,7 +969,7 @@ impl Ft2Play {
                 let ch = &mut self.stm[chn];
 
                 // MUST use >> 3 here (sar cl,3) - safe for x86/x86_64
-                let porta_tmp = (((((p.ton as i16 - 1) + ch.rel_ton_nr as i16) & 0x00FF) * 16) + ((ch.fine_tune as i16 >> 3) + 16) & 0x00FF) as u16;
+                let porta_tmp = ((((p.ton as i16 - 1) + ch.rel_ton_nr as i16) & 0x00FF) as u16 * 16) + ((((ch.fine_tune >> 3) + 16) as u16) & 0x00FF);
 
                 if porta_tmp < MAX_NOTES {
                     ch.want_period = self.note2period[porta_tmp as usize];
@@ -2053,7 +2053,7 @@ env_val = 64;
                 if status & IS_VOL            != 0 { mixer.set_volume(i, (self.stm[i].final_vol as usize) << 2); }   // 0..256 => 0..1024
                 if status & IS_PAN            != 0 { mixer.set_pan(i, self.stm[i].final_pan as isize - 128); }
                 //if status & (IS_VOL | IS_PAN) != 0 { self.voice_update_volumes(i, status); }
-                if status & IS_PERIOD         != 0 { mixer.set_period(i, self.stm[i].final_period as f64 / 16.0); }  // FIXME: linear
+                if status & IS_PERIOD         != 0 { mixer.set_period(i, self.stm[i].final_period as f64 / 8.0); }  // FIXME: linear
                 if status & IS_NYTON          != 0 { self.voice_trigger(i, &module, &mut mixer); }
             }
         }
