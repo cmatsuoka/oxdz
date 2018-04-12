@@ -915,6 +915,9 @@ impl FormatPlayer for ModPlayer {
         data.tempo = 125.0;
         data.time  = 0.0;
 
+        data.initial_speed = data.speed;
+        data.initial_tempo = data.tempo;
+
         for i in 0..31 {
             self.mt_samplestarts[i] = module.samples[i].address;
         }

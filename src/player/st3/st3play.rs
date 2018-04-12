@@ -2130,6 +2130,9 @@ impl FormatPlayer for St3Play {
         data.speed = self.musicmax as usize;
         data.tempo = self.tempo as f32;
         data.time  = 0.0;
+
+        data.initial_speed = data.speed;
+        data.initial_tempo = data.tempo;
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {

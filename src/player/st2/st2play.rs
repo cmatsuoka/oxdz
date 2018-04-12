@@ -420,6 +420,9 @@ impl FormatPlayer for St2Play {
         data.speed = module.speed as usize;
         data.time  = 0.0;
 
+        data.initial_speed = data.speed;
+        data.initial_tempo = data.tempo;
+
         let t = self.tempo as u16;
         self.set_tempo(t);
         //self.current_frame = self.frames_per_tick;
