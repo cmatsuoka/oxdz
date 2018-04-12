@@ -119,7 +119,7 @@ pub struct PlayerData {
     pub time : f32,
 
     initial_speed: usize,
-    initial_tempo: usize,
+    initial_tempo: f32,
 
     loop_count: usize,
     end_point : usize,
@@ -139,8 +139,11 @@ impl PlayerData {
         self.frame = 0;
         self.song  = 0;
         self.speed = self.initial_speed;
-        self.tempo = self.initial_tempo as f32;
+        self.tempo = self.initial_tempo;
         self.time  = 0.0;
+        self.loop_count = 0;
+        self.end_point = self.scan_data[0].num;
+        self.inside_loop = false;
     }
 
     pub fn check_end_of_module(&mut self) {
@@ -154,7 +157,6 @@ impl PlayerData {
             self.end_point -= 1;
         }
     }
-
 }
 
 

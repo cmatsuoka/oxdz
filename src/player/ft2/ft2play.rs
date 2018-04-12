@@ -214,7 +214,7 @@ pub struct Ft2Play {
     quick_vol_ramp_mul_f: f32,
     tick_vol_ramp_mul_f : f32,
     song                : SongTyp,
-    stm                 : Box<[StmTyp; MAX_VOICES]>,
+    stm                 : [StmTyp; MAX_VOICES],
     //instr             : Vec<InstrTyp>,
 
     vib_sine_tab        : Vec<i8>,
@@ -2174,8 +2174,6 @@ impl FormatPlayer for Ft2Play {
 
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
 
-
-
         let h = &module.header;
 
         for p in &module.patterns {
@@ -2240,11 +2238,13 @@ impl FormatPlayer for Ft2Play {
             self.vib_sine_tab.push((((64.0 * ((-i as f64 * (2.0 * PI)) / 256.0).sin()) + 0.5).floor()) as i8);
         }
 
-
         self.set_pos(0, 0, &module);
 
         data.speed = self.song.tempo as usize;
         data.tempo = self.song.speed as f32;
+
+        data.initial_speed = data.speed;
+        data.initial_tempo = data.tempo;
     }
 
     fn play(&mut self, data: &mut PlayerData, mdata: &ModuleData, mut mixer: &mut Mixer) {
@@ -2281,7 +2281,7 @@ impl FormatPlayer for Ft2Play {
     }
 
     unsafe fn restore_state(&mut self, state: &State) {
-        self.restore(&state)
+        self.restore(&state);
     }
 }
 
