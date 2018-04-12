@@ -2053,7 +2053,7 @@ env_val = 64;
                 if status & IS_VOL            != 0 { mixer.set_volume(i, (self.stm[i].final_vol as usize) << 2); }   // 0..256 => 0..1024
                 if status & IS_PAN            != 0 { mixer.set_pan(i, self.stm[i].final_pan as isize - 128); }
                 //if status & (IS_VOL | IS_PAN) != 0 { self.voice_update_volumes(i, status); }
-                if status & IS_PERIOD         != 0 { mixer.set_period(i, self.stm[i].final_period as f64 / 8.0); }  // FIXME: linear
+                if status & IS_PERIOD         != 0 { mixer.set_period(i, self.stm[i].final_period as f64 / 4.0); }  // FIXME: linear
                 if status & IS_NYTON          != 0 { self.voice_trigger(i, &module, &mut mixer); }
             }
         }
