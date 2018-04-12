@@ -610,6 +610,9 @@ impl FormatPlayer for HmnPlayer {
         data.tempo = 125.0;
         data.time  = 0.0;
 
+        data.initial_speed = data.speed;
+        data.initial_tempo = data.tempo;
+
         let pan = match self.options.option_int("pan") {
             Some(val) => val,
             None      => 70,
