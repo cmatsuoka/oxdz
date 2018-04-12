@@ -115,7 +115,7 @@ pub struct PlayerData {
     pub time : f32,
 
     initial_speed: usize,
-    initial_tempo: usize,
+    initial_tempo: f32,
 
     loop_count: usize,
     end_point : usize,
