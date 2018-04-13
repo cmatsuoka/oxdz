@@ -302,6 +302,11 @@ impl Ft2Play {
         //let ins = &self.instr[ch.instr_ptr];
         let ins = &module.instruments[ch.instr_ptr];
 
+        // oxdz: we don't allocate empty data
+        if ins.ant_samp == 0 {
+            return;
+        }
+
         if ins.env_p_typ & 1 == 0 {  // yes, FT2 does this (!)
             if ch.env_p_cnt >= ins.env_pp[ch.env_p_pos as usize].0 as u16 {
                 ch.env_p_cnt = (ins.env_pp[ch.env_p_pos as usize].0 - 1) as u16;
@@ -364,12 +369,12 @@ impl Ft2Play {
         ch.ton_nr = ton;
 
         // oxdz: sanity check
-        if ch.instr_nr >= module.header.ant_instrs {
+        if ch.instr_nr < 1 || ch.instr_nr >= module.header.ant_instrs {
             return
         }
 
         //let ins = &self.instr[ch.instr_nr as usize];
-        let ins = &module.instruments[ch.instr_nr as usize];
+        let ins = &module.instruments[ch.instr_nr as usize - 1];
 
         // oxdz: sanity check
         if ins.ant_samp == 0 {
@@ -1186,7 +1191,7 @@ impl Ft2Play {
                 }
 
                 if !env_did_interpolate {
-                    ch.env_v_amp += ch.env_v_ip_value as u16;
+                    ch.env_v_amp = (ch.env_v_amp as i32 + ch.env_v_ip_value as i32) as u16;
 
                     env_val = ch.env_v_amp as u16;
                     if (env_val>>8) > 0x40 {
