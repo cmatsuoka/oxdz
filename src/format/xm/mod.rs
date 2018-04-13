@@ -166,12 +166,12 @@ impl InstrHeaderTyp {
             for i in 0..12 {
                 let x = b.read16l(129 + 4*i)? as i16;
                 let y = b.read16l(129 + 4*i + 2)? as i16;
-                ins.env_pp.push((x, y));
+                ins.env_vp.push((x, y));
             }
             for i in 0..12 {
                 let x = b.read16l(177 + 4*i)? as i16;
                 let y = b.read16l(177 + 4*i + 2)? as i16;
-                ins.env_vp.push((x, y));
+                ins.env_pp.push((x, y));
             }
             ins.env_vp_ant = b.read8(225)?;
             ins.env_pp_ant = b.read8(226)?;

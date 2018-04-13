@@ -1186,7 +1186,7 @@ impl Ft2Play {
                 }
 
                 if !env_did_interpolate {
-                    ch.env_v_amp = (ch.env_v_amp as i32 + ch.env_v_ip_value as i32) as u16;
+                    ch.env_v_amp += ch.env_v_ip_value as u16;
 
                     env_val = ch.env_v_amp as u16;
                     if (env_val>>8) > 0x40 {
