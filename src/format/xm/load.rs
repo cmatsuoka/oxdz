@@ -68,7 +68,7 @@ impl Loader for XmLoader {
                     smp.size = samp.len as u32;
                     let byte_size = samp.len as usize;
                     smp.sample_type = if samp.typ & 16 != 0 {
-                        let buf = diff_decode_16(b.slice(offset, byte_size)?.as_u16_slice());
+                        let buf = diff_decode_16l(b.slice(offset, byte_size)?);
                         smp.store(&buf[..].as_u8_slice());
                         SampleType::Sample16
                     } else {
@@ -117,11 +117,12 @@ fn diff_decode_8(b: &[u8]) -> Vec<u8> {
     buf
 }
 
-fn diff_decode_16(b: &[u16]) -> Vec<u16> {
+fn diff_decode_16l(b: &[u8]) -> Vec<u16> {
     let mut buf: Vec<u16> = vec![0; b.len()];
     let mut old = 0_u16;
-    for i in 0..b.len() {
-        let new = b[i].wrapping_add(old);
+    for i in 0..b.len() / 2 {
+        let val = ((b[i*2+1] as u16) << 8) + b[i*2] as u16;
+        let new = val.wrapping_add(old);
         buf[i] = new;
         old = new;
     }
