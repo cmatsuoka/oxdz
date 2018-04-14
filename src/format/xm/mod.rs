@@ -37,7 +37,7 @@ impl SongHeaderTyp {
         let len = b.read16l(60 + 4)?;
         let rep_s = b.read16l(60 + 6)?;
         let ant_chn = b.read16l(60 + 8)?;
-        let ant_ptn = b.read16l(60 + 10)?;
+        let ant_ptn = b.read16l(60 + 10)? + 1;
         let ant_instrs = b.read16l(60 + 12)?;
         let flags = b.read16l(60 + 14)?;
         let def_tempo = b.read16l(60 + 16)?;
@@ -202,7 +202,7 @@ impl InstrHeaderTyp {
 }
 
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct TonTyp {
     pub ton    : u8,
     pub instr  : u8,
@@ -229,7 +229,18 @@ pub struct PatternHeaderTyp {
 
 
 impl PatternHeaderTyp {
-    pub fn from_slice(num: usize, b: &[u8], num_chn: usize) -> Result<Self, Error> {
+    pub fn new_empty(num_chn: usize) -> Self {
+        PatternHeaderTyp{
+            pattern_header_size: 0,
+            typ: 0,
+            patt_len: 64,
+            data_len: 0,
+            num_chn,
+            data: vec![TonTyp::new(); 64 * num_chn],
+        }
+    }
+
+    pub fn from_slice(b: &[u8], num_chn: usize) -> Result<Self, Error> {
         let pattern_header_size = b.read32l(0)? as i32;
         let typ = b.read8(4)?;
         let patt_len = b.read16l(5)?;

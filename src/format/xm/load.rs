@@ -40,12 +40,14 @@ impl Loader for XmLoader {
 
         let mut offset = 60 + header.header_size as usize;
         let mut patterns: Vec<PatternHeaderTyp> = Vec::with_capacity(header.ant_ptn as usize);
-        for i in 0..header.ant_ptn as usize {
-            let ptn = PatternHeaderTyp::from_slice(i, b.slice(offset, b.len() - offset)?, header.ant_chn as usize)?;
+        for i in 0..header.ant_ptn as usize - 1 {
+            let ptn = PatternHeaderTyp::from_slice(b.slice(offset, b.len() - offset)?, header.ant_chn as usize)?;
             debug!("pattern {}: {} rows", i, ptn.patt_len);
             offset += ptn.pattern_header_size as usize + ptn.data_len as usize;
             patterns.push(ptn);
         }
+        // alloc one extra pattern
+        patterns.push(PatternHeaderTyp::new_empty(header.ant_chn as usize));
 
         let mut instruments: Vec<InstrHeaderTyp> = Vec::with_capacity(header.ant_instrs as usize);
         let mut samples: Vec<Sample> = Vec::new();
