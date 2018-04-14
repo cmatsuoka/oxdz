@@ -2069,7 +2069,9 @@ impl Ft2Play {
                 if status & IS_VOL            != 0 { mixer.set_volume(i, (self.stm[i].final_vol as usize) << 2); }   // 0..256 => 0..1024
                 if status & IS_PAN            != 0 { mixer.set_pan(i, self.stm[i].final_pan as isize - 128); }
                 //if status & (IS_VOL | IS_PAN) != 0 { self.voice_update_volumes(i, status); }
-                if status & IS_PERIOD         != 0 { mixer.set_period(i, self.stm[i].final_period as f64 / 4.0); }  // FIXME: linear
+                if status & IS_PERIOD         != 0 { let frq = self.get_frequence_value(self.stm[i].final_period);
+                                                     mixer.set_period(i, (1712 * 8363) as f64 / (frq * 4) as f64);
+                                                   }
                 if status & IS_NYTON          != 0 { self.voice_trigger(i, &module, &mut mixer); }
             }
         }
@@ -2215,7 +2217,7 @@ impl FormatPlayer for Ft2Play {
             self.log_tab.push((((256.0 * 8363.0) * ((i as f64 / 768.0) * 2.0_f64.ln()).exp()) + 0.5) as u32);
         }
 
-        if false && self.linear_frq_tab {
+        if self.linear_frq_tab {
             // generate linear table (value-exact to FT2's table)
             for i in 0..((12 * 10 * 16) + 16) {
                 self.note2period.push((((12 * 10 * 16) + 16) * 4) - (i * 4));
