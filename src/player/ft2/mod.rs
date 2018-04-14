@@ -10,7 +10,7 @@ impl PlayerListEntry for Ft2 {
    fn info(&self) -> PlayerInfo {
        PlayerInfo {
           id         : "ft2",
-          name       : "ft2play 0.86 replayer",
+          name       : "ft2play(ox) 0.86",
           description: "A port of the Fast Tracker 2.09a replayer",
           author     : r#"Olav "8bitbubsy" Sørensen, Claudio Matsuoka"#,
           accepts    : &[ "xm", "m.k.", "xxch" ],

@@ -1143,12 +1143,12 @@ impl Ft2Play {
                 let mut env_did_interpolate = false;
                 let mut env_pos = ch.env_v_pos as usize;
 
-                ch.env_v_cnt.wrapping_add(1);
+                ch.env_v_cnt = ch.env_v_cnt.wrapping_add(1);
                 if ch.env_v_cnt == ins.env_vp[env_pos].0 as u16 {
                     ch.env_v_amp = ((ins.env_vp[env_pos].1 & 0x00FF) as u16) << 8;
 
                     env_pos += 1;
-                    if ins.env_v_typ & 4 != 0 {
+                    if false && ins.env_v_typ & 4 != 0 {  // envelope loop
                         env_pos -= 1;
 
                         if env_pos == ins.env_v_rep_e as usize {
@@ -1206,7 +1206,6 @@ impl Ft2Play {
                 }
 
                 env_val >>= 8;
-env_val = 64;
 
                 ch.final_vol = ((self.song.glob_vol as u32 * (((env_val * ch.out_vol as u16) as u32 * ch.fade_out_amp) >> (16 + 2))) >> 7) as u16;
                 ch.status  |= IS_VOL;
@@ -1229,7 +1228,7 @@ env_val = 64;
             let mut env_did_interpolate = false;
             let mut env_pos = ch.env_p_pos as usize;
 
-            ch.env_p_cnt.wrapping_add(1);
+            ch.env_p_cnt = ch.env_p_cnt.wrapping_add(1);
             if ch.env_p_cnt == ins.env_pp[env_pos].0 as u16 {
                 ch.env_p_amp = ((ins.env_pp[env_pos].1 & 0x00FF) as u16) << 8;
 
@@ -1296,8 +1295,8 @@ env_val = 64;
             if pan_tmp > 0 {
                 pan_tmp = -pan_tmp;
             }
-            //pan_tmp.wrapping_add(128);
-            pan_tmp.wrapping_sub(1);
+            //pan_tmp = pan_tmp.wrapping_add(128);
+            pan_tmp = pan_tmp.wrapping_sub(1);
 
             env_val -= 32 * 256;
 
@@ -1327,7 +1326,7 @@ env_val = 64;
                 auto_vib_amp = ch.e_vib_amp;
             }
 
-            ch.e_vib_pos.wrapping_add(ins.vib_rate);
+            ch.e_vib_pos = ch.e_vib_pos.wrapping_add(ins.vib_rate);
 
             // square
             if ins.vib_typ == 1 {
@@ -1490,7 +1489,7 @@ env_val = 64;
         } as u16;
 
         ch.status |= IS_PERIOD;
-        ch.vib_pos.wrapping_add(ch.vib_speed);
+        ch.vib_pos = ch.vib_pos.wrapping_add(ch.vib_speed);
     }
 
     fn vibrato(&mut self, chn: usize) {
