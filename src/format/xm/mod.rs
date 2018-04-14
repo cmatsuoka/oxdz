@@ -4,7 +4,6 @@ pub use self::load::*;
 
 use std::any::Any;
 use module::{event, ModuleData, Sample};
-use module::sample::SampleType;
 use util::BinaryRead;
 use ::*;
 
@@ -157,7 +156,7 @@ impl InstrHeaderTyp {
         ins.ant_samp = b.read16l(27)?;
         debug!("instrument: {:22} {:02x} {:2}", ins.name, ins.typ, ins.ant_samp);
 
-        let mut sample: Vec<Sample> = Vec::new();
+        let sample: Vec<Sample> = Vec::new();
         let mut ofs = ins.instr_size as usize;
 
         if ins.ant_samp > 0 {
@@ -189,7 +188,7 @@ impl InstrHeaderTyp {
             ins.vib_rate = b.read8(238)?;
             ins.fade_out = b.read16l(239)?;
 
-            for i in 0..ins.ant_samp {
+            for _ in 0..ins.ant_samp {
                 let samp = SampleHeaderTyp::from_slice(smp_num, b.slice(ofs, b.len() - ofs)?)?;
                 ofs += 40;
                 ins.samp.push(samp);
@@ -220,7 +219,7 @@ impl TonTyp {
 
 pub struct PatternHeaderTyp {
     pattern_header_size: i32,
-    typ                : u8,
+    _typ               : u8,
     pub patt_len       : u16,
     data_len           : u16,
     num_chn            : usize,
@@ -232,7 +231,7 @@ impl PatternHeaderTyp {
     pub fn new_empty(num_chn: usize) -> Self {
         PatternHeaderTyp{
             pattern_header_size: 0,
-            typ: 0,
+            _typ: 0,
             patt_len: 64,
             data_len: 0,
             num_chn,
@@ -242,13 +241,13 @@ impl PatternHeaderTyp {
 
     pub fn from_slice(b: &[u8], num_chn: usize) -> Result<Self, Error> {
         let pattern_header_size = b.read32l(0)? as i32;
-        let typ = b.read8(4)?;
+        let _typ = b.read8(4)?;
         let patt_len = b.read16l(5)?;
         let data_len = b.read16l(7)?;
 
         let mut pat = PatternHeaderTyp{
             pattern_header_size,
-            typ,
+            _typ,
             patt_len,
             data_len,
             num_chn,
@@ -256,8 +255,8 @@ impl PatternHeaderTyp {
         };
 
         let mut ofs = 9;
-        for r in 0..patt_len as usize {
-            for c in 0..num_chn {
+        for _r in 0..patt_len as usize {
+            for _c in 0..num_chn {
                 let mut e = TonTyp::new();
                 let ton = b.read8(ofs)?;
                 ofs += 1;
@@ -362,7 +361,6 @@ impl ModuleData for XmData {
 
         let mut i = 0;
         for _ in 0..num {
-            let (row, ch) = (i / chn, i % chn);
             let ofs = i * 6;
             let e = &data[i];
 

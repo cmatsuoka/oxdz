@@ -1,8 +1,8 @@
 use format::{ProbeInfo, Format, Loader};
-use format::xm::{XmData, SongHeaderTyp, InstrHeaderTyp, SampleHeaderTyp, PatternHeaderTyp};
+use format::xm::{XmData, SongHeaderTyp, InstrHeaderTyp, PatternHeaderTyp};
 use module::{Module, Sample};
 use module::sample::SampleType;
-use util::BinaryRead;
+use util::{BinaryRead, SliceConvert};
 use ::*;
 
 /// FastTracker 2 module loader
@@ -53,7 +53,7 @@ impl Loader for XmLoader {
         let mut samples: Vec<Sample> = Vec::new();
         let mut smp_num = 1;
 
-        for i in 0..header.ant_instrs as usize {
+        for _i in 0..header.ant_instrs as usize {
             let ins = InstrHeaderTyp::from_slice(smp_num, b.slice(offset, b.len() - offset)?)?;
             let ant_samp = ins.ant_samp;
 
@@ -66,15 +66,13 @@ impl Loader for XmLoader {
                     smp.num = smp_num;
                     smp.name = samp.name.to_owned();
                     smp.size = samp.len as u32;
-                    let byte_size: usize;
-                    smp.sample_type = if samp.typ & 4 != 0 {
-                        byte_size = samp.len as usize * 2;
-                        smp.store(b.slice(offset, byte_size)?);
+                    let byte_size = samp.len as usize;
+                    smp.sample_type = if samp.typ & 16 != 0 {
+                        let buf = diff_decode_16(b.slice(offset, byte_size)?.as_u16_slice());
+                        smp.store(&buf[..].as_u8_slice());
                         SampleType::Sample16
                     } else {
-                        byte_size = samp.len as usize;
                         let buf = diff_decode_8(b.slice(offset, byte_size)?);
-                        //let buf = b.slice(offset, byte_size)?;
                         smp.store(&buf[..]);
                         SampleType::Sample8
                     };
@@ -108,7 +106,6 @@ impl Loader for XmLoader {
     }
 }
 
-
 fn diff_decode_8(b: &[u8]) -> Vec<u8> {
     let mut buf: Vec<u8> = vec![0; b.len()];
     let mut old = 0_u8;
@@ -120,3 +117,13 @@ fn diff_decode_8(b: &[u8]) -> Vec<u8> {
     buf
 }
 
+fn diff_decode_16(b: &[u16]) -> Vec<u16> {
+    let mut buf: Vec<u16> = vec![0; b.len()];
+    let mut old = 0_u16;
+    for i in 0..b.len() {
+        let new = b[i].wrapping_add(old);
+        buf[i] = new;
+        old = new;
+    }
+    buf
+}

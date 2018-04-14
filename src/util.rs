@@ -107,31 +107,31 @@ impl<'a> BinaryRead for &'a [u8] {
 }
 
 
-pub trait SliceConvertExt<'a> {
-    fn as_i8_slice(&'a self) -> &'a [i8];
-    fn as_i16_slice(&'a self) -> &'a [i16];
+pub trait SliceConvert<'a> {
+    fn as_u8_slice(&'a self) -> &'a [u8];
+    fn as_u16_slice(&'a self) -> &'a [u16];
 }
 
-impl<'a> SliceConvertExt<'a> for &'a [i8] {
-    fn as_i8_slice(&'a self) -> &'a [i8] {
+impl<'a> SliceConvert<'a> for [u8] {
+    fn as_u8_slice(&'a self) -> &'a [u8] {
         self
     }
 
-    fn as_i16_slice(&'a self) -> &'a [i16] {
+    fn as_u16_slice(&'a self) -> &'a [u16] {
         unsafe {
-            slice::from_raw_parts(self.as_ptr() as *const i16, self.len() as usize / 2)
+            slice::from_raw_parts(self.as_ptr() as *const u16, self.len() as usize / 2)
         }
     }
 }
 
-impl<'a> SliceConvertExt<'a> for &'a [i16] {
-    fn as_i8_slice(&'a self) -> &'a [i8] {
+impl<'a> SliceConvert<'a> for [u16] {
+    fn as_u8_slice(&'a self) -> &'a [u8] {
         unsafe {
-            slice::from_raw_parts(self.as_ptr() as *const i8, self.len() as usize * 2)
+            slice::from_raw_parts(self.as_ptr() as *const u8, self.len() as usize * 2)
         }
     }
 
-    fn as_i16_slice(&'a self) -> &'a [i16] {
+    fn as_u16_slice(&'a self) -> &'a [u16] {
         self
     }
 }

@@ -681,7 +681,7 @@ impl Ft2Play {
 
                     if ins.env_vp_ant > 1 {
                         env_pos += 1;
-                        for i in 0..ins.env_vp_ant {
+                        for _i in 0..ins.env_vp_ant {
                             if new_env_pos < ins.env_vp[env_pos].0 {
                                 env_pos -= 1;
 
@@ -740,7 +740,7 @@ impl Ft2Play {
 
                     if ins.env_pp_ant > 1 {
                         env_pos += 1;
-                        for i in 0..ins.env_pp_ant - 1 {
+                        for _i in 0..ins.env_pp_ant - 1 {
                             if new_env_pos < ins.env_pp[env_pos].0 {
                                 env_pos -= 1;
 
@@ -1372,7 +1372,7 @@ impl Ft2Play {
 
         let period_table = &self.note2period;
 
-        for i in 0..8 {
+        for _i in 0..8 {
             let tmp_period = (((lo_period + hi_period) / 2) & !15) + fine_tune;
 
             let mut table_index = tmp_period as i32 - 8;
@@ -2187,7 +2187,7 @@ impl Ft2Play {
 
 
 impl FormatPlayer for Ft2Play {
-    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, mixer: &mut Mixer) {
+    fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, _mixer: &mut Mixer) {
 
         let module = mdata.as_any().downcast_ref::<XmData>().unwrap();
 
