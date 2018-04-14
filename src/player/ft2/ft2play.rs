@@ -382,7 +382,7 @@ impl Ft2Play {
         }
 
         //ch.instr_ptr = ins;
-        ch.instr_ptr = ch.instr_nr as usize;
+        ch.instr_ptr = ch.instr_nr as usize - 1;
 
         //ch.mute = ins.mute;
 
@@ -1976,8 +1976,8 @@ impl Ft2Play {
     }
 */
 
-    fn voice_set_source(&mut self, chn: usize, smp_num: u32, sample_length: i32, sample_loop_begin: i32,
-        sample_loop_length: i32, sample_loop_end: i32, loop_flag: u8, sixteenbit: bool, stereo: bool,
+    fn voice_set_source(&mut self, chn: usize, smp_num: u32, mut sample_length: u32, mut sample_loop_begin: u32,
+        mut sample_loop_length: u32, mut sample_loop_end: u32, loop_flag: u8, sixteenbit: bool, stereo: bool,
         mut position: i32, mixer: &mut Mixer)
     {
 
@@ -1994,7 +1994,7 @@ impl Ft2Play {
         }
 */
 
-        if position >= sample_length {
+        if position >= sample_length as i32 {
             position = 0;
             // reset voice?
             return;
@@ -2002,25 +2002,24 @@ impl Ft2Play {
             mixer.set_sample(chn, smp_num as usize);
         }
 
-/*
-        if (sixteenbit)
-        {
-            sampleLoopBegin  = (sampleLoopBegin  & 0xFFFFFFFE) / 2;
-            sampleLength     = (sampleLength     & 0xFFFFFFFE) / 2;
-            sampleLoopLength = (sampleLoopLength & 0xFFFFFFFE) / 2;
-            sampleLoopEnd    = (sampleLoopEnd    & 0xFFFFFFFE) / 2;
+        if sixteenbit {
+            sample_loop_begin  = (sample_loop_begin  & 0xFFFFFFFE) / 2;
+            sample_length      = (sample_length      & 0xFFFFFFFE) / 2;
+            sample_loop_length = (sample_loop_length & 0xFFFFFFFE) / 2;
+            sample_loop_end    = (sample_loop_end    & 0xFFFFFFFE) / 2;
 
-            v->sampleData16R = &v->sampleData16[sampleLength];
+            //v->sampleData16R = &v->sampleData16[sampleLength];
         }
+/*
         else
         {
             v->sampleData8R = &v->sampleData8[sampleLength];
         }
 */
 
-        mixer.set_loop_start(chn, sample_loop_begin as u32);
-        mixer.set_loop_end(chn, sample_loop_end as u32);
-        mixer.enable_loop(chn, loop_flag != 0);   // FT2 can do 1-sample loops, but we don't (for security reasons)
+        mixer.set_loop_start(chn, sample_loop_begin);
+        mixer.set_loop_end(chn, sample_loop_end);
+        mixer.enable_loop(chn, sample_loop_length > 1);   // FT2 can do 1-sample loops, but we don't (for security reasons)
         mixer.set_voicepos(chn, position as f64);
 	
 /*

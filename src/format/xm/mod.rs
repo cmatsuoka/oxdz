@@ -68,9 +68,9 @@ impl SongHeaderTyp {
 
 #[derive(Default)]
 pub struct SampleHeaderTyp {
-    pub len    : i32,
-    pub rep_s  : i32,
-    pub rep_l  : i32,
+    pub len    : u32,
+    pub rep_s  : u32,
+    pub rep_l  : u32,
     pub vol    : u8,
     pub fine   : i8,
     pub typ    : u8,
@@ -90,9 +90,9 @@ impl SampleHeaderTyp {
     pub fn from_slice(smp_num: usize, b: &[u8]) -> Result<Self, Error> {
         let mut samp = SampleHeaderTyp::new();
 
-        samp.len = b.read32l(0)? as i32;
-        samp.rep_s = b.read32l(4)? as i32;
-        samp.rep_l = b.read32l(8)? as i32;
+        samp.len = b.read32l(0)?;
+        samp.rep_s = b.read32l(4)?;
+        samp.rep_l = b.read32l(8)?;
         samp.vol = b.read8(12)?;
         samp.fine = b.read8i(13)?;
         samp.typ = b.read8(14)?;
@@ -356,7 +356,7 @@ impl ModuleData for XmData {
 
     fn pattern_data(&self, pat: usize, num: usize, buffer: &mut [u8]) -> usize {
         let pattern = &self.patterns[pat];
-        let chn = pattern.num_chn;
+        //let chn = pattern.num_chn;
         let data = &pattern.data;
 
         let mut i = 0;
