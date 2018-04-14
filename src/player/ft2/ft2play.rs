@@ -1148,7 +1148,7 @@ impl Ft2Play {
                     ch.env_v_amp = ((ins.env_vp[env_pos].1 & 0x00FF) as u16) << 8;
 
                     env_pos += 1;
-                    if false && ins.env_v_typ & 4 != 0 {  // envelope loop
+                    if ins.env_v_typ & 4 != 0 {  // envelope loop
                         env_pos -= 1;
 
                         if env_pos == ins.env_v_rep_e as usize {
