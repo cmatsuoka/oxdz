@@ -203,6 +203,24 @@ lazy_static! {
         255, 253, 250, 244, 235, 224, 212, 197,
         180, 161, 141, 120,  97,  74,  49,  24
     ]);
+
+    static ref VIB_SINE_TAB: Box<[i8; 256]> = {
+        // generate auto-vibrato table (value-exact to FT2's table)
+        let mut tab = Box::new([0; 256]);
+        for i in 0..256 {
+            tab[i] = (((64.0 * ((-(i as f64) * (2.0 * PI)) / 256.0).sin()) + 0.5).floor()) as i8;
+        }
+        tab
+    };
+
+    static ref LOG_TAB: Box<[u32; 4 * 12 * 16]> = {
+        // generate log table (value-exact to FT2's table)
+        let mut tab = Box::new([0; 4 * 12 * 16]);
+        for i in 0..(4 * 12 * 16) {
+            tab[i] = (((256.0 * 8363.0) * ((i as f64 / 768.0) * 2.0_f64.ln()).exp()) + 0.5) as u32;
+        }
+        tab
+    };
 }
 
 
@@ -219,11 +237,9 @@ pub struct Ft2Play {
     stm                 : [StmTyp; MAX_VOICES],
     //instr             : Vec<InstrTyp>,
 
-    vib_sine_tab        : Vec<i8>,
     //linear_periods      : Vec<i16>,
     //amiga_periods       : Vec<i16>,
     note2period         : Vec<i16>,
-    log_tab             : Vec<u32>,
 }
 
 impl Ft2Play {
@@ -333,7 +349,7 @@ impl Ft2Play {
 
         if self.linear_frq_tab {
             let index = (12 * 192 * 4) - period;
-            rate = self.log_tab[index as usize % (12 * 16 * 4)];
+            rate = LOG_TAB[index as usize % (12 * 16 * 4)];
 
             let shift = (14 - (index / (12 * 16 * 4))) & 0x1F;
             if shift > 0 {
@@ -1347,7 +1363,7 @@ impl Ft2Play {
 
             // sine
             else {
-                auto_vib_val = self.vib_sine_tab[ch.e_vib_pos as usize] as i32;
+                auto_vib_val = VIB_SINE_TAB[ch.e_vib_pos as usize] as i32;
             }
 
             auto_vib_val <<= 2;
@@ -2188,11 +2204,6 @@ impl FormatPlayer for Ft2Play {
 
         // generate tables
 
-        // generate log table (value-exact to FT2's table)
-        for i in 0..(4 * 12 * 16) {
-            self.log_tab.push((((256.0 * 8363.0) * ((i as f64 / 768.0) * 2.0_f64.ln()).exp()) + 0.5) as u32);
-        }
-
         if self.linear_frq_tab {
             // generate linear table (value-exact to FT2's table)
             for i in 0..((12 * 10 * 16) + 16) {
@@ -2225,11 +2236,6 @@ impl FormatPlayer for Ft2Play {
             amigaPeriods[1927] =  8; amigaPeriods[1928] =  0; amigaPeriods[1929] = 16; amigaPeriods[1930] = 32;
             amigaPeriods[1931] = 24; amigaPeriods[1932] = 16; amigaPeriods[1933] =  8; amigaPeriods[1934] =  0;
             amigaPeriods[1935] =  0;*/
-        }
-
-        // generate auto-vibrato table (value-exact to FT2's table)
-        for i in 0..256 {
-            self.vib_sine_tab.push((((64.0 * ((-i as f64 * (2.0 * PI)) / 256.0).sin()) + 0.5).floor()) as i8);
         }
 
         self.set_pos(0, 0, &module);

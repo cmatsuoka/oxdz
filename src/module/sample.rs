@@ -68,7 +68,9 @@ pub struct Sample {
     pub address     : u32,
     pub size        : u32,
     pub rate        : f64,
+    /// The normalized rate used to play this sample.
     pub name        : String,
+    /// The raw PCM-encoded sample data.
     pub data        : SampleData,
 }
 
@@ -112,5 +114,4 @@ impl Sample {
         }
     }
 }
-
 
