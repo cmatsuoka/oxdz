@@ -1294,7 +1294,7 @@ impl Ft2Play {
             }
 
             if !env_did_interpolate {
-                ch.env_p_amp += ch.env_p_ip_value as u16;
+                ch.env_p_amp = (ch.env_p_amp as i16 + ch.env_p_ip_value) as u16;
 
                 env_val = ch.env_p_amp as i32;
                 if env_val>>8 > 0x40 {
@@ -1368,7 +1368,7 @@ impl Ft2Play {
 
             auto_vib_val <<= 2;
 
-            let mut tmp_period = ch.out_period + ((auto_vib_val * auto_vib_amp as i32) >> 16) as u16;
+            let mut tmp_period = (ch.out_period as i32 + ((auto_vib_val * auto_vib_amp as i32) >> 16)) as u16;
             if tmp_period > (32000 - 1) {
                 tmp_period = 0; // yes, FT2 zeroes it out
             }
