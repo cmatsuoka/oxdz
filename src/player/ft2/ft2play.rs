@@ -166,7 +166,7 @@ const MAX_VOICES: usize = 32;
 
 // TABLES AND VARIABLES
 lazy_static! {
-    static ref PANNING_TAB: Box<[u32; 257]> = Box::new([
+    static ref PANNING_TAB: Box<[u16; 257]> = Box::new([
             0,  4096,  5793,  7094,  8192,  9159, 10033, 10837, 11585, 12288, 12953, 13585, 14189, 14768, 15326, 15864,
         16384, 16888, 17378, 17854, 18318, 18770, 19212, 19644, 20066, 20480, 20886, 21283, 21674, 22058, 22435, 22806,
         23170, 23530, 23884, 24232, 24576, 24915, 25249, 25580, 25905, 26227, 26545, 26859, 27170, 27477, 27780, 28081,
@@ -183,7 +183,7 @@ lazy_static! {
         59073, 59215, 59357, 59498, 59639, 59779, 59919, 60059, 60199, 60338, 60477, 60615, 60753, 60891, 61029, 61166,
         61303, 61440, 61576, 61712, 61848, 61984, 62119, 62254, 62388, 62523, 62657, 62790, 62924, 63057, 63190, 63323,
         63455, 63587, 63719, 63850, 63982, 64113, 64243, 64374, 64504, 64634, 64763, 64893, 65022, 65151, 65279, 65408,
-        65536
+        65535
     ]);
 
     static ref AMIGA_FINE_PERIOD: Box<[u16; 12 * 8]> = Box::new([
@@ -1995,7 +1995,7 @@ impl Ft2Play {
 */
 
     fn voice_set_source(&mut self, chn: usize, smp_num: u32, sample_length: u32, mut sample_loop_begin: u32,
-        mut sample_loop_length: u32, mut sample_loop_end: u32, mut loop_flag: u8, sixteenbit: bool, stereo: bool,
+        mut sample_loop_length: u32, mut sample_loop_end: u32, mut loop_flag: u8, sixteenbit: bool, _stereo: bool,
         mut position: i32, mixer: &mut Mixer)
     {
 
@@ -2059,7 +2059,9 @@ impl Ft2Play {
                 /* this order is carefully selected, modification can result in unwanted behavior */
                 //if status & IS_NYTON          != 0 { self.voiceSetVolRamp(i); }
                 if status & IS_VOL            != 0 { mixer.set_volume(i, (self.stm[i].final_vol as usize) << 2); }   // 0..256 => 0..1024
-                if status & IS_PAN            != 0 { mixer.set_pan(i, self.stm[i].final_pan as isize - 128); }
+                if status & IS_PAN            != 0 { let pan = PANNING_TAB[self.stm[i].final_pan as usize] >> 8;
+                                                     mixer.set_pan(i, pan as isize - 128);
+                                                   }
                 //if status & (IS_VOL | IS_PAN) != 0 { self.voice_update_volumes(i, status); }
                 if status & IS_PERIOD         != 0 { let frq = self.get_frequence_value(self.stm[i].final_period);
                                                      mixer.set_period(i, (1712 * 8363) as f64 / (frq * 4) as f64);
@@ -2178,7 +2180,6 @@ impl Ft2Play {
 }
 
 
-
 impl FormatPlayer for Ft2Play {
     fn start(&mut self, data: &mut PlayerData, mdata: &ModuleData, _mixer: &mut Mixer) {
 
@@ -2231,11 +2232,7 @@ impl FormatPlayer for Ft2Play {
             // these 17 values were taken from a memdump of FT2 in DOSBox.
             // they might change depending on what you ran before FT2, but let's not make it too complicated.
 
-            /*amigaPeriods[1919] = 22; amigaPeriods[1920] = 16; amigaPeriods[1921] =  8; amigaPeriods[1922] =  0;
-            amigaPeriods[1923] = 16; amigaPeriods[1924] = 32; amigaPeriods[1925] = 24; amigaPeriods[1926] = 16;
-            amigaPeriods[1927] =  8; amigaPeriods[1928] =  0; amigaPeriods[1929] = 16; amigaPeriods[1930] = 32;
-            amigaPeriods[1931] = 24; amigaPeriods[1932] = 16; amigaPeriods[1933] =  8; amigaPeriods[1934] =  0;
-            amigaPeriods[1935] =  0;*/
+            self.note2period[1919..1935].copy_from_slice(&[16, 8, 0, 22, 16, 32, 24, 16, 8, 0, 26, 32, 24, 16, 8, 0, 0]);
         }
 
         self.set_pos(0, 0, &module);
