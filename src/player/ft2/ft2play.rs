@@ -369,7 +369,7 @@ impl Ft2Play {
         ch.ton_nr = ton;
 
         // oxdz: sanity check
-        if ch.instr_nr < 1 || ch.instr_nr >= module.header.ant_instrs {
+        if ch.instr_nr < 1 || ch.instr_nr > module.header.ant_instrs {
             return
         }
 
