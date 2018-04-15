@@ -2,38 +2,46 @@ use std::slice;
 use std::ops::{Index, IndexMut};
 
 #[derive(Clone, Debug)]
-pub struct SampleData(Vec<u8>);
+pub struct SampleData {
+    raw: Vec<u8>
+}
 
 impl<'a> SampleData {
+    pub fn new() -> Self {
+        SampleData {
+            raw: Vec::new()
+        }
+    }
+
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.raw.len()
     }
 
     pub fn as_slice_u8(&'a self) -> &'a [u8] {
-        &self.0
+        &self.raw
     }
 
     pub fn as_slice_i8(&'a self) -> &'a [i8] {
         unsafe {
-            slice::from_raw_parts(self.0.as_ptr() as *const i8, self.0.len() as usize)
+            slice::from_raw_parts(self.raw.as_ptr() as *const i8, self.raw.len() as usize)
         }
     }
 
     pub fn as_slice_u16(&'a self) -> &'a [u16] {
         unsafe {
-            slice::from_raw_parts(self.0.as_ptr() as *const u16, self.0.len() as usize / 2)
+            slice::from_raw_parts(self.raw.as_ptr() as *const u16, self.raw.len() as usize / 2)
         }
     }
 
     pub fn as_slice_i16(&'a self) -> &'a [i16] {
         unsafe {
-            slice::from_raw_parts(self.0.as_ptr() as *const i16, self.0.len() as usize / 2)
+            slice::from_raw_parts(self.raw.as_ptr() as *const i16, self.raw.len() as usize / 2)
         }
     }
 
     pub fn as_slice_u16_mut(&'a mut self) -> &'a mut [u16] {
         unsafe {
-            slice::from_raw_parts_mut(self.0.as_ptr() as *mut u16, self.0.len() as usize / 2)
+            slice::from_raw_parts_mut(self.raw.as_ptr() as *mut u16, self.raw.len() as usize / 2)
         }
     }
 
@@ -43,13 +51,13 @@ impl Index<usize> for SampleData {
     type Output = u8;
 
     fn index(&self, i: usize) -> &u8 {
-        &self.0[i]
+        &self.raw[i]
     }
 }
 
 impl IndexMut<usize> for SampleData {
     fn index_mut<'a>(&'a mut self, i: usize) -> &'a mut u8 {
-        &mut self.0[i]
+        &mut self.raw[i]
     }
 }
 
@@ -83,13 +91,13 @@ impl Sample {
             size        : 0,
             rate        : 1.0,
             name        : "".to_owned(),
-            data        : SampleData(Vec::new()),
+            data        : SampleData::new(),
         }
     }
 
     pub fn store(&mut self, b: &[u8]) {
-        self.data.0.extend(b);
-        self.data.0.extend([0; 2].iter());
+        self.data.raw.extend(b);
+        self.data.raw.extend([0; 2].iter());
         let i = self.data.len();
         if i >= 3 {     // FIXME: workaround for Amiga blep ministeps
             self.data[i-2] = self.data[i-3];
