@@ -13,7 +13,7 @@ pub struct SongHeaderTyp {
     sig        : String,
     name       : String,
     prog_name  : String,
-    pub ver        : u16,
+    pub ver    : u16,
     header_size: u32,
     pub len        : u16,
     pub rep_s      : u16,
@@ -238,11 +238,14 @@ impl PatternHeaderTyp {
         }
     }
 
-    pub fn from_slice(b: &[u8], num_chn: usize) -> Result<Self, Error> {
+    pub fn from_slice(b: &[u8], version: u16, num_chn: usize) -> Result<Self, Error> {
         let pattern_header_size = b.read32l(0)? as i32;
         let _typ = b.read8(4)?;
-        let patt_len = b.read16l(5)?;
-        let data_len = b.read16l(7)?;
+        let mut ofs = 5;
+        let patt_len = if version > 0x0102 { let r = b.read16l(ofs)?; ofs += 1; r } else { b.read8(5)? as u16 + 1 };
+        ofs += 1;
+        let data_len = b.read16l(ofs)?;
+        ofs += 2;
 
         let mut pat = PatternHeaderTyp{
             pattern_header_size,
@@ -253,7 +256,6 @@ impl PatternHeaderTyp {
             data: Vec::new(),
         };
 
-        let mut ofs = 9;
         for _r in 0..patt_len as usize {
             for _c in 0..num_chn {
                 let mut e = TonTyp::new();

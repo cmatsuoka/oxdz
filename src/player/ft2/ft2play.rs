@@ -2232,7 +2232,7 @@ impl FormatPlayer for Ft2Play {
             // these 17 values were taken from a memdump of FT2 in DOSBox.
             // they might change depending on what you ran before FT2, but let's not make it too complicated.
 
-            self.note2period[1919..1935].copy_from_slice(&[16, 8, 0, 22, 16, 32, 24, 16, 8, 0, 26, 32, 24, 16, 8, 0, 0]);
+            self.note2period[1919..1936].copy_from_slice(&[16, 8, 0, 22, 16, 32, 24, 16, 8, 0, 26, 32, 24, 16, 8, 0, 0]);
         }
 
         self.set_pos(0, 0, &module);

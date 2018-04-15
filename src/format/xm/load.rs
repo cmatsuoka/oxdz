@@ -1,5 +1,5 @@
 use format::{ProbeInfo, Format, Loader};
-use format::xm::{XmData, SongHeaderTyp, InstrHeaderTyp, PatternHeaderTyp};
+use format::xm::{XmData, SongHeaderTyp, InstrHeaderTyp, SampleHeaderTyp, PatternHeaderTyp};
 use module::{Module, Sample};
 use module::sample::SampleType;
 use util::{BinaryRead, SliceConvert};
@@ -39,51 +39,30 @@ impl Loader for XmLoader {
         let channels = header.ant_chn as usize;
 
         let mut offset = 60 + header.header_size as usize;
-        let mut patterns: Vec<PatternHeaderTyp> = Vec::with_capacity(header.ant_ptn as usize);
-        for i in 0..header.ant_ptn as usize - 1 {
-            let ptn = PatternHeaderTyp::from_slice(b.slice(offset, b.len() - offset)?, header.ant_chn as usize)?;
-            debug!("pattern {}: {} rows", i, ptn.patt_len);
-            offset += ptn.pattern_header_size as usize + ptn.data_len as usize;
-            patterns.push(ptn);
-        }
-        // alloc one extra pattern
-        patterns.push(PatternHeaderTyp::new_empty(header.ant_chn as usize));
+        let patterns: Vec<PatternHeaderTyp>;
+        let instruments: Vec<InstrHeaderTyp>;
+        let mut samples: Vec<Sample>;
 
-        let mut instruments: Vec<InstrHeaderTyp> = Vec::with_capacity(header.ant_instrs as usize);
-        let mut samples: Vec<Sample> = Vec::new();
-        let mut smp_num = 1;
+        if version >= 0x0104 {
+            patterns = load_patterns(&header, &b, &mut offset)?;
+            let ins_list = load_instruments(&header, &b, &mut offset)?;
+            instruments = ins_list.0;
+            samples = ins_list.1;
+        } else {
+            let ins_list = load_instruments(&header, &b, &mut offset)?;
+            patterns = load_patterns(&header, &b, &mut offset)?;
+            instruments = ins_list.0;
+            samples = ins_list.1;
 
-        for _i in 0..header.ant_instrs as usize {
-            let ins = InstrHeaderTyp::from_slice(smp_num, b.slice(offset, b.len() - offset)?)?;
-            let ant_samp = ins.ant_samp;
-
-            offset += ins.instr_size as usize + 40 * ant_samp as usize;
-            if ant_samp > 0 {
-
-                for j in 0..ant_samp as usize {
-                    let samp = &ins.samp[j];
-                    let mut smp = Sample::new();
-                    smp.num = smp_num;
-                    smp.name = samp.name.to_owned();
-                    smp.size = samp.len as u32;
-                    let byte_size = samp.len as usize;
-                    smp.sample_type = if samp.typ & 16 != 0 {
-                        let buf = diff_decode_16l(b.slice(offset, byte_size)?);
-                        smp.store(&buf[..].as_slice_u8());
-                        SampleType::Sample16
-                    } else {
-                        let buf = diff_decode_8(b.slice(offset, byte_size)?);
-                        smp.store(&buf[..]);
-                        SampleType::Sample8
-                    };
-
-                    smp_num += 1;
-                    offset += byte_size;
+            // XM 1.03 stores all samples after the patterns
+            let mut smp_num = 1;
+            for ins in &instruments {
+                for samp in &ins.samp {
+                    let smp = load_sample(&samp, smp_num, b, &mut offset)?;
                     samples.push(smp);
+                    smp_num += 1;
                 }
             }
-
-            instruments.push(ins);
         }
 
         let data = XmData{
@@ -104,6 +83,67 @@ impl Loader for XmLoader {
 
         Ok(m)
     }
+}
+
+fn load_patterns(header: &SongHeaderTyp, b: &[u8], offset: &mut usize) -> Result<Vec<PatternHeaderTyp>, Error> {
+    let mut patterns = Vec::with_capacity(header.ant_ptn as usize);
+    for i in 0..header.ant_ptn as usize - 1 {
+        let ptn = PatternHeaderTyp::from_slice(b.slice(*offset, b.len() - *offset)?, header.ver, header.ant_chn as usize)?;
+        debug!("pattern {}: {} rows", i, ptn.patt_len);
+        *offset += ptn.pattern_header_size as usize + ptn.data_len as usize;
+        patterns.push(ptn);
+    }
+    // alloc one extra pattern
+    patterns.push(PatternHeaderTyp::new_empty(header.ant_chn as usize));
+
+    Ok(patterns)
+}
+
+fn load_instruments(header: &SongHeaderTyp, b: &[u8], mut offset: &mut usize) -> Result<(Vec<InstrHeaderTyp>, Vec<Sample>), Error> {
+    let mut instruments: Vec<InstrHeaderTyp> = Vec::with_capacity(header.ant_instrs as usize);
+    let mut samples: Vec<Sample> = Vec::new();
+    let mut smp_num = 1;
+
+    for _i in 0..header.ant_instrs as usize {
+        let ins = InstrHeaderTyp::from_slice(smp_num, b.slice(*offset, b.len() - *offset)?)?;
+        let ant_samp = ins.ant_samp;
+
+        *offset += ins.instr_size as usize + 40 * ant_samp as usize;
+        if ant_samp > 0 {
+
+            for j in 0..ant_samp as usize {
+                if header.ver >= 0x0104 {
+                    let smp = load_sample(&ins.samp[j], smp_num, b, &mut offset)?;
+                    samples.push(smp);
+                }
+                smp_num += 1;
+            }
+        }
+
+        instruments.push(ins);
+    }
+
+    Ok((instruments, samples))
+}
+
+fn load_sample(samp: &SampleHeaderTyp, smp_num: usize, b: &[u8], offset: &mut usize) -> Result<Sample, Error> {
+    let mut smp = Sample::new();
+    smp.num = smp_num;
+    smp.name = samp.name.to_owned();
+    smp.size = samp.len as u32;
+    let byte_size = samp.len as usize;
+    smp.sample_type = if samp.typ & 16 != 0 {
+        let buf = diff_decode_16l(b.slice(*offset, byte_size)?);
+        smp.store(&buf[..].as_slice_u8());
+        SampleType::Sample16
+    } else {
+        let buf = diff_decode_8(b.slice(*offset, byte_size)?);
+        smp.store(&buf[..]);
+        SampleType::Sample8
+    };
+    *offset += byte_size;
+
+    Ok(smp)
 }
 
 fn diff_decode_8(b: &[u8]) -> Vec<u8> {
