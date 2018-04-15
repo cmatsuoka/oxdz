@@ -1,4 +1,5 @@
 use std::ptr;
+use std::slice;
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use Error;
 use ::*;
@@ -104,6 +105,20 @@ impl<'a> BinaryRead for &'a [u8] {
         Ok(&self[start..start + size])
     }
 }
+
+
+pub trait SliceConvert<'a> {
+    fn as_slice_u8(&'a self) -> &'a [u8];
+}
+
+impl<'a> SliceConvert<'a> for [u16] {
+    fn as_slice_u8(&'a self) -> &'a [u8] {
+        unsafe {
+            slice::from_raw_parts(self.as_ptr() as *const u8, self.len() as usize * 2)
+        }
+    }
+}
+
 
 fn check_buffer_size(b: &[u8], end: usize) -> Result<(), Error> {
     if end > b.len() {

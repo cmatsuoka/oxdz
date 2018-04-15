@@ -1,4 +1,58 @@
 use std::slice;
+use std::ops::{Index, IndexMut};
+
+#[derive(Clone, Debug)]
+pub struct SampleData(Vec<u8>);
+
+impl<'a> SampleData {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn as_slice_u8(&'a self) -> &'a [u8] {
+        &self.0
+    }
+
+    pub fn as_slice_i8(&'a self) -> &'a [i8] {
+        unsafe {
+            slice::from_raw_parts(self.0.as_ptr() as *const i8, self.0.len() as usize)
+        }
+    }
+
+    pub fn as_slice_u16(&'a self) -> &'a [u16] {
+        unsafe {
+            slice::from_raw_parts(self.0.as_ptr() as *const u16, self.0.len() as usize / 2)
+        }
+    }
+
+    pub fn as_slice_i16(&'a self) -> &'a [i16] {
+        unsafe {
+            slice::from_raw_parts(self.0.as_ptr() as *const i16, self.0.len() as usize / 2)
+        }
+    }
+
+    pub fn as_slice_u16_mut(&'a mut self) -> &'a mut [u16] {
+        unsafe {
+            slice::from_raw_parts_mut(self.0.as_ptr() as *mut u16, self.0.len() as usize / 2)
+        }
+    }
+
+}
+
+impl Index<usize> for SampleData {
+    type Output = u8;
+
+    fn index(&self, i: usize) -> &u8 {
+        &self.0[i]
+    }
+}
+
+impl IndexMut<usize> for SampleData {
+    fn index_mut<'a>(&'a mut self, i: usize) -> &'a mut u8 {
+        &mut self.0[i]
+    }
+}
+
 
 #[derive(Debug, Clone)]
 pub enum SampleType {
@@ -15,7 +69,7 @@ pub struct Sample {
     pub size        : u32,
     pub rate        : f64,
     pub name        : String,
-    pub data        : Vec<u8>,
+    pub data        : SampleData,
 }
 
 impl Sample {
@@ -27,41 +81,17 @@ impl Sample {
             size        : 0,
             rate        : 1.0,
             name        : "".to_owned(),
-            data        : Vec::new(),
+            data        : SampleData(Vec::new()),
         }
     }
 
     pub fn store(&mut self, b: &[u8]) {
-        self.data.extend(b);
-        self.data.extend([0; 2].iter());
+        self.data.0.extend(b);
+        self.data.0.extend([0; 2].iter());
         let i = self.data.len();
         if i >= 3 {     // FIXME: workaround for Amiga blep ministeps
             self.data[i-2] = self.data[i-3];
             self.data[i-1] = self.data[i-3];
-        }
-    }
-
-    pub fn data_8(&self) -> &[i8] {
-        unsafe {
-            slice::from_raw_parts(self.data.as_ptr() as *const i8, self.size as usize + 2)
-        }
-    }
-
-    pub fn data_u8(&self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(self.data.as_ptr() as *const u8, self.size as usize + 2)
-        }
-    }
-
-    pub fn data_16(&self) -> &[i16] {
-        unsafe {
-            slice::from_raw_parts(self.data.as_ptr() as *const i16, self.size as usize)
-        }
-    }
-
-    fn data_u16_mut(&self) -> &mut [u16] {
-        unsafe {
-            slice::from_raw_parts_mut(self.data.as_ptr() as *mut u16, self.size as usize)
         }
     }
 
@@ -73,7 +103,7 @@ impl Sample {
                 }
             },
             SampleType::Sample16 => {
-                let data = self.data_u16_mut();
+                let data = self.data.as_slice_u16_mut();
                 for i in 0..self.size as usize {
                     data[i] = data[i].wrapping_add(0x8000);
                 }
@@ -82,4 +112,5 @@ impl Sample {
         }
     }
 }
+
 

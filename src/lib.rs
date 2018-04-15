@@ -100,8 +100,7 @@ impl<'a> Oxdz<'a> {
 	debug!("md5sum: {}", md5sum.iter().fold("".to_owned(), |mut s, x| { s.push_str(&format!("{:x}", x)); s } ));
 
         let mut player = player::Player::find(module, rate, &id, "")?;
-        player.scan();
-        player.start();
+        player.scan();  // scan calls start() before proceeding, and reset() at end
 
         Ok(Oxdz {
             player,

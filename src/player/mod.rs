@@ -5,6 +5,7 @@ mod soundtracker;
 mod ust;
 mod st2;
 mod st3;
+mod ft2;
 mod hmn;
 mod fasttracker;
 
@@ -29,6 +30,9 @@ fn all() -> Vec<Box<PlayerListEntry>> {
         Box::new(st3::St3),
         Box::new(soundtracker::DocSt2),
         Box::new(ust::Ust27),
+        Box::new(st2::St2),
+        Box::new(st3::St3),
+        Box::new(ft2::Ft2),
         Box::new(hmn::Hmn),
     ]
 }
@@ -135,8 +139,11 @@ impl PlayerData {
         self.frame = 0;
         self.song  = 0;
         self.speed = self.initial_speed;
-        self.tempo = self.initial_tempo as f32;
+        self.tempo = self.initial_tempo;
         self.time  = 0.0;
+        self.loop_count = 0;
+        self.end_point = self.scan_data[0].num;
+        self.inside_loop = false;
     }
 
     pub fn check_end_of_module(&mut self) {
@@ -150,7 +157,6 @@ impl PlayerData {
             self.end_point -= 1;
         }
     }
-
 }
 
 

@@ -5,6 +5,7 @@ pub mod mk;
 pub mod st;
 pub mod stm;
 pub mod s3m;
+pub mod xm;
 pub mod fest;
 
 // Supported formats
@@ -20,6 +21,7 @@ pub enum Format {
     Flt,
     S3m,
     Stm,
+    Xm,
 }
 
 pub struct ProbeInfo {
@@ -41,6 +43,7 @@ pub trait Loader: Sync {
 
 fn loader_list() -> Vec<Box<Loader>> {
     vec![
+        Box::new(xm::XmLoader),
         Box::new(s3m::S3mLoader),
         Box::new(stm::StmLoader),
         Box::new(mk::ModLoader),

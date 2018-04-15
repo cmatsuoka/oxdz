@@ -151,6 +151,12 @@ impl<'a> Mixer<'a> {
         try_voice!(voice, self.voices);
 
         let v = &mut self.voices[voice];
+
+        if v.smp >= self.sample.len() {
+            debug!("set_voicepos: invalid sample number {}", v.smp);
+            return
+        }
+
         v.pos = pos;
 
         let sample = &self.sample[v.smp];
@@ -339,12 +345,12 @@ impl<'a> Mixer<'a> {
                         md.vol_r = vol_r >> 8;
 
                         match v.paula {
-                            Some(ref mut val) => md.mix_paula(&sample.data_8(), &mut self.buf32, val),
+                            Some(ref mut val) => md.mix_paula(&sample.data.as_slice_i8(), &mut self.buf32, val),
                             None          => {
                                 match sample.sample_type {
                                     SampleType::Empty    => {},
-                                    SampleType::Sample8  => md.mix::<i8>(self.interp, &sample.data_8(), &mut self.buf32, &mut v.i_buffer),
-                                    SampleType::Sample16 => md.mix::<i16>(self.interp, &sample.data_16(), &mut self.buf32, &mut v.i_buffer),
+                                    SampleType::Sample8  => md.mix::<i8>(self.interp, &sample.data.as_slice_i8(), &mut self.buf32, &mut v.i_buffer),
+                                    SampleType::Sample16 => md.mix::<i16>(self.interp, &sample.data.as_slice_i16(), &mut self.buf32, &mut v.i_buffer),
                                 };
                             }
                         }
