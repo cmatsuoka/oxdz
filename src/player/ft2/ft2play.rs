@@ -34,7 +34,7 @@ struct SongTyp {
     pos_jump_flag  : bool,
     //song_tab     : Vec<u8>,
     ver            : u16,
-    name           : String,
+    //name           : String,
 }
 
 /*
@@ -212,8 +212,8 @@ pub struct Ft2Play {
     patt_lens           : Vec<u16>,
     speed_val           : u32,
     real_replay_rate    : u32,
-    f_audio_freq        : f32,
-    quick_vol_ramp_mul_f: f32,
+    //f_audio_freq        : f32,
+    //quick_vol_ramp_mul_f: f32,
     tick_vol_ramp_mul_f : f32,
     song                : SongTyp,
     stm                 : [StmTyp; MAX_VOICES],
@@ -721,8 +721,9 @@ impl Ft2Play {
                     }
 
                     if env_pos >= ins.env_vp_ant as usize {
-                        env_pos = ins.env_vp_ant as usize - 1;
-                        if env_pos < 0 {
+                        if ins.env_vp_ant > 1 {
+                            env_pos = ins.env_vp_ant as usize - 1;
+                        } else {
                             env_pos = 0;
                         }
                     }
@@ -780,8 +781,9 @@ impl Ft2Play {
                     }
 
                     if env_pos >= ins.env_pp_ant as usize {
-                        env_pos = ins.env_pp_ant as usize - 1;
-                        if env_pos < 0 {
+                        if ins.env_pp_ant > 1 {
+                            env_pos = ins.env_pp_ant as usize - 1;
+                        } else {
                             env_pos = 0;
                         }
                     }
@@ -1976,23 +1978,14 @@ impl Ft2Play {
     }
 */
 
-    fn voice_set_source(&mut self, chn: usize, smp_num: u32, mut sample_length: u32, mut sample_loop_begin: u32,
+    fn voice_set_source(&mut self, chn: usize, smp_num: u32, sample_length: u32, mut sample_loop_begin: u32,
         mut sample_loop_length: u32, mut sample_loop_end: u32, mut loop_flag: u8, sixteenbit: bool, stereo: bool,
         mut position: i32, mixer: &mut Mixer)
     {
 
-/*
-        voice_t *v;
-
-        v = &voice[i];
-
-        if ((sampleData == NULL) || (sampleLength < 1))
-        {
-            v->sampleData8  = NULL;
-            v->sampleData16 = NULL;
-            return;
+        if smp_num == 0 || sample_length < 1 {
+            return
         }
-*/
 
         if position >= sample_length as i32 {
             position = 0;
@@ -2004,18 +1997,10 @@ impl Ft2Play {
 
         if sixteenbit {
             sample_loop_begin  = (sample_loop_begin  & 0xFFFFFFFE) / 2;
-            sample_length      = (sample_length      & 0xFFFFFFFE) / 2;
+            //sample_length      = (sample_length      & 0xFFFFFFFE) / 2;
             sample_loop_length = (sample_loop_length & 0xFFFFFFFE) / 2;
             sample_loop_end    = (sample_loop_end    & 0xFFFFFFFE) / 2;
-
-            //v->sampleData16R = &v->sampleData16[sampleLength];
         }
-/*
-        else
-        {
-            v->sampleData8R = &v->sampleData8[sampleLength];
-        }
-*/
 
         if sample_loop_length < 2 {   // FT2 can do 1-sample loops, but we don't (for security reasons)
             loop_flag = 0;
@@ -2025,19 +2010,6 @@ impl Ft2Play {
         mixer.set_loop_end(chn, sample_loop_end);
         mixer.enable_loop(chn, loop_flag != 0);
         mixer.set_voicepos(chn, position as f64);
-	
-/*
-        v->frac             = 0.0f;
-        v->sample16bit      = sixteenbit ? true : false;
-        v->loopingBackwards = false;
-        v->samplePosition   = position;
-        v->sampleLength     = sampleLength;
-        v->sampleLoopBegin  = sampleLoopBegin;
-        v->sampleLoopEnd    = sampleLoopEnd;
-        v->sampleLoopLength = sampleLoopLength;;
-        v->loop             = loopFlag ? ((loopFlag & 2) ? 2 : 1) : 0;
-        v->stereo           = stereo ? true : false;
-*/
     }
 
     fn voice_trigger(&mut self, chn: usize, module: &XmData, mut mixer: &mut Mixer) {

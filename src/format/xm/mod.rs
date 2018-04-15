@@ -156,7 +156,6 @@ impl InstrHeaderTyp {
         ins.ant_samp = b.read16l(27)?;
         debug!("instrument: {:22} {:02x} {:2}", ins.name, ins.typ, ins.ant_samp);
 
-        let sample: Vec<Sample> = Vec::new();
         let mut ofs = ins.instr_size as usize;
 
         if ins.ant_samp > 0 {
