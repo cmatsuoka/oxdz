@@ -1977,7 +1977,7 @@ impl Ft2Play {
 */
 
     fn voice_set_source(&mut self, chn: usize, smp_num: u32, mut sample_length: u32, mut sample_loop_begin: u32,
-        mut sample_loop_length: u32, mut sample_loop_end: u32, loop_flag: u8, sixteenbit: bool, stereo: bool,
+        mut sample_loop_length: u32, mut sample_loop_end: u32, mut loop_flag: u8, sixteenbit: bool, stereo: bool,
         mut position: i32, mixer: &mut Mixer)
     {
 
@@ -2017,9 +2017,13 @@ impl Ft2Play {
         }
 */
 
+        if sample_loop_length < 2 {   // FT2 can do 1-sample loops, but we don't (for security reasons)
+            loop_flag = 0;
+        }
+
         mixer.set_loop_start(chn, sample_loop_begin);
         mixer.set_loop_end(chn, sample_loop_end);
-        mixer.enable_loop(chn, sample_loop_length > 1);   // FT2 can do 1-sample loops, but we don't (for security reasons)
+        mixer.enable_loop(chn, loop_flag != 0);
         mixer.set_voicepos(chn, position as f64);
 	
 /*
